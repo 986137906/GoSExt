@@ -1,6 +1,5 @@
 local menu = MenuElement({id = "GSOMenu", name = "GamsteronOrb", type = MENU})
         menu:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
-        menu:MenuElement({id = "wind", name = "ExtraWindupTime", value = 120, min = 0, max = 300, step = 10})
 
 function ValidTarget(range, enemy)
       if enemy.distance < range and enemy.valid and not enemy.dead and enemy.isTargetable and enemy.visible then
@@ -29,7 +28,8 @@ function GetAATarget(range)
 end
 
 local lastaa = 0
-local function Attack(t)
+local function Attack()
+        local t = GetAATarget(myHero.range + myHero.boundingRadius)
         if t == nil or os.clock() < lastaa + myHero.attackData.animationTime then
                 return
         end
@@ -40,13 +40,12 @@ local function Attack(t)
         lastaa = os.clock()
         DelayAction(function()
                 Control.SetCursorPos(mPos)
-        end,0.001)
+        end,0.01)
 end
 
 local lastmove = 0
-local wind = menu.wind:Value()*0.001
 local function Move()
-        if os.clock() < lastaa + myHero.attackData.windUpTime + wind or os.clock() < lastmove + 0.2 then
+        if os.clock() < lastaa + myHero.attackData.windUpTime + 0.05 or os.clock() < lastmove + 0.2 then
                 return
         end
         Control.mouse_event(0x0008)
@@ -55,10 +54,8 @@ local function Move()
 end
 
 Callback.Add("Tick", function()
-        wind = menu.wind:Value()*0.001
         if menu.combo:Value() then
-                local t = GetAATarget(myHero.range + myHero.boundingRadius)
                 Move()
-                Attack(t)
+                Attack()
         end
 end)
