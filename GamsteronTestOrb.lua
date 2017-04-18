@@ -40,7 +40,7 @@ local function Attack()
         lastaa = os.clock()
         DelayAction(function()
                 Control.SetCursorPos(mPos)
-        end,0.01)
+        end,0.05)
 end
 
 local lastmove = 0
