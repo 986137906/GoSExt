@@ -7,10 +7,10 @@ local Menu_GSO = MenuElement({id = "menugso", name = "GamsteronOrb", type = MENU
         Menu_GSO:MenuElement({id = "lhit", name = "LastHit Key", key = string.byte("X")})
         Menu_GSO:MenuElement({id = "lane", name = "LaneClear Key", key = string.byte("V")})
 
-local MinionCount_GSO 			= Game.MinionCount;
-local Minion_GSO 				    = Game.Minion;
-local HeroCount_GSO 			  = Game.HeroCount;
-local Hero_GSO 				      = Game.Hero;
+local MinionCount_GSO       = Game.MinionCount;
+local Minion_GSO            = Game.Minion;
+local HeroCount_GSO 	    = Game.HeroCount;
+local Hero_GSO 		    = Game.Hero;
 
 local LastAA_GSO            = 0
 local LastMove_GSO          = 0
@@ -104,8 +104,8 @@ function GetHealthPrediction(unit, time)
         local result    = 0
         local unitpos   = unit.pos
         local unitid    = unit.handle
-				local t = GetAllyMinions_GSO(2000)
-				for i = 1, #t do
+	local t         = GetAllyMinions_GSO(2000)
+	for i = 1, #t do
                 local minion = t[i]
                 if minion.attackData.target == unitid then
                         local checkT            = Game.Timer()
@@ -135,6 +135,9 @@ end
 
 Callback.Add("Tick", function()
 
+        GOS.BlockMovement = true
+        GOS.BlockAttack = true
+        
         if DelayedActionAA_GSO ~= nil and Game.Timer() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
                 DelayedActionAA_GSO[1]()
                 DelayedActionAA_GSO = nil
@@ -274,7 +277,7 @@ Callback.Add("Tick", function()
                         Control.mouse_event(0x0010)
                         LastAA_GSO = Game.Timer()
                         LastMove_GSO = 0
-                        DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.1 }
+                        DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.75 }
                 elseif canmove then
                         --[[
                         local cPos = cursorPos
