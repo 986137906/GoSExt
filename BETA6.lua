@@ -118,7 +118,6 @@ function GetHealthPrediction(unit, time)
                         aacompleteT = checkT < aacompleteT and aacompleteT or aacompleteT + minion_animT
                         if aacompleteT - checkT < time + MenuLcs_GSO then
                                 local minion_ad = Floor_GSO(minion.totalDamage*0.8)
-                                print(minion.bonusDamagePercent.." "..minion.flatDamageReduction)
                                 result = result + minion_ad
                                 for j = 1, 5 do
                                         aacompleteT = aacompleteT + minion_animT
@@ -136,13 +135,13 @@ end
 
 Callback.Add("Tick", function()
 
-        if DelayedActionAA_GSO ~= nil and Game.Timer() - DelayedActionAA_GSO.time > DelayedActionAA_GSO.delay then
-                DelayedActionAA_GSO.execute()
+        if DelayedActionAA_GSO ~= nil and Game.Timer() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
+                DelayedActionAA_GSO[1]()
                 DelayedActionAA_GSO = nil
         end
 
-        if DelayedActionMove_GSO ~= nil and Game.Timer() - DelayedActionMove_GSO.time > DelayedActionMove_GSO.delay then
-                DelayedActionMove_GSO.execute()
+        if DelayedActionMove_GSO ~= nil and Game.Timer() - DelayedActionMove_GSO[2] > DelayedActionMove_GSO[3] then
+                DelayedActionMove_GSO[1]()
                 DelayedActionMove_GSO = nil
         end
         
@@ -275,39 +274,44 @@ Callback.Add("Tick", function()
                         Control.mouse_event(0x0010)
                         LastAA_GSO = Game.Timer()
                         LastMove_GSO = 0
-                        DelayedActionAA_GSO = { execute = function() Control.SetCursorPos(cPos.x, cPos.y) end, time = Game.Timer(), delay = 0.075 }
+                        DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.1 }
                 elseif canmove then
+                        --[[
                         local cPos = cursorPos
                         local num = 1
-                        local pos = mousePos
+                        local pos = nil
                         for i = 1, 15 do
                                 local count = 0
                                 local mPos = LocalExtendedPos(mousePos, HeroPos_GSO, -50*i)
-                                local t = GetEnemyMinions_GSO(HeroAArange_GSO)
-                                for i = 1, #t do
-                                GetAllEnemyMinions_GSO(range)
-                                for i = 1, Game.HeroCount() do
-                                        local unit    = Game.Hero(i)
+                                local t1 = GetAllEnemyMinions_GSO(2000)
+                                for i = 1, #t1 do
+                                        local unit = t1[i]
                                         local unitpos = unit.pos
-                                        if unit.team ~= HeroTeam_GSO and unit.health > 0 and Sqrt_GSO((mPos.x-unitpos.x)^2 + (mPos.z-unitpos.z)^2) < 250 then
+                                        if Sqrt_GSO((mPos.x-unitpos.x)^2 + (mPos.z-unitpos.z)^2) < unit.boundingRadius + 100 then
                                                 count = 1
                                                 break
                                         end
                                 end
-                                for i = 1, Game.MinionCount() do
-                                        local unit = Game.Minion(i)
+                                local t2 = GetEnemyHeroes_GSO(2000)
+                                for i = 1, #t2 do
+                                        local unit = t2[i]
                                         local unitpos = unit.pos
-                                        if unit.team ~= HeroTeam_GSO and unit.health > 0 and Sqrt_GSO((mPos.x-unitpos.x)^2 + (mPos.z-unitpos.z)^2) < 250 then
+                                        if Sqrt_GSO((mPos.x-unitpos.x)^2 + (mPos.z-unitpos.z)^2) < unit.boundingRadius + 100 then
                                                 count = 1
                                                 break
                                         end
                                 end
-                                if count == 0 then num = i; pos.x = mPos.x; pos.z = mPos.z; break end
+                                if count == 0 then
+                                        num = i
+                                        pos = Vector(mPos.x, 0, mPos.z)
+                                        break
+                                end
                         end
                         if num > 1 then Control.SetCursorPos(pos) end
+                        ]]
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
-                        if num > 1 then DelayedActionMove_GSO = { execute = function() Control.SetCursorPos(cPos.x, cPos.y) end, time = Game.Timer(), delay = 0.075 } end
+                        --if num > 1 then DelayedActionMove_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.05 } end
                         LastMove_GSO = Game.Timer()
                 end
         end
