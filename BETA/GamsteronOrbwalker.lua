@@ -1,16 +1,31 @@
-local Menu_GSO = MenuElement({id = "menugso", name = "GamsteronOrb", type = MENU})
-        Menu_GSO:MenuElement({id = "ewin", name = "Kite Delay", value = 200, min = 0, max = 200, step = 25 })
-        Menu_GSO:MenuElement({id = "lcs", name = "LastHit Delay", value = 50, min = 0, max = 200, step = 25 })
-        Menu_GSO:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
-        Menu_GSO:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
-        Menu_GSO:MenuElement({id = "har", name = "Harrass Key", key = string.byte("C")})
-        Menu_GSO:MenuElement({id = "lhit", name = "LastHit Key", key = string.byte("X")})
-        Menu_GSO:MenuElement({id = "lane", name = "LaneClear Key", key = string.byte("V")})
+local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker"})
+
+        Menu_GSO:MenuElement({type = MENU, id = "keys", name = "Keys"})
+                Menu_GSO.keys:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
+                Menu_GSO.keys:MenuElement({id = "har", name = "Harrass Key", key = string.byte("C")})
+                Menu_GSO.keys:MenuElement({id = "lhit", name = "LastHit Key", key = string.byte("X")})
+                Menu_GSO.keys:MenuElement({id = "lane", name = "LaneClear Key", key = string.byte("V")})
+        
+        Menu_GSO:MenuElement({type = MENU, id = "move", name = "Movement"})
+                Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 0, max = 200, step = 25 })
+                Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
+        
+        Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm"})
+                Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 50, min = 0, max = 200, step = 25 })
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "For Ping < 70, better value is 50-100"})
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "For Ping > 70, better value is 0-50"})
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "CPU throttling, better value is 0-50"})
+
+
+local OtherOrbTimer_GSO     = os.clock()
+local CanCheckOrb_GSO       = false
+local EOWLoaded_GSO         = false
+local IcyLoaded_GSO         = false
 
 local MinionCount_GSO       = Game.MinionCount
 local Minion_GSO            = Game.Minion
-local HeroCount_GSO 	      = Game.HeroCount
-local Hero_GSO 		          = Game.Hero
+local HeroCount_GSO         = Game.HeroCount
+local Hero_GSO              = Game.Hero
 
 local LastAA_GSO            = 0
 local LastMove_GSO          = 0
@@ -30,9 +45,9 @@ local HeroPos_GSO           = myHero.pos
 local HeroPosX_GSO          = HeroPos_GSO.x
 local HeroPosZ_GSO          = HeroPos_GSO.z
 local HeroAD_GSO            = myHero.totalDamage
-local MenuEwin_GSO          = Menu_GSO.ewin:Value() * 0.001
-local MenuHum_GSO           = Menu_GSO.hum:Value()  * 0.001
-local MenuLcs_GSO           = ( 200 - Menu_GSO.lcs:Value() )  * 0.001
+local MenuEwin_GSO          = Menu_GSO.move.ewin:Value() * 0.001
+local MenuHum_GSO           = Menu_GSO.move.hum:Value()  * 0.001
+local MenuLcs_GSO           = ( 200 - Menu_GSO.farm.lcs:Value() )  * 0.001
 
 function IsValidTarget_GSO(range, unit, sourcePosX, sourcePosZ)
         local type      = unit.type
@@ -138,16 +153,25 @@ Callback.Add("Tick", function()
         GOS.BlockMovement = true
         GOS.BlockAttack = true
         
-        if DelayedActionAA_GSO ~= nil and Game.Timer() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
-                DelayedActionAA_GSO[1]()
-                DelayedActionAA_GSO = nil
+        if CanCheckOrb_GSO then
+                if EOWLoaded_GSO then
+                        EOW:SetMovements(false)
+                        EOW:SetAttacks(false)
+                end
+                if IcyLoaded_GSO then
+                        _G.SDK.Orbwalker:SetMovement(false)
+                        _G.SDK.Orbwalker:SetAttack(false)
+                end
+        elseif os.clock() > OtherOrbTimer_GSO + 3 then
+                if _G.EOWLoaded then
+                        EOWLoaded_GSO = true
+                end
+                if _G.SDK and _G.SDK.Orbwalker then
+                        IcyLoaded_GSO = true
+                end
+                CanCheckOrb_GSO = true
         end
-
-        --[[if DelayedActionMove_GSO ~= nil and Game.Timer() - DelayedActionMove_GSO[2] > DelayedActionMove_GSO[3] then
-                DelayedActionMove_GSO[1]()
-                DelayedActionMove_GSO = nil
-        end
-        ]]
+        
         HeroAAdata_GSO    = myHero.attackData
         HerowindUpT_GSO   = HeroAAdata_GSO.windUpTime
         HeroanimT_GSO     = HeroAAdata_GSO.animationTime
@@ -157,14 +181,19 @@ Callback.Add("Tick", function()
         HeroPosX_GSO      = HeroPos_GSO.x
         HeroPosZ_GSO      = HeroPos_GSO.z
         HeroAD_GSO        = myHero.totalDamage
-        MenuEwin_GSO      = Menu_GSO.ewin:Value() * 0.001
-        MenuHum_GSO       = Menu_GSO.hum:Value() * 0.001
-        MenuLcs_GSO       = ( 200 - Menu_GSO.lcs:Value() ) * 0.001
+        MenuEwin_GSO      = Menu_GSO.move.ewin:Value() * 0.001
+        MenuHum_GSO       = Menu_GSO.move.hum:Value() * 0.001
+        MenuLcs_GSO       = ( 200 - Menu_GSO.farm.lcs:Value() ) * 0.001
         
-        local combo       = Menu_GSO.combo:Value()
-        local lane        = Menu_GSO.lane:Value()
-        local lasthit     = Menu_GSO.lhit:Value()
-        local harrass     = Menu_GSO.har:Value()
+        local combo       = Menu_GSO.keys.combo:Value()
+        local lane        = Menu_GSO.keys.lane:Value()
+        local lasthit     = Menu_GSO.keys.lhit:Value()
+        local harrass     = Menu_GSO.keys.har:Value()
+        
+        if DelayedActionAA_GSO ~= nil and Game.Timer() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
+                DelayedActionAA_GSO[1]()
+                DelayedActionAA_GSO = nil
+        end
         
         if combo or lane or lasthit or harrass then
         
@@ -294,42 +323,8 @@ Callback.Add("Tick", function()
                         LastMove_GSO = 0
                         DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.05 }
                 elseif canmove then
-                        --[[
-                        local cPos = cursorPos
-                        local num = 1
-                        local pos = nil
-                        for i = 1, 15 do
-                                local count = 0
-                                local mPos = LocalExtendedPos(mousePos, HeroPos_GSO, -50*i)
-                                local t1 = GetAllEnemyMinions_GSO(2000)
-                                for i = 1, #t1 do
-                                        local unit = t1[i]
-                                        local unitpos = unit.pos
-                                        if Sqrt_GSO((mPos.x-unitpos.x)^2 + (mPos.z-unitpos.z)^2) < unit.boundingRadius + 100 then
-                                                count = 1
-                                                break
-                                        end
-                                end
-                                local t2 = GetEnemyHeroes_GSO(2000)
-                                for i = 1, #t2 do
-                                        local unit = t2[i]
-                                        local unitpos = unit.pos
-                                        if Sqrt_GSO((mPos.x-unitpos.x)^2 + (mPos.z-unitpos.z)^2) < unit.boundingRadius + 100 then
-                                                count = 1
-                                                break
-                                        end
-                                end
-                                if count == 0 then
-                                        num = i
-                                        pos = Vector(mPos.x, 0, mPos.z)
-                                        break
-                                end
-                        end
-                        if num > 1 then Control.SetCursorPos(pos) end
-                        ]]
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
-                        --if num > 1 then DelayedActionMove_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.05 } end
                         LastMove_GSO = Game.Timer()
                 end
         end
