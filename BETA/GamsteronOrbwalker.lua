@@ -25,7 +25,6 @@ function BeforeAttack(arg)
         BeforeAttackC[#BeforeAttackC + 1] = arg
 end
 
-LatestCursorPos_GSO         = cursorPos
 CanAttack_GSO               = true
 CanMove_GSO                 = true
 
@@ -187,8 +186,6 @@ end)
 
 Callback.Add("Tick", function()
         
-        LatestCursorPos_GSO = cursorPos
-        
         GOS.BlockMovement = true
         GOS.BlockAttack = true
         
@@ -347,13 +344,13 @@ Callback.Add("Tick", function()
                         for i = 1, #BeforeAttackC do
                                 BeforeAttackC[i](AAtarget)
                         end
-                        LatestCursorPos_GSO = cursorPos
+                        local cPos = cursorPos
                         Control.SetCursorPos(AAtarget.pos)
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
                         LastAA_GSO = Game.Timer()
                         LastMove_GSO = 0
-                        DelayedActionAA_GSO = { function() Control.SetCursorPos(LatestCursorPos_GSO.x, LatestCursorPos_GSO.y) end, Game.Timer(), 0.05 }
+                        DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.05 }
                         DelayedAction_GSO =
                         {
                                 function()
