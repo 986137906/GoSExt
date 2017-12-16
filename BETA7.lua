@@ -1,5 +1,5 @@
 local Menu_GSO = MenuElement({id = "menugso", name = "GamsteronOrb", type = MENU})
-        Menu_GSO:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 0, max = 200, step = 25 })
+        Menu_GSO:MenuElement({id = "ewin", name = "Kite Delay", value = 200, min = 0, max = 200, step = 25 })
         Menu_GSO:MenuElement({id = "lcs", name = "LastHit Delay", value = 150, min = 0, max = 200, step = 25 })
         Menu_GSO:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
         Menu_GSO:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
@@ -85,7 +85,7 @@ function GetEnemyHeroes_GSO(range)
         local result = {}
         for i = 1, HeroCount_GSO() do
                 local hero = Hero_GSO(i)
-                if hero.team == EnemyTeam_GSO and IsValidTarget_GSO(range + minion.boundingRadius, minion, HeroPosX_GSO, HeroPosZ_GSO) then
+                if hero.team == EnemyTeam_GSO and IsValidTarget_GSO(range + hero.boundingRadius, hero, HeroPosX_GSO, HeroPosZ_GSO) then
                         result[#result + 1] = hero
                 end
         end
