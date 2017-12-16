@@ -6,6 +6,9 @@ local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orb
                 Menu_GSO.keys:MenuElement({id = "lhit", name = "LastHit Key", key = string.byte("X")})
                 Menu_GSO.keys:MenuElement({id = "lane", name = "LaneClear Key", key = string.byte("V")})
         
+        Menu_GSO:MenuElement({type = MENU, id = "attack", name = "Attack"})
+                Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
+        
         Menu_GSO:MenuElement({type = MENU, id = "move", name = "Movement"})
                 Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 0, max = 200, step = 25 })
                 Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
@@ -60,6 +63,7 @@ local HeroAD_GSO            = myHero.totalDamage
 local MenuEwin_GSO          = Menu_GSO.move.ewin:Value() * 0.001
 local MenuHum_GSO           = Menu_GSO.move.hum:Value()  * 0.001
 local MenuLcs_GSO           = ( 200 - Menu_GSO.farm.lcs:Value() )  * 0.001
+local Menuscp_GSO           = Menu_GSO.attack.setc:Value() * 0.001
 
 AfterAttack(function(unit)
         if HeroAAdata_GSO.endTime < LastAA_GSO then
@@ -220,6 +224,7 @@ Callback.Add("Tick", function()
         MenuEwin_GSO      = Menu_GSO.move.ewin:Value() * 0.001
         MenuHum_GSO       = Menu_GSO.move.hum:Value() * 0.001
         MenuLcs_GSO       = ( 200 - Menu_GSO.farm.lcs:Value() ) * 0.001
+        Menuscp_GSO       = Menu_GSO.attack.setc:Value() * 0.001
         
         local combo       = Menu_GSO.keys.combo:Value()
         local lane        = Menu_GSO.keys.lane:Value()
@@ -350,7 +355,7 @@ Callback.Add("Tick", function()
                         Control.mouse_event(0x0010)
                         LastAA_GSO = Game.Timer()
                         LastMove_GSO = 0
-                        DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.05 }
+                        DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), Menuscp_GSO }
                         DelayedAction_GSO =
                         {
                                 function()
