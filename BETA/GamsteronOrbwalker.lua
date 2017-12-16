@@ -183,8 +183,14 @@ end
 
 Callback.Add("WndMsg", function(msg, wParam)
         local i = wParam
-        if i == HK_Q or i == HK_W or i == HK_E or i == HK_R or i == HK_ITEM_1 or i == HK_ITEM_2 or i == HK_ITEM_3 or i == HK_ITEM_4 or i == HK_ITEM_5 or i == HK_ITEM_6 or i == HK_ITEM_7 or i == HK_SUMMONER_1 or i == HK_SUMMONER_2 or i == HK_LUS or i == HK_MENU then
+        if Game.Timer() > LastKeyPress_GSO + 0.2 and (i == HK_Q or i == HK_W or i == HK_E or i == HK_R or i == HK_ITEM_1 or i == HK_ITEM_2 or i == HK_ITEM_3 or i == HK_ITEM_4 or i == HK_ITEM_5 or i == HK_ITEM_6 or i == HK_ITEM_7 or i == HK_SUMMONER_1 or i == HK_SUMMONER_2 or i == HK_LUS or i == HK_MENU) then
                 LastKeyPress_GSO = Game.Timer()
+                Control.KeyDown(i)
+                Control.KeyUp(i)
+                Control.KeyDown(i)
+                Control.KeyUp(i)
+                Control.KeyDown(i)
+                Control.KeyUp(i)
         end
 end)
 
