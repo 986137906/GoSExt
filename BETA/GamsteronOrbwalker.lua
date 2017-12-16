@@ -1,6 +1,6 @@
 local Menu_GSO = MenuElement({id = "menugso", name = "GamsteronOrb", type = MENU})
         Menu_GSO:MenuElement({id = "ewin", name = "Kite Delay", value = 200, min = 0, max = 200, step = 25 })
-        Menu_GSO:MenuElement({id = "lcs", name = "LastHit Delay", value = 150, min = 0, max = 200, step = 25 })
+        Menu_GSO:MenuElement({id = "lcs", name = "LastHit Delay", value = 50, min = 0, max = 200, step = 25 })
         Menu_GSO:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
         Menu_GSO:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
         Menu_GSO:MenuElement({id = "har", name = "Harrass Key", key = string.byte("C")})
