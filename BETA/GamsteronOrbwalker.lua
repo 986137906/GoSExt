@@ -16,7 +16,20 @@ local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orb
                 Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "For Ping > 70, better value is 0-50"})
                 Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "CPU throttling, better value is 0-50"})
 
+local AfterAttackC          = {}
+function AfterAttack(arg)
+        AfterAttackC[#AfterAttackC + 1] = arg
+end
+local BeforeAttackC         = {}
+function BeforeAttack(arg)
+        BeforeAttackC[#BeforeAttackC + 1] = arg
+end
 
+LatestCursorPos_GSO         = cursorPos
+CanAttack_GSO               = true
+CanMove_GSO                 = true
+
+local LastKeyPress_GSO      = 0
 local OtherOrbTimer_GSO     = os.clock()
 local CanCheckOrb_GSO       = false
 local EOWLoaded_GSO         = false
@@ -27,10 +40,10 @@ local Minion_GSO            = Game.Minion
 local HeroCount_GSO         = Game.HeroCount
 local Hero_GSO              = Game.Hero
 
-local LastAA_GSO            = 0
+LastAA_GSO                  = 0
 local LastMove_GSO          = 0
 local DelayedActionAA_GSO   = nil
-local DelayedActionMove_GSO = nil
+local DelayedAction_GSO     = nil
 
 local HeroTeam_GSO          = myHero.team
 local EnemyTeam_GSO         = HeroTeam_GSO == 100 and 200 or 100
@@ -48,6 +61,12 @@ local HeroAD_GSO            = myHero.totalDamage
 local MenuEwin_GSO          = Menu_GSO.move.ewin:Value() * 0.001
 local MenuHum_GSO           = Menu_GSO.move.hum:Value()  * 0.001
 local MenuLcs_GSO           = ( 200 - Menu_GSO.farm.lcs:Value() )  * 0.001
+
+AfterAttack(function(unit)
+        if HeroAAdata_GSO.endTime < LastAA_GSO then
+                LastAA_GSO = 0
+        end
+end)
 
 function IsValidTarget_GSO(range, unit, sourcePosX, sourcePosZ)
         local type      = unit.type
@@ -107,7 +126,18 @@ function GetEnemyHeroes_GSO(range)
         return result
 end
 
-function LocalExtendedPos(from, to, s)
+function GetAllyHeroes_GSO(range)
+        local result = {}
+        for i = 1, HeroCount_GSO() do
+                local hero = Hero_GSO(i)
+                if hero.team == HeroTeam_GSO and IsValidTarget_GSO(range + hero.boundingRadius, hero, HeroPosX_GSO, HeroPosZ_GSO) then
+                        result[#result + 1] = hero
+                end
+        end
+        return result
+end
+
+function ExtendedPos_GSO(from, to, s)
         local vecx = to.x - from.x
         local vecz = to.z - from.z
         local normalize1 = 1 / Sqrt_GSO(vecx^2 + vecz^2)
@@ -148,8 +178,17 @@ function GetHealthPrediction(unit, time)
         return result
 end
 
-Callback.Add("Tick", function()
+Callback.Add("WndMsg", function(msg, wParam)
+        local i = wParam
+        if i == HK_Q or i == HK_W or i == HK_E or i == HK_R or i == HK_ITEM_1 or i == HK_ITEM_2 or i == HK_ITEM_3 or i == HK_ITEM_4 or i == HK_ITEM_5 or i == HK_ITEM_6 or i == HK_ITEM_7 or i == HK_SUMMONER_1 or i == HK_SUMMONER_2 or i == HK_LUS or i == HK_MENU then
+                LastKeyPress_GSO = Game.Timer()
+        end
+end)
 
+Callback.Add("Tick", function()
+        
+        LatestCursorPos_GSO = cursorPos
+        
         GOS.BlockMovement = true
         GOS.BlockAttack = true
         
@@ -195,6 +234,11 @@ Callback.Add("Tick", function()
                 DelayedActionAA_GSO = nil
         end
         
+        if DelayedAction_GSO ~= nil and Game.Timer() - DelayedAction_GSO[2] > DelayedAction_GSO[3] then
+                DelayedAction_GSO[1]()
+                DelayedAction_GSO = nil
+        end
+        
         if combo or lane or lasthit or harrass then
         
                 local AAtarget          = nil
@@ -217,26 +261,20 @@ Callback.Add("Tick", function()
                 elseif lane then
                         local t = GetEnemyMinions_GSO(HeroAArange_GSO)
                         for i = 1, #t do
-                                local unit = t[i]
-                                local unitpos  = unit.pos
-                                local unitHP = unit.health
+                                local unit          = t[i]
+                                local unitpos       = unit.pos
+                                local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
+                                local unitHP        = unit.health - GetHealthPrediction(unit, aacompleteT)
                                 if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
                                         AAtarget = unit
                                         lasthitNUM = unitHP
                                 else
-                                        local aacompleteT = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
-                                        unitHP = unitHP - GetHealthPrediction(unit, aacompleteT)
-                                        if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
-                                                AAtarget = unit
-                                                lasthitNUM = unitHP
-                                        else
-                                                unitHP = unitHP - GetHealthPrediction(unit, 3 * HeroanimT_GSO)
-                                                if unitHP < HeroAD_GSO then
-                                                        AAkillablesoon = unit
-                                                elseif unitHP < laneclearNUM then
-                                                        laneclearNUM = unitHP
-                                                        AAlanetarget = unit
-                                                end
+                                        unitHP = unitHP - GetHealthPrediction(unit, 3 * HeroanimT_GSO)
+                                        if unitHP < HeroAD_GSO then
+                                                AAkillablesoon = unit
+                                        elseif unitHP < laneclearNUM then
+                                                laneclearNUM = unitHP
+                                                AAlanetarget = unit
                                         end
                                 end
                         end
@@ -261,23 +299,17 @@ Callback.Add("Tick", function()
                 elseif harrass then
                         local t = GetEnemyMinions_GSO(HeroAArange_GSO)
                         for i = 1, #t do
-                                local unit      = t[i]
-                                local unitpos   = unit.pos
-                                local unitHP    = unit.health
+                                local unit          = t[i]
+                                local unitpos       = unit.pos
+                                local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
+                                local unitHP        = unit.health - GetHealthPrediction(unit, aacompleteT)
                                 if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
-                                        AAtarget   = unit
+                                        AAtarget = unit
                                         lasthitNUM = unitHP
                                 else
-                                        local aacompleteT = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
-                                        unitHP            = unitHP - GetHealthPrediction(unit, aacompleteT)
-                                        if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
-                                                AAtarget   = unit
-                                                lasthitNUM = unitHP
-                                        else
-                                                unitHP = unitHP - GetHealthPrediction(unit, 3 * HeroanimT_GSO)
-                                                if unitHP < HeroAD_GSO then
-                                                        AAkillablesoon = unit
-                                                end
+                                        unitHP = unitHP - GetHealthPrediction(unit, 3 * HeroanimT_GSO)
+                                        if unitHP < HeroAD_GSO then
+                                                AAkillablesoon = unit
                                         end
                                 end
                         end
@@ -295,34 +327,44 @@ Callback.Add("Tick", function()
                 elseif lasthit then
                         local t = GetEnemyMinions_GSO(HeroAArange_GSO)
                         for i = 1, #t do
-                                local unit      = t[i]
-                                local unitpos   = unit.pos
-                                local unitHP    = unit.health
+                                local unit          = t[i]
+                                local unitpos       = unit.pos
+                                local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
+                                local unitHP = unit.health - GetHealthPrediction(unit, aacompleteT)
                                 if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
-                                        AAtarget   = unit
+                                        AAtarget = unit
                                         lasthitNUM = unitHP
-                                else
-                                        local aacompleteT = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
-                                        unitHP            = unitHP - GetHealthPrediction(unit, aacompleteT)
-                                        if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
-                                                AAtarget   = unit
-                                                lasthitNUM = unitHP
-                                        end
                                 end
                         end
                 end
                 
-                local canmove = Game.Timer() > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO and Game.Timer() > LastMove_GSO + MenuHum_GSO
-                local canattack = Game.Timer() > LastAA_GSO + HeroanimT_GSO + 0.03
-                if AAtarget ~= nil and canattack then
-                        local cPos = cursorPos
+                local checkT    = Game.Timer()
+                CanAttack_GSO   = checkT > LastAA_GSO + HeroanimT_GSO + 0.03
+                CanMove_GSO     = checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO
+                -- ?? HK_TCO -- Target Champions Only
+                local IsCasting = Game.Timer() < LastKeyPress_GSO + 0.1 and true or ( Control.IsKeyDown(HK_Q) or Control.IsKeyDown(HK_W) or Control.IsKeyDown(HK_E) or Control.IsKeyDown(HK_R) or Control.IsKeyDown(HK_ITEM_1) or Control.IsKeyDown(HK_ITEM_2) or Control.IsKeyDown(HK_ITEM_3) or Control.IsKeyDown(HK_ITEM_4) or Control.IsKeyDown(HK_ITEM_5) or Control.IsKeyDown(HK_ITEM_6) or Control.IsKeyDown(HK_ITEM_7) or Control.IsKeyDown(HK_SUMMONER_1) or Control.IsKeyDown(HK_SUMMONER_2) or Control.IsKeyDown(HK_LUS) or Control.IsKeyDown(HK_MENU) )
+                if not IsCasting and AAtarget ~= nil and CanAttack_GSO then
+                        for i = 1, #BeforeAttackC do
+                                BeforeAttackC[i](AAtarget)
+                        end
+                        LatestCursorPos_GSO = cursorPos
                         Control.SetCursorPos(AAtarget.pos)
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
                         LastAA_GSO = Game.Timer()
                         LastMove_GSO = 0
-                        DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), 0.05 }
-                elseif canmove then
+                        DelayedActionAA_GSO = { function() Control.SetCursorPos(LatestCursorPos_GSO.x, LatestCursorPos_GSO.y) end, Game.Timer(), 0.05 }
+                        DelayedAction_GSO =
+                        {
+                                function()
+                                        for i = 1, #AfterAttackC do
+                                                AfterAttackC[i](AAtarget)
+                                        end
+                                end,
+                                Game.Timer(),
+                                HerowindUpT_GSO + MenuEwin_GSO
+                        }
+                elseif not IsCasting and CanMove_GSO and Game.Timer() > LastMove_GSO + MenuHum_GSO then
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
                         LastMove_GSO = Game.Timer()
