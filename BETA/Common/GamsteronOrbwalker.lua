@@ -107,7 +107,7 @@ function ResetAA_GSO()
 end
 
 --[[ SET EXTRA FUNCTION FOR ADDON - BONUS DMG BASED FOR EXAMPLE ON UNIT HEALTH ]]
-function GetHeroBonusDmg_GSO()
+local function GetHeroBonusDmg_GSO()
         return 0
 end
 function SetFuncBonusDamageForLastHit_GSO(func)
@@ -115,7 +115,7 @@ function SetFuncBonusDamageForLastHit_GSO(func)
 end
 
 --[[ SET EXTRA FUNCTION FOR ADDON - BONUS DMG BASED FOR EXAMPLE ON UNIT HEALTH ]]
-function GetBonusBuffDmg_GSO(unit)
+local function GetBonusBuffDmg_GSO(unit)
         return 0
 end
 function SetFuncUnitBonusDmgForLastHit_GSO(func)
@@ -123,7 +123,7 @@ function SetFuncUnitBonusDmgForLastHit_GSO(func)
 end
 
 --[[ SET EXTRA FUNCTION FOR ADDON - CANATTACK BOOLEAN ]]
-function GetBooleanCanAttack2_GSO()
+local function GetBooleanCanAttack2_GSO()
         return true
 end
 function SetFuncCanAttack_GSO(func)
@@ -131,7 +131,7 @@ function SetFuncCanAttack_GSO(func)
 end
 
 --[[ SET EXTRA FUNCTION FOR ADDON - TARGET SELECTOR FOR COMBO ]]
-function GetTargetFunc_GSO()
+local function GetTargetFunc_GSO()
         return nil
 end
 function SetTargetFunc_GSO(func)
@@ -139,17 +139,33 @@ function SetTargetFunc_GSO(func)
 end
 
 --[[ SET EXTRA FUNCTION FOR ADDON - CAST SPELL IN COMBO BETWEEN ATTACKS (ONLY IF ENEMY IS IN ATTACK RANGE ELSE WILL CAST NORMALL WITHOUT DELAYS) ]]
-function CastSpellAAFunc_GSO()
+local function CastSpellAAFunc_GSO()
 end
 function SetCastSpellAAFunc_GSO(func)
         CastSpellAAFunc_GSO = func
 end
 
 --[[ SET EXTRA FUNCTION FOR ADDON - CAST SPELL IN COMBO EVERYTIME (CAN AA CANCEL) ]]
-function CastSpellFunc_GSO()
+local function CastSpellFunc_GSO()
 end
 function SetCastSpellFunc_GSO(func)
         CastSpellFunc_GSO = func
+end
+
+--[[ ADD LAST CURSORPOS ]]
+local handlecursorPos_GSO = {}
+function AddNewCursorPos_GSO(T)
+        handlecursorPos_GSO[#handlecursorPos_GSO + 1] = T
+end
+
+--[[ CAST SPELL ]]
+function CastSpell_GSO(spell, pos)
+        if pos then
+                AddNewCursorPos_GSO({ GetTickCount(), cursorPos })
+                Control.SetCursorPos(pos)
+        end
+        Control.KeyDown(spell)
+        Control.KeyUp(spell)
 end
 
 AfterAttack_GSO(function(unit)
@@ -244,6 +260,22 @@ function GetAllyHeroes_GSO(range, addBB)
         return result
 end
 
+function GetTarget_GSO(range, addBB, ap)
+        local t       = GetEnemyHeroes_GSO(range, addBB)
+        local Target  = nil
+        local Num     = 10000
+        for i = 1, #t do
+                local unit        = t[i]
+                local def         = ap and unit.magicResist or unit.armor
+                local unithealth  = unit.health * ( 100 / ( 100 + def ) )
+                if unithealth < Num then
+                        Num  = unithealth
+                        Target = unit
+                end
+        end
+        return Target
+end
+
 function ExtendedPos_GSO(from, to, s)
         local vecx = to.x - from.x
         local vecz = to.z - from.z
@@ -287,7 +319,7 @@ end
 
 Callback.Add("WndMsg", function(msg, wParam)
         local i = wParam
-        if CurrentMode_GSO == "none" or Game.Timer() < LastKeyPress_GSO + 0.2 then return end
+        if CurrentMode_GSO == "none" or Game.Timer() < LastKeyPress_GSO + 0.1 then return end
         if i == HK_Q or i == HK_W or i == HK_E or i == HK_R or i == HK_ITEM_1 or i == HK_ITEM_2 or i == HK_ITEM_3 or i == HK_ITEM_4 or i == HK_ITEM_5 or i == HK_ITEM_6 or i == HK_ITEM_7 or i == HK_SUMMONER_1 or i == HK_SUMMONER_2 or i == HK_LUS or i == HK_MENU then
                 LastKeyPress_GSO = Game.Timer()
                 Control.KeyDown(i)
@@ -300,6 +332,20 @@ Callback.Add("WndMsg", function(msg, wParam)
 end)
 
 Callback.Add("Tick", function()
+        
+        local handlecursorPosC = handlecursorPos_GSO
+        for k,v in pairs(handlecursorPosC) do
+                if GetTickCount() > v[1] + 50 and GetTickCount() < v[1] + 100 then
+                        Control.SetCursorPos(v[2].x, v[2].y)
+                        Control.SetCursorPos(v[2].x, v[2].y)
+                        Control.SetCursorPos(v[2].x, v[2].y)
+                        Control.SetCursorPos(v[2].x, v[2].y)
+                        Control.SetCursorPos(v[2].x, v[2].y)
+                        Control.SetCursorPos(v[2].x, v[2].y)
+                elseif GetTickCount() > v[1] + 100 then
+                        handlecursorPos_GSO[k] = nil
+                end
+        end
         
         GOS.BlockMovement = true
         GOS.BlockAttack = true
@@ -478,10 +524,8 @@ Callback.Add("Tick", function()
                 end
                 
                 local checkT    = Game.Timer()
-                -- ?? HK_TCO -- Target Champions Only
-                local IsCasting = checkT < LastKeyPress_GSO + 0.1 and true or ( Control.IsKeyDown(HK_Q) or Control.IsKeyDown(HK_W) or Control.IsKeyDown(HK_E) or Control.IsKeyDown(HK_R) or Control.IsKeyDown(HK_ITEM_1) or Control.IsKeyDown(HK_ITEM_2) or Control.IsKeyDown(HK_ITEM_3) or Control.IsKeyDown(HK_ITEM_4) or Control.IsKeyDown(HK_ITEM_5) or Control.IsKeyDown(HK_ITEM_6) or Control.IsKeyDown(HK_ITEM_7) or Control.IsKeyDown(HK_SUMMONER_1) or Control.IsKeyDown(HK_SUMMONER_2) or Control.IsKeyDown(HK_LUS) or Control.IsKeyDown(HK_MENU) )
-                CanAttack_GSO   = GetBooleanCanAttack2_GSO() and not IsCasting and not BlockAttack_GSO and checkT > LastAA_GSO + HeroanimT_GSO + 0.03
-                CanMove_GSO     = not IsCasting and not BlockMovement_GSO and checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO
+                CanAttack_GSO   = GetBooleanCanAttack2_GSO() and not BlockAttack_GSO and checkT > LastAA_GSO + HeroanimT_GSO + 0.03
+                CanMove_GSO     = not BlockMovement_GSO and checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO
 
                 if CanAttack_GSO and AAtarget ~= nil then
                         for i = 1, #BeforeAttackC_GSO do
@@ -493,6 +537,7 @@ Callback.Add("Tick", function()
                         Control.mouse_event(0x0010)
                         LastAA_GSO = Game.Timer()
                         LastMove_GSO = 0
+                        AddNewCursorPos_GSO({ GetTickCount(), cPos })
                         DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), Menuscp_GSO }
                         DelayedAction_GSO =
                         {
