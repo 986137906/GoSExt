@@ -46,7 +46,6 @@ local HeroAArange_GSO       = myHero.range + myHero.boundingRadius
 local HeroPos_GSO           = myHero.pos
 local HeroPosX_GSO          = HeroPos_GSO.x
 local HeroPosZ_GSO          = HeroPos_GSO.z
-local HeroBonusDmg_GSO      = 0
 local HeroAD_GSO            = myHero.totalDamage
 local MenuEwin_GSO          = Menu_GSO.move.ewin:Value() * 0.001
 local MenuHum_GSO           = Menu_GSO.move.hum:Value()  * 0.001
@@ -88,8 +87,17 @@ end
 function ResetAA_GSO()
         LastAA_GSO = 0
 end
-function SetBonusDamageForLastHit_GSO(dmg)
-        HeroBonusDmg_GSO = dmg
+function GetHeroBonusDmg_GSO()
+        return 0
+end
+function SetFuncBonusDamageForLastHit_GSO(func)
+        GetHeroBonusDmg_GSO = func
+end
+function GetBonusBuffDmg_GSO(unit)
+        return 0
+end
+function SetFuncUnitBonusDmgForLastHit_GSO(func)
+        GetBonusBuffDmg_GSO = func
 end
 
 AfterAttack_GSO(function(unit)
@@ -271,7 +279,7 @@ Callback.Add("Tick", function()
         HeroPos_GSO       = myHero.pos
         HeroPosX_GSO      = HeroPos_GSO.x
         HeroPosZ_GSO      = HeroPos_GSO.z
-        HeroAD_GSO        = myHero.totalDamage + HeroBonusDmg_GSO
+        HeroAD_GSO        = myHero.totalDamage + GetHeroBonusDmg_GSO()
         MenuEwin_GSO      = Menu_GSO.move.ewin:Value() * 0.001
         MenuHum_GSO       = Menu_GSO.move.hum:Value() * 0.001
         MenuLcs_GSO       = ( 200 - Menu_GSO.farm.lcs:Value() ) * 0.001
@@ -322,12 +330,13 @@ Callback.Add("Tick", function()
                                         local unitpos       = unit.pos
                                         local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
                                         local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
-                                        if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
+                                        local heroad        = GetBonusBuffDmg_GSO(unit) + HeroAD_GSO
+                                        if unitHP < heroad and unitHP < lasthitNUM then
                                                 AAtarget = unit
                                                 lasthitNUM = unitHP
                                         else
                                                 unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * HeroanimT_GSO)
-                                                if unitHP < HeroAD_GSO then
+                                                if unitHP < heroad then
                                                         AAkillablesoon = unit
                                                 elseif unitHP < laneclearNUM then
                                                         laneclearNUM = unitHP
@@ -336,7 +345,7 @@ Callback.Add("Tick", function()
                                         end
                                 end
                                 if AAtarget == nil and AAkillablesoon == nil and AAlanetarget ~= nil then
-                                        if laneclearNUM < HeroAD_GSO * 1.5 then
+                                        if laneclearNUM < (GetBonusBuffDmg_GSO(AAlanetarget) + HeroAD_GSO) * 1.5 then
                                                 local pos = AAlanetarget.pos
                                                 local canaa = true
                                                 for i = 1, MinionCount_GSO() do
@@ -361,12 +370,13 @@ Callback.Add("Tick", function()
                                         local unitpos       = unit.pos
                                         local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
                                         local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
-                                        if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
+                                        local heroad        = GetBonusBuffDmg_GSO(unit) + HeroAD_GSO
+                                        if unitHP < heroad and unitHP < lasthitNUM then
                                                 AAtarget = unit
                                                 lasthitNUM = unitHP
                                         else
                                                 unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * HeroanimT_GSO)
-                                                if unitHP < HeroAD_GSO then
+                                                if unitHP < heroad then
                                                         AAkillablesoon = unit
                                                 end
                                         end
@@ -390,7 +400,8 @@ Callback.Add("Tick", function()
                                         local unitpos       = unit.pos
                                         local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
                                         local unitHP = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
-                                        if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
+                                        local heroad        = GetBonusBuffDmg_GSO(unit) + HeroAD_GSO
+                                        if unitHP < heroad and unitHP < lasthitNUM then
                                                 AAtarget = unit
                                                 lasthitNUM = unitHP
                                         end
