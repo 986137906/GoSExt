@@ -401,13 +401,14 @@ Callback.Add("Tick", function()
                         end
                 end
                 
-                local checkT    = Game.Timer()
-                CanAttack_GSO   = checkT > LastAA_GSO + HeroanimT_GSO + 0.03
-                CanMove_GSO     = checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO
-                -- ?? HK_TCO -- Target Champions Only
-                local IsCasting = Game.Timer() < LastKeyPress_GSO + 0.1 and true or ( Control.IsKeyDown(HK_Q) or Control.IsKeyDown(HK_W) or Control.IsKeyDown(HK_E) or Control.IsKeyDown(HK_R) or Control.IsKeyDown(HK_ITEM_1) or Control.IsKeyDown(HK_ITEM_2) or Control.IsKeyDown(HK_ITEM_3) or Control.IsKeyDown(HK_ITEM_4) or Control.IsKeyDown(HK_ITEM_5) or Control.IsKeyDown(HK_ITEM_6) or Control.IsKeyDown(HK_ITEM_7) or Control.IsKeyDown(HK_SUMMONER_1) or Control.IsKeyDown(HK_SUMMONER_2) or Control.IsKeyDown(HK_LUS) or Control.IsKeyDown(HK_MENU) )
                 
-                if not BlockAttack_GSO and not IsCasting and AAtarget ~= nil and CanAttack_GSO then
+                local checkT    = Game.Timer()
+                -- ?? HK_TCO -- Target Champions Only
+                local IsCasting = checkT < LastKeyPress_GSO + 0.1 and true or ( Control.IsKeyDown(HK_Q) or Control.IsKeyDown(HK_W) or Control.IsKeyDown(HK_E) or Control.IsKeyDown(HK_R) or Control.IsKeyDown(HK_ITEM_1) or Control.IsKeyDown(HK_ITEM_2) or Control.IsKeyDown(HK_ITEM_3) or Control.IsKeyDown(HK_ITEM_4) or Control.IsKeyDown(HK_ITEM_5) or Control.IsKeyDown(HK_ITEM_6) or Control.IsKeyDown(HK_ITEM_7) or Control.IsKeyDown(HK_SUMMONER_1) or Control.IsKeyDown(HK_SUMMONER_2) or Control.IsKeyDown(HK_LUS) or Control.IsKeyDown(HK_MENU) )
+                CanAttack_GSO   = not IsCasting and not BlockAttack_GSO and checkT > LastAA_GSO + HeroanimT_GSO + 0.03
+                CanMove_GSO     = not IsCasting and not BlockMovement_GSO and checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO
+
+                if CanAttack_GSO and AAtarget ~= nil then
                         for i = 1, #BeforeAttackC_GSO do
                                 BeforeAttackC_GSO[i](AAtarget)
                         end
@@ -428,7 +429,7 @@ Callback.Add("Tick", function()
                                 Game.Timer(),
                                 HerowindUpT_GSO + MenuEwin_GSO
                         }
-                elseif not BlockMovement_GSO and not IsCasting and CanMove_GSO and Game.Timer() > LastMove_GSO + MenuHum_GSO then
+                elseif CanMove_GSO and Game.Timer() > LastMove_GSO + MenuHum_GSO then
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
                         LastMove_GSO = Game.Timer()
