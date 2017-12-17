@@ -402,18 +402,13 @@ Callback.Add("Tick", function()
                                         end
                                 end
                                 if AAtarget == nil and AAkillablesoon == nil then
-                                        local tfunc = GetTargetFunc_GSO()
-                                        if tfunc ~= nil then
-                                                AAtarget = tfunc
-                                        else
-                                                local t = GetEnemyHeroes_GSO(HeroAArange_GSO, true)
-                                                for i = 1, #t do
-                                                        local unit        = t[i]
-                                                        local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
-                                                        if unithealth < heroNUM then
-                                                                heroNUM  = unithealth
-                                                                AAtarget = unit
-                                                        end
+                                        local t = GetEnemyHeroes_GSO(HeroAArange_GSO, true)
+                                        for i = 1, #t do
+                                                local unit        = t[i]
+                                                local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
+                                                if unithealth < heroNUM then
+                                                        heroNUM  = unithealth
+                                                        AAtarget = unit
                                                 end
                                         end
                                 end
