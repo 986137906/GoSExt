@@ -14,10 +14,11 @@ local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orb
                 Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
         
         Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm"})
+                Menu_GSO.farm:MenuElement({id = "wait", name = "Wait for allies attacks if enemy minion has low hp", value = false})
                 Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 50, min = 0, max = 200, step = 25 })
-                Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "For Ping < 70, better value is 50-100"})
-                Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "For Ping > 70, better value is 0-50"})
-                Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "CPU throttling, better value is 0-50"})
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note2", name = "For Ping < 70, better value is 50-100"})
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note3", name = "For Ping > 70, better value is 0-50"})
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note4", name = "CPU throttling, better value is 0-50"})
 
 local LastKeyPress_GSO      = 0
 local OtherOrbTimer_GSO     = os.clock()
@@ -51,6 +52,7 @@ local MenuEwin_GSO          = Menu_GSO.move.ewin:Value() * 0.001
 local MenuHum_GSO           = Menu_GSO.move.hum:Value()  * 0.001
 local MenuLcs_GSO           = ( 200 - Menu_GSO.farm.lcs:Value() )  * 0.001
 local Menuscp_GSO           = Menu_GSO.attack.setc:Value() * 0.001
+local Menuwaitm_GSO         = Menu_GSO.farm.wait:Value()
 
 local AfterAttackC_GSO          = {}
 function AfterAttack_GSO(arg)
@@ -296,6 +298,7 @@ Callback.Add("Tick", function()
         MenuHum_GSO       = Menu_GSO.move.hum:Value() * 0.001
         MenuLcs_GSO       = ( 200 - Menu_GSO.farm.lcs:Value() ) * 0.001
         Menuscp_GSO       = Menu_GSO.attack.setc:Value() * 0.001
+        Menuwaitm_GSO     = Menu_GSO.farm.wait:Value()
         
         local combo       = Menu_GSO.keys.combo:Value()
         local lane        = Menu_GSO.keys.lane:Value()
@@ -362,7 +365,7 @@ Callback.Add("Tick", function()
                                         end
                                 end
                                 if AAtarget == nil and AAkillablesoon == nil and AAlanetarget ~= nil then
-                                        if laneclearNUM < (GetBonusBuffDmg_GSO(AAlanetarget) + HeroAD_GSO) * 1.5 then
+                                        if Menuwaitm_GSO and laneclearNUM < (GetBonusBuffDmg_GSO(AAlanetarget) + HeroAD_GSO) * 1.5 then
                                                 local pos = AAlanetarget.pos
                                                 local canaa = true
                                                 for i = 1, MinionCount_GSO() do
