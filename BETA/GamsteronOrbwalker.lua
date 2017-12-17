@@ -55,63 +55,101 @@ local Menuscp_GSO           = Menu_GSO.attack.setc:Value() * 0.001
 local Menuwaitm_GSO         = Menu_GSO.farm.wait:Value()
 
 local AfterAttackC_GSO          = {}
+--[[ EVENT FOR ADDON - AFTER ATTACK ]]
 function AfterAttack_GSO(arg)
         AfterAttackC_GSO[#AfterAttackC_GSO + 1] = arg
 end
 local BeforeAttackC_GSO         = {}
+--[[ EVENT FOR ADDON - BEFORE ATTACK ]]
 function BeforeAttack_GSO(arg)
         BeforeAttackC_GSO[#BeforeAttackC_GSO + 1] = arg
 end
+
 local CurrentMode_GSO       = "none"
+--[[ FUNCTION FOR ADDON - GET CURRENT MODE ]]
 function GetStringCurrentMode_GSO()
         return CurrentMode_GSO
 end
+
 local CanMove_GSO           = true
+--[[ FUNCTION FOR ADDON - GET CANMOVE BOOLEAN ]]
 function GetBooleanCanMove_GSO()
         return CanMove_GSO
 end
+
 local CanAttack_GSO         = true
+--[[ FUNCTION FOR ADDON - GET CANATTACK BOOLEAN ]]
 function GetBooleanCanAttack_GSO()
         return CanAttack_GSO
 end
+
 local BlockMovement_GSO     = false
+--[[ FUNCTION FOR ADDON - DISABLE/ENABLE MOVEMENT ]]
 function DisableMovement_GSO(boolean)
         BlockMovement_GSO = boolean
 end
+
 local BlockAttack_GSO       = false
+--[[ FUNCTION FOR ADDON - DISABLE/ENABLE ATTACK ]]
 function DisableAttack_GSO(boolean)
         BlockAttack_GSO = boolean
 end
+
 local LastAA_GSO            = 0
+--[[ FUNCTION FOR ADDON - GET LAST AA TICK ]]
 function GetIntLastAATick_GSO()
         return LastAA_GSO
 end
+
+--[[ FUNCTION FOR ADDON - RESET AUTO ATTACK ]]
 function ResetAA_GSO()
         LastAA_GSO = 0
 end
+
+--[[ SET EXTRA FUNCTION FOR ADDON - BONUS DMG BASED FOR EXAMPLE ON UNIT HEALTH ]]
 function GetHeroBonusDmg_GSO()
         return 0
 end
 function SetFuncBonusDamageForLastHit_GSO(func)
         GetHeroBonusDmg_GSO = func
 end
+
+--[[ SET EXTRA FUNCTION FOR ADDON - BONUS DMG BASED FOR EXAMPLE ON UNIT HEALTH ]]
 function GetBonusBuffDmg_GSO(unit)
         return 0
 end
 function SetFuncUnitBonusDmgForLastHit_GSO(func)
         GetBonusBuffDmg_GSO = func
 end
+
+--[[ SET EXTRA FUNCTION FOR ADDON - CANATTACK BOOLEAN ]]
 function GetBooleanCanAttack2_GSO()
         return true
 end
 function SetFuncCanAttack_GSO(func)
         GetBooleanCanAttack2_GSO = func
 end
+
+--[[ SET EXTRA FUNCTION FOR ADDON - TARGET SELECTOR FOR COMBO ]]
 function GetTargetFunc_GSO()
         return nil
 end
 function SetTargetFunc_GSO(func)
         GetTargetFunc_GSO = func
+end
+
+--[[ SET EXTRA FUNCTION FOR ADDON - CAST SPELL IN COMBO BETWEEN ATTACKS (ONLY IF ENEMY IS IN ATTACK RANGE ELSE WILL CAST NORMALL WITHOUT DELAYS) ]]
+function CastSpellAAFunc_GSO()
+end
+function SetCastSpellAAFunc_GSO(func)
+        CastSpellAAFunc_GSO = func
+end
+
+--[[ SET EXTRA FUNCTION FOR ADDON - CAST SPELL IN COMBO EVERYTIME (CAN AA CANCEL) ]]
+function CastSpellFunc_GSO()
+end
+function SetCastSpellFunc_GSO(func)
+        CastSpellFunc_GSO = func
 end
 
 AfterAttack_GSO(function(unit)
@@ -470,6 +508,13 @@ Callback.Add("Tick", function()
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
                         LastMove_GSO = Game.Timer()
+                end
+                
+                if combo then
+                        if checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO and not CanAttack_GSO and checkT < LastAA_GSO + (HeroanimT_GSO*0.7) + 0.03 then
+                                CastSpellAAFunc_GSO()
+                        end
+                        CastSpellFunc_GSO()
                 end
         else
                 CurrentMode_GSO = "none"
