@@ -101,70 +101,76 @@ function IsValidTarget_GSO(range, unit, sourcePosX, sourcePosZ)
         return false
 end
 
-function GetAllyMinions_GSO(range)
+function GetAllyMinions_GSO(range, addBB)
         local result = {}
         for i = 1, MinionCount_GSO() do
                 local minion = Minion_GSO(i)
+                local r = addBB == true and range + minion.boundingRadius or range
                 local isotherminion = minion.maxHealth <= 6
                 local ismonster = minion.team == 300
-                if minion.isAlly and not isotherminion and not ismonster and IsValidTarget_GSO(range, minion, HeroPosX_GSO, HeroPosZ_GSO) then
+                if minion.isAlly and not isotherminion and not ismonster and IsValidTarget_GSO(r, minion, HeroPosX_GSO, HeroPosZ_GSO) then
                         result[#result + 1] = minion
                 end
         end
         return result
 end
 
-function GetAllAllyMinions_GSO(range)
+function GetAllAllyMinions_GSO(range, addBB)
         local result = {}
         for i = 1, MinionCount_GSO() do
                 local minion = Minion_GSO(i)
-                if minion.isAlly and IsValidTarget_GSO(range, minion, HeroPosX_GSO, HeroPosZ_GSO) then
+                local r = addBB == true and range + minion.boundingRadius or range
+                if minion.isAlly and IsValidTarget_GSO(r, minion, HeroPosX_GSO, HeroPosZ_GSO) then
                         result[#result + 1] = minion
                 end
         end
         return result
 end
 
-function GetEnemyMinions_GSO(range)
+function GetEnemyMinions_GSO(range, addBB)
         local result = {}
         for i = 1, MinionCount_GSO() do
                 local minion = Minion_GSO(i)
+                local r = addBB == true and range + minion.boundingRadius or range
                 local isotherminion = minion.maxHealth <= 6
                 local ismonster = minion.team == 300
-                if minion.isEnemy and not isotherminion and not ismonster and IsValidTarget_GSO(range + minion.boundingRadius, minion, HeroPosX_GSO, HeroPosZ_GSO) then
+                if minion.isEnemy and not isotherminion and not ismonster and IsValidTarget_GSO(r, minion, HeroPosX_GSO, HeroPosZ_GSO) then
                         result[#result + 1] = minion
                 end
         end
         return result
 end
 
-function GetAllEnemyMinions_GSO(range)
+function GetAllEnemyMinions_GSO(range, addBB)
         local result = {}
         for i = 1, MinionCount_GSO() do
                 local minion = Minion_GSO(i)
-                if minion.team ~= HeroTeam_GSO and IsValidTarget_GSO(range, minion, HeroPosX_GSO, HeroPosZ_GSO) then
+                local r = addBB == true and range + minion.boundingRadius or range
+                if minion.team ~= HeroTeam_GSO and IsValidTarget_GSO(r, minion, HeroPosX_GSO, HeroPosZ_GSO) then
                         result[#result + 1] = minion
                 end
         end
         return result
 end
 
-function GetEnemyHeroes_GSO(range)
+function GetEnemyHeroes_GSO(range, addBB)
         local result = {}
         for i = 1, HeroCount_GSO() do
                 local hero = Hero_GSO(i)
-                if hero.team == EnemyTeam_GSO and IsValidTarget_GSO(range + hero.boundingRadius, hero, HeroPosX_GSO, HeroPosZ_GSO) then
+                local r = addBB == true and range + hero.boundingRadius or range
+                if hero.team == EnemyTeam_GSO and IsValidTarget_GSO(r, hero, HeroPosX_GSO, HeroPosZ_GSO) then
                         result[#result + 1] = hero
                 end
         end
         return result
 end
 
-function GetAllyHeroes_GSO(range)
+function GetAllyHeroes_GSO(range, addBB)
         local result = {}
         for i = 1, HeroCount_GSO() do
                 local hero = Hero_GSO(i)
-                if hero.team == HeroTeam_GSO and IsValidTarget_GSO(range + hero.boundingRadius, hero, HeroPosX_GSO, HeroPosZ_GSO) then
+                local r = addBB == true and range + hero.boundingRadius or range
+                if hero.team == HeroTeam_GSO and IsValidTarget_GSO(r, hero, HeroPosX_GSO, HeroPosZ_GSO) then
                         result[#result + 1] = hero
                 end
         end
@@ -183,7 +189,7 @@ function GetHealthPrediction(unit, time)
         local result    = 0
         local unitpos   = unit.pos
         local unitid    = unit.handle
-        local t         = GetAllyMinions_GSO(2000)
+        local t         = GetAllyMinions_GSO(2000, false)
         for i = 1, #t do
                 local minion = t[i]
                 if minion.attackData.target == unitid then
@@ -292,7 +298,7 @@ Callback.Add("Tick", function()
                         
                         if combo then
                                 CurrentMode_GSO = "combo"
-                                local t = GetEnemyHeroes_GSO(HeroAArange_GSO)
+                                local t = GetEnemyHeroes_GSO(HeroAArange_GSO, true)
                                 for i = 1, #t do
                                         local unit        = t[i]
                                         local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
@@ -303,7 +309,7 @@ Callback.Add("Tick", function()
                                 end
                         elseif lane then
                                 CurrentMode_GSO = "laneclear"
-                                local t = GetEnemyMinions_GSO(HeroAArange_GSO)
+                                local t = GetEnemyMinions_GSO(HeroAArange_GSO, true)
                                 for i = 1, #t do
                                         local unit          = t[i]
                                         local unitpos       = unit.pos
@@ -342,7 +348,7 @@ Callback.Add("Tick", function()
                                 end
                         elseif harass then
                                 CurrentMode_GSO = "harass"
-                                local t = GetEnemyMinions_GSO(HeroAArange_GSO)
+                                local t = GetEnemyMinions_GSO(HeroAArange_GSO, true)
                                 for i = 1, #t do
                                         local unit          = t[i]
                                         local unitpos       = unit.pos
@@ -359,7 +365,7 @@ Callback.Add("Tick", function()
                                         end
                                 end
                                 if AAtarget == nil and AAkillablesoon == nil then
-                                        local t = GetEnemyHeroes_GSO(HeroAArange_GSO)
+                                        local t = GetEnemyHeroes_GSO(HeroAArange_GSO, true)
                                         for i = 1, #t do
                                                 local unit        = t[i]
                                                 local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
@@ -371,7 +377,7 @@ Callback.Add("Tick", function()
                                 end
                         elseif lasthit then
                                 CurrentMode_GSO = "lasthit"
-                                local t = GetEnemyMinions_GSO(HeroAArange_GSO)
+                                local t = GetEnemyMinions_GSO(HeroAArange_GSO, true)
                                 for i = 1, #t do
                                         local unit          = t[i]
                                         local unitpos       = unit.pos
