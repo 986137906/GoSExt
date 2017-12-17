@@ -511,7 +511,11 @@ Callback.Add("Tick", function()
                 end
                 
                 if combo then
-                        if checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO and not CanAttack_GSO and checkT < LastAA_GSO + (HeroanimT_GSO*0.7) + 0.03 then
+                        if AAtarget ~= nil then
+                                if checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO and not CanAttack_GSO and checkT < LastAA_GSO + (HeroanimT_GSO*0.7) + 0.03 then
+                                        CastSpellAAFunc_GSO()
+                                end
+                        elseif checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO then
                                 CastSpellAAFunc_GSO()
                         end
                         CastSpellFunc_GSO()
