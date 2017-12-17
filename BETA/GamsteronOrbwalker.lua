@@ -99,6 +99,12 @@ end
 function SetFuncUnitBonusDmgForLastHit_GSO(func)
         GetBonusBuffDmg_GSO = func
 end
+function GetBooleanCanAttack2_GSO()
+        return true
+end
+function SetFuncCanAttack_GSO(func)
+        GetBooleanCanAttack2_GSO = func
+end
 
 AfterAttack_GSO(function(unit)
         if HeroAAdata_GSO.endTime < LastAA_GSO then
@@ -288,7 +294,7 @@ Callback.Add("Tick", function()
         local combo       = Menu_GSO.keys.combo:Value()
         local lane        = Menu_GSO.keys.lane:Value()
         local lasthit     = Menu_GSO.keys.lhit:Value()
-        local harass     = Menu_GSO.keys.har:Value()
+        local harass      = Menu_GSO.keys.har:Value()
         
         if DelayedActionAA_GSO ~= nil and Game.Timer() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
                 DelayedActionAA_GSO[1]()
@@ -419,11 +425,10 @@ Callback.Add("Tick", function()
                         end
                 end
                 
-                
                 local checkT    = Game.Timer()
                 -- ?? HK_TCO -- Target Champions Only
                 local IsCasting = checkT < LastKeyPress_GSO + 0.1 and true or ( Control.IsKeyDown(HK_Q) or Control.IsKeyDown(HK_W) or Control.IsKeyDown(HK_E) or Control.IsKeyDown(HK_R) or Control.IsKeyDown(HK_ITEM_1) or Control.IsKeyDown(HK_ITEM_2) or Control.IsKeyDown(HK_ITEM_3) or Control.IsKeyDown(HK_ITEM_4) or Control.IsKeyDown(HK_ITEM_5) or Control.IsKeyDown(HK_ITEM_6) or Control.IsKeyDown(HK_ITEM_7) or Control.IsKeyDown(HK_SUMMONER_1) or Control.IsKeyDown(HK_SUMMONER_2) or Control.IsKeyDown(HK_LUS) or Control.IsKeyDown(HK_MENU) )
-                CanAttack_GSO   = not IsCasting and not BlockAttack_GSO and checkT > LastAA_GSO + HeroanimT_GSO + 0.03
+                CanAttack_GSO   = GetBooleanCanAttack2_GSO() and not IsCasting and not BlockAttack_GSO and checkT > LastAA_GSO + HeroanimT_GSO + 0.03
                 CanMove_GSO     = not IsCasting and not BlockMovement_GSO and checkT > LastAA_GSO + HerowindUpT_GSO + MenuEwin_GSO
 
                 if CanAttack_GSO and AAtarget ~= nil then
