@@ -14,11 +14,11 @@ local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orb
                 Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
         
         Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm"})
-                Menu_GSO.farm:MenuElement({id = "wait", name = "Wait for allies attacks if enemy minion has low hp", value = false})
+                Menu_GSO.farm:MenuElement({id = "wait", name = "LaneClear: Wait for allies attacks if enemy minion has low hp", value = false})
                 Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 50, min = 0, max = 200, step = 25 })
-                Menu_GSO.farm:MenuElement({type = SPACE, id = "note2", name = "For Ping < 70, better value is 50-100"})
-                Menu_GSO.farm:MenuElement({type = SPACE, id = "note3", name = "For Ping > 70, better value is 0-50"})
-                Menu_GSO.farm:MenuElement({type = SPACE, id = "note4", name = "CPU throttling, better value is 0-50"})
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note1", name = "For Ping < 70, better value is 50-100"})
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note2", name = "For Ping > 70, better value is 0-50"})
+                Menu_GSO.farm:MenuElement({type = SPACE, id = "note3", name = "CPU throttling, better value is 0-50"})
 
 local LastKeyPress_GSO      = 0
 local OtherOrbTimer_GSO     = os.clock()
