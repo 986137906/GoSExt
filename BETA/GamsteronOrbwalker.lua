@@ -185,7 +185,7 @@ function ExtendedPos_GSO(from, to, s)
         return Vector(from.x + (normalize2.x * s), 0, from.z + (normalize2.z * s))
 end
 
-function GetHealthPrediction(unit, time)
+function GetHealthPrediction_GSO(unit, time)
         local result    = 0
         local unitpos   = unit.pos
         local unitid    = unit.handle
@@ -314,12 +314,12 @@ Callback.Add("Tick", function()
                                         local unit          = t[i]
                                         local unitpos       = unit.pos
                                         local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
-                                        local unitHP        = unit.health - GetHealthPrediction(unit, aacompleteT)
+                                        local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                         if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
                                                 AAtarget = unit
                                                 lasthitNUM = unitHP
                                         else
-                                                unitHP = unitHP - GetHealthPrediction(unit, 3 * HeroanimT_GSO)
+                                                unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * HeroanimT_GSO)
                                                 if unitHP < HeroAD_GSO then
                                                         AAkillablesoon = unit
                                                 elseif unitHP < laneclearNUM then
@@ -353,12 +353,12 @@ Callback.Add("Tick", function()
                                         local unit          = t[i]
                                         local unitpos       = unit.pos
                                         local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
-                                        local unitHP        = unit.health - GetHealthPrediction(unit, aacompleteT)
+                                        local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                         if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
                                                 AAtarget = unit
                                                 lasthitNUM = unitHP
                                         else
-                                                unitHP = unitHP - GetHealthPrediction(unit, 3 * HeroanimT_GSO)
+                                                unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * HeroanimT_GSO)
                                                 if unitHP < HeroAD_GSO then
                                                         AAkillablesoon = unit
                                                 end
@@ -382,7 +382,7 @@ Callback.Add("Tick", function()
                                         local unit          = t[i]
                                         local unitpos       = unit.pos
                                         local aacompleteT   = HerowindUpT_GSO + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroProjS_GSO )
-                                        local unitHP = unit.health - GetHealthPrediction(unit, aacompleteT)
+                                        local unitHP = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                         if unitHP < HeroAD_GSO and unitHP < lasthitNUM then
                                                 AAtarget = unit
                                                 lasthitNUM = unitHP
