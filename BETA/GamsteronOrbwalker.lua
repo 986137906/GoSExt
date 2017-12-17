@@ -105,6 +105,12 @@ end
 function SetFuncCanAttack_GSO(func)
         GetBooleanCanAttack2_GSO = func
 end
+function GetTargetFunc_GSO()
+        return nil
+end
+function SetTargetFunc_GSO(func)
+        GetTargetFunc_GSO = func
+end
 
 AfterAttack_GSO(function(unit)
         if HeroAAdata_GSO.endTime < LastAA_GSO then
@@ -319,13 +325,18 @@ Callback.Add("Tick", function()
                         
                         if combo then
                                 CurrentMode_GSO = "combo"
-                                local t = GetEnemyHeroes_GSO(HeroAArange_GSO, true)
-                                for i = 1, #t do
-                                        local unit        = t[i]
-                                        local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
-                                        if unithealth < heroNUM then
-                                                heroNUM  = unithealth
-                                                AAtarget = unit
+                                local tfunc = GetTargetFunc_GSO()
+                                if tfunc ~= nil then
+                                        AAtarget = tfunc
+                                else
+                                        local t = GetEnemyHeroes_GSO(HeroAArange_GSO, true)
+                                        for i = 1, #t do
+                                                local unit        = t[i]
+                                                local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
+                                                if unithealth < heroNUM then
+                                                        heroNUM  = unithealth
+                                                        AAtarget = unit
+                                                end
                                         end
                                 end
                         elseif lane then
@@ -388,13 +399,18 @@ Callback.Add("Tick", function()
                                         end
                                 end
                                 if AAtarget == nil and AAkillablesoon == nil then
-                                        local t = GetEnemyHeroes_GSO(HeroAArange_GSO, true)
-                                        for i = 1, #t do
-                                                local unit        = t[i]
-                                                local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
-                                                if unithealth < heroNUM then
-                                                        heroNUM  = unithealth
-                                                        AAtarget = unit
+                                        local tfunc = GetTargetFunc_GSO()
+                                        if tfunc ~= nil then
+                                                AAtarget = tfunc
+                                        else
+                                                local t = GetEnemyHeroes_GSO(HeroAArange_GSO, true)
+                                                for i = 1, #t do
+                                                        local unit        = t[i]
+                                                        local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
+                                                        if unithealth < heroNUM then
+                                                                heroNUM  = unithealth
+                                                                AAtarget = unit
+                                                        end
                                                 end
                                         end
                                 end
