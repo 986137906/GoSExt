@@ -30,6 +30,7 @@ end
 
 CanAttack_GSO               = true
 CanMove_GSO                 = true
+CurrentMode_GSO             = "none"
 
 local LastKeyPress_GSO      = 0
 local OtherOrbTimer_GSO     = os.clock()
@@ -183,7 +184,8 @@ end
 
 Callback.Add("WndMsg", function(msg, wParam)
         local i = wParam
-        if Game.Timer() > LastKeyPress_GSO + 0.2 and (i == HK_Q or i == HK_W or i == HK_E or i == HK_R or i == HK_ITEM_1 or i == HK_ITEM_2 or i == HK_ITEM_3 or i == HK_ITEM_4 or i == HK_ITEM_5 or i == HK_ITEM_6 or i == HK_ITEM_7 or i == HK_SUMMONER_1 or i == HK_SUMMONER_2 or i == HK_LUS or i == HK_MENU) then
+        if CurrentMode_GSO == "none" or Game.Timer() < LastKeyPress_GSO + 0.2 then return end
+        if i == HK_Q or i == HK_W or i == HK_E or i == HK_R or i == HK_ITEM_1 or i == HK_ITEM_2 or i == HK_ITEM_3 or i == HK_ITEM_4 or i == HK_ITEM_5 or i == HK_ITEM_6 or i == HK_ITEM_7 or i == HK_SUMMONER_1 or i == HK_SUMMONER_2 or i == HK_LUS or i == HK_MENU then
                 LastKeyPress_GSO = Game.Timer()
                 Control.KeyDown(i)
                 Control.KeyUp(i)
@@ -235,7 +237,7 @@ Callback.Add("Tick", function()
         local combo       = Menu_GSO.keys.combo:Value()
         local lane        = Menu_GSO.keys.lane:Value()
         local lasthit     = Menu_GSO.keys.lhit:Value()
-        local harrass     = Menu_GSO.keys.har:Value()
+        local harass     = Menu_GSO.keys.har:Value()
         
         if DelayedActionAA_GSO ~= nil and Game.Timer() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
                 DelayedActionAA_GSO[1]()
@@ -247,8 +249,8 @@ Callback.Add("Tick", function()
                 DelayedAction_GSO = nil
         end
         
-        if combo or lane or lasthit or harrass then
-        
+        if combo or lane or lasthit or harass then
+                
                 local AAtarget          = nil
                 local AAlanetarget      = nil
                 local AAkillablesoon    = nil
@@ -257,6 +259,7 @@ Callback.Add("Tick", function()
                 local laneclearNUM      = 10000
                 
                 if combo then
+                        CurrentMode_GSO = "combo"
                         local t = GetEnemyHeroes_GSO(HeroAArange_GSO)
                         for i = 1, #t do
                                 local unit        = t[i]
@@ -267,6 +270,7 @@ Callback.Add("Tick", function()
                                 end
                         end
                 elseif lane then
+                        CurrentMode_GSO = "laneclear"
                         local t = GetEnemyMinions_GSO(HeroAArange_GSO)
                         for i = 1, #t do
                                 local unit          = t[i]
@@ -304,7 +308,8 @@ Callback.Add("Tick", function()
                                         AAtarget = AAlanetarget
                                 end
                         end
-                elseif harrass then
+                elseif harass then
+                        CurrentMode_GSO = "harass"
                         local t = GetEnemyMinions_GSO(HeroAArange_GSO)
                         for i = 1, #t do
                                 local unit          = t[i]
@@ -333,6 +338,7 @@ Callback.Add("Tick", function()
                                 end
                         end
                 elseif lasthit then
+                        CurrentMode_GSO = "lasthit"
                         local t = GetEnemyMinions_GSO(HeroAArange_GSO)
                         for i = 1, #t do
                                 local unit          = t[i]
@@ -377,5 +383,7 @@ Callback.Add("Tick", function()
                         Control.mouse_event(0x0010)
                         LastMove_GSO = Game.Timer()
                 end
+        else
+                CurrentMode_GSO = "none"
         end
 end)
