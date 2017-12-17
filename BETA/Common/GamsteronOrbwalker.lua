@@ -34,6 +34,7 @@ local Hero_GSO              = Game.Hero
 local LastMove_GSO          = 0
 local DelayedActionAA_GSO   = nil
 local DelayedAction_GSO     = nil
+local handlecursorPos_GSO   = {}
 
 local HeroTeam_GSO          = myHero.team
 local EnemyTeam_GSO         = HeroTeam_GSO == 100 and 200 or 100
@@ -152,16 +153,10 @@ function SetCastSpellFunc_GSO(func)
         CastSpellFunc_GSO = func
 end
 
---[[ ADD LAST CURSORPOS ]]
-local handlecursorPos_GSO = {}
-function AddNewCursorPos_GSO(T)
-        handlecursorPos_GSO[#handlecursorPos_GSO + 1] = T
-end
-
 --[[ CAST SPELL ]]
 function CastSpell_GSO(spell, pos)
         if pos then
-                AddNewCursorPos_GSO({ GetTickCount(), cursorPos })
+                handlecursorPos_GSO[#handlecursorPos_GSO + 1] = { GetTickCount(), cursorPos }
                 Control.SetCursorPos(pos)
         end
         Control.KeyDown(spell)
@@ -537,7 +532,7 @@ Callback.Add("Tick", function()
                         Control.mouse_event(0x0010)
                         LastAA_GSO = Game.Timer()
                         LastMove_GSO = 0
-                        AddNewCursorPos_GSO({ GetTickCount(), cPos })
+                        handlecursorPos_GSO[#handlecursorPos_GSO + 1] = { GetTickCount(), cPos }
                         DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, Game.Timer(), Menuscp_GSO }
                         DelayedAction_GSO =
                         {
