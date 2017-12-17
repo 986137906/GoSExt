@@ -1,5 +1,6 @@
+if myHero.charName ~= "Ashe" then return end
+
 require "GamsteronOrbwalker"
-require "Eternal Prediction"
 
 local MenuAshe_GSO = MenuElement({type = MENU, id = "menuashegso", name = "GSO Orb Addon - Ashe"})
         MenuAshe_GSO:MenuElement({type = MENU, id = "combo", name = "Combo"})
@@ -9,41 +10,53 @@ local MenuAshe_GSO = MenuElement({type = MENU, id = "menuashegso", name = "GSO O
                 MenuAshe_GSO.harass:MenuElement({id = "qh", name = "UseQ", value = true})
                 MenuAshe_GSO.harass:MenuElement({id = "wh", name = "UseW", value = true})
 
+local QStacks = 0
+function CheckQStacks()
+        for i = 0, myHero.buffCount do
+                local buff = myHero:GetBuff(i)
+                if buff.count > 0 then
+                        local name = buff.name:lower()
+                        if name == "asheq" then
+                                return buff.count
+                        end
+                        if name == "asheqcastready" then
+                                return 4
+                        end
+                end
+        end
+        return 0
+end
+
+local lastQ = 0
 AfterAttack_GSO(function(unit)
         local mode = GetStringCurrentMode_GSO()
-        if ((MenuAshe_GSO.combo.qc:Value() and mode == "combo") or (MenuAshe_GSO.harass.qh:Value() and mode == "harass")) and Game.CanUseSpell(_Q) == 0 then
-                Control.CastSpell(HK_Q)
-                DelayAction(function()
-                        ResetAA_GSO()
-                end, 0.15)
+        if (MenuAshe_GSO.combo.qc:Value() and mode == "combo") or (MenuAshe_GSO.harass.qh:Value() and mode == "harass") then
+                if GetTickCount() < lastQ + 500 then return end
+                if Game.CanUseSpell(_Q) == 0 or QStacks >= 4 then
+                        lastQ = GetTickCount()
+                        DelayAction(function()
+                                CastSpell_GSO(HK_Q)
+                                DelayAction(function()
+                                        ResetAA_GSO()
+                                end, 0.05)
+                        end, 0.15)
+                end
         end
 end)
 
-function CastW_AsheGSO()
-        local mode = GetStringCurrentMode_GSO()
-        if ((MenuAshe_GSO.combo.wc:Value() and mode == "combo") or (MenuAshe_GSO.harass.wh:Value() and mode == "harass")) and Game.CanUseSpell(_W) == 0 then
-                local heroNUM = 10000
-                local Wtarget = nil
-                local t = GetEnemyHeroes_GSO(1200, false)
-                for i = 1, #t do
-                        local unit        = t[i]
-                        local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
-                        if unithealth < heroNUM then
-                                heroNUM = unithealth
-                                Wtarget = unit
-                        end
-                end
-                if Wtarget ~= nil then
-                      local W = {delay = 0.25, range = 1200,speed = 2000}
-                      local Wdata = {speed = W.speed, delay = W.delay ,range = W.range}
-                      local Wspell = Prediction:SetSpell(Wdata, TYPE_LINE, true)
-                      local pred = Wspell:GetPrediction(Wtarget,myHero.pos)
-                      if pred == nil then return end
-                      if pred and pred.hitChance >= 0.25 and pred:mCollision() == 0 and pred:hCollision() == 0 then
-                              Control.CastSpell(HK_W, pred.castPos)
-                      end
-                end
-        end
+local lastW = 0
+function useW()
+        if GetTickCount() < lastW + 500 or QStacks > 2 then return end
+        if Game.CanUseSpell(_W) ~= 0 then return end
+        local W = { delay = 0.25, speed = 2000, width = 100, range = 1200 }
+        local target = GetTarget_GSO(W.range, false, false)
+        if target == nil then return end
+        local wPred = target:GetPrediction(2000,0.25)
+        if not wPred or not wPred:ToScreen().onScreen then return end
+        if target:GetCollision(100,2000,0.25) > 0 then return end
+        CastSpell_GSO(HK_W, wPred)
+        lastW = GetTickCount()
 end
 
-SetCastSpellAAFunc_GSO(function() CastW_AsheGSO() end)
+SetCastSpellAAFunc_GSO(function() useW() end)
+SetCastSpellFunc_GSO(function() QStacks = CheckQStacks() + 1 end)
