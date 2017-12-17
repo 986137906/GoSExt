@@ -19,39 +19,6 @@ local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orb
                 Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "For Ping > 70, better value is 0-50"})
                 Menu_GSO.farm:MenuElement({type = SPACE, id = "note", name = "CPU throttling, better value is 0-50"})
 
-local AfterAttackC_GSO          = {}
-function AfterAttack_GSO(arg)
-        AfterAttackC_GSO[#AfterAttackC_GSO + 1] = arg
-end
-local BeforeAttackC_GSO         = {}
-function BeforeAttack_GSO(arg)
-        BeforeAttackC_GSO[#BeforeAttackC_GSO + 1] = arg
-end
-local CurrentMode_GSO       = "none"
-function GetStringCurrentMode_GSO()
-        return CurrentMode_GSO
-end
-local CanMove_GSO           = true
-function GetBooleanCanMove_GSO()
-        return CanMove_GSO
-end
-local CanAttack_GSO         = true
-function GetBooleanCanAttack_GSO()
-        return CanAttack_GSO
-end
-local LastAA_GSO            = 0
-function GetIntLastAATick_GSO()
-        return LastAA_GSO
-end
-local BlockMovement_GSO     = false
-function DisableMovement_GSO(boolean)
-        BlockMovement_GSO = boolean
-end
-local BlockAttack_GSO       = false
-function DisableAttack_GSO(boolean)
-        BlockAttack_GSO = boolean
-end
-
 local LastKeyPress_GSO      = 0
 local OtherOrbTimer_GSO     = os.clock()
 local CanCheckOrb_GSO       = false
@@ -79,11 +46,51 @@ local HeroAArange_GSO       = myHero.range + myHero.boundingRadius
 local HeroPos_GSO           = myHero.pos
 local HeroPosX_GSO          = HeroPos_GSO.x
 local HeroPosZ_GSO          = HeroPos_GSO.z
+local HeroBonusDmg_GSO      = 0
 local HeroAD_GSO            = myHero.totalDamage
 local MenuEwin_GSO          = Menu_GSO.move.ewin:Value() * 0.001
 local MenuHum_GSO           = Menu_GSO.move.hum:Value()  * 0.001
 local MenuLcs_GSO           = ( 200 - Menu_GSO.farm.lcs:Value() )  * 0.001
 local Menuscp_GSO           = Menu_GSO.attack.setc:Value() * 0.001
+
+local AfterAttackC_GSO          = {}
+function AfterAttack_GSO(arg)
+        AfterAttackC_GSO[#AfterAttackC_GSO + 1] = arg
+end
+local BeforeAttackC_GSO         = {}
+function BeforeAttack_GSO(arg)
+        BeforeAttackC_GSO[#BeforeAttackC_GSO + 1] = arg
+end
+local CurrentMode_GSO       = "none"
+function GetStringCurrentMode_GSO()
+        return CurrentMode_GSO
+end
+local CanMove_GSO           = true
+function GetBooleanCanMove_GSO()
+        return CanMove_GSO
+end
+local CanAttack_GSO         = true
+function GetBooleanCanAttack_GSO()
+        return CanAttack_GSO
+end
+local BlockMovement_GSO     = false
+function DisableMovement_GSO(boolean)
+        BlockMovement_GSO = boolean
+end
+local BlockAttack_GSO       = false
+function DisableAttack_GSO(boolean)
+        BlockAttack_GSO = boolean
+end
+local LastAA_GSO            = 0
+function GetIntLastAATick_GSO()
+        return LastAA_GSO
+end
+function ResetAA_GSO()
+        LastAA_GSO = 0
+end
+function SetBonusDamageForLastHit_GSO(dmg)
+        HeroBonusDmg_GSO = dmg
+end
 
 AfterAttack_GSO(function(unit)
         if HeroAAdata_GSO.endTime < LastAA_GSO then
@@ -264,7 +271,7 @@ Callback.Add("Tick", function()
         HeroPos_GSO       = myHero.pos
         HeroPosX_GSO      = HeroPos_GSO.x
         HeroPosZ_GSO      = HeroPos_GSO.z
-        HeroAD_GSO        = myHero.totalDamage
+        HeroAD_GSO        = myHero.totalDamage + HeroBonusDmg_GSO
         MenuEwin_GSO      = Menu_GSO.move.ewin:Value() * 0.001
         MenuHum_GSO       = Menu_GSO.move.hum:Value() * 0.001
         MenuLcs_GSO       = ( 200 - Menu_GSO.farm.lcs:Value() ) * 0.001
