@@ -19,9 +19,9 @@
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
 
-        local QReadyT_AsheGSO = 0
-        local QResetT_AsheGSO = 0
-        local WReadyT_AsheGSO = 0
+        local lastQ     = 0
+        local lastW     = 0
+        local lastReset = 0
 
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
@@ -66,9 +66,9 @@
 
 
         OnTickLogic_GSO(function()
-                local QReadyT = GetTickCount() > QReadyT_AsheGSO + 500
+                local QReadyT = GetTickCount() > lastQ + 500
                 local QReady  = false
-                local QResetT = GetTickCount() > QResetT_AsheGSO + 4500
+                local QResetT = GetTickCount() > lastReset + 4500
                 local QReset  = false
                 for i = 0, myHero.buffCount do
                         local buff = myHero:GetBuff(i)
@@ -84,20 +84,20 @@
                 end
                 if QReset then
                         ResetAA_GSO()
-                        QResetT_AsheGSO = GetTickCount()
+                        lastReset = GetTickCount()
                 end
                 if QReady then
                         local mode = CurrentMode_GSO()
                         if (MenuAshe_AsheGSO.combo.qc:Value() and mode == "combo") or (MenuAshe_AsheGSO.harass.qh:Value() and mode == "harass") then
                                 Control.KeyDown(HK_Q)
                                 Control.KeyUp(HK_Q)
-                                QReadyT_AsheGSO = GetTickCount()
+                                lastQ = GetTickCount()
                         end
                 end
         end)
 
         ComHarLogicAA_GSO(function()
-                if GetTickCount() > wReadyT_AsheGSO + 500 and Game.CanUseSpell(_W) == 0 then
+                if GetTickCount() > lastW + 500 and Game.CanUseSpell(_W) == 0 then
                         local mode = CurrentMode_GSO()
                         if (MenuAshe_AsheGSO.combo.wc:Value() and mode == "combo") or (MenuAshe_AsheGSO.harass.wh:Value() and mode == "harass") then
                                 local target = GetTarget_AsheGSO(1200)
@@ -108,7 +108,7 @@
                                                 Control.SetCursorPos(wPred)
                                                 Control.KeyDown(HK_W)
                                                 Control.KeyUp(HK_W)
-                                                WReadyT_AsheGSO = GetTickCount()
+                                                lastW = GetTickCount()
                                                 DelayAction(function()
                                                         Control.SetCursorPos(cPos.x, cPos.y)
                                                 end, 0.075)
