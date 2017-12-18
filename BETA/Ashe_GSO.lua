@@ -78,7 +78,7 @@
                                         QReady = true
                                 end
                                 if QResetT and name == "asheqattack" then
-                                        QReset          = true
+                                        QReset = true
                                 end
                         end
                 end
