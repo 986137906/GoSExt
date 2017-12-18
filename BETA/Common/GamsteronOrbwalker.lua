@@ -306,7 +306,7 @@
                                         AAtarget = unit
                                         lasthitNUM = unitHP
                                 else
-                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO())
+                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO() * 0.001)
                                         if unitHP < heroad then
                                                 AAkillablesoon = unit
                                         elseif unitHP < laneclearNUM then
@@ -345,7 +345,7 @@
                                         AAtarget = unit
                                         lasthitNUM = unitHP
                                 else
-                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO())
+                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO() * 0.001)
                                         if unitHP < heroad then
                                                 AAkillablesoon = unit
                                         end
