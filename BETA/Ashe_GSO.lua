@@ -1,6 +1,11 @@
-        if myHero.charName ~= "Ashe" then return end
 
+
+        if myHero.charName ~= "Ashe" then return end
         require "GamsteronOrbwalker"
+
+
+--[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
+
 
         local MenuAshe_AsheGSO = MenuElement({type = MENU, id = "menuashegso", name = "GSO Orb Addon - Ashe"})
                 MenuAshe_AsheGSO:MenuElement({type = MENU, id = "combo", name = "Combo"})
@@ -9,6 +14,18 @@
                 MenuAshe_AsheGSO:MenuElement({type = MENU, id = "harass", name = "Harass"})
                         MenuAshe_AsheGSO.harass:MenuElement({id = "qh", name = "UseQ", value = true})
                         MenuAshe_AsheGSO.harass:MenuElement({id = "wh", name = "UseW", value = true})
+
+
+--[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
+
+
+        local QReadyT_AsheGSO = 0
+        local QResetT_AsheGSO = 0
+        local WReadyT_AsheGSO = 0
+
+
+--[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
+
 
         local function IsValidTarget_AsheGSO(range, unit)
                 local distance = math.sqrt((unit.pos.x-myHero.pos.x)^2 + (unit.pos.z-myHero.pos.z)^2)
@@ -44,10 +61,12 @@
                 return target
         end
 
-        local QReadyT_AsheGSO   = 0
-        local QResetT_AsheGSO   = 0
+
+--[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
+
+
         OnTickLogic_GSO(function()
-                local QReadyT = GetTickCount() > QReadyT_AsheGSO + 4500
+                local QReadyT = GetTickCount() > QReadyT_AsheGSO + 500
                 local QReady  = false
                 local QResetT = GetTickCount() > QResetT_AsheGSO + 4500
                 local QReset  = false
@@ -60,12 +79,12 @@
                                 end
                                 if QResetT and name == "asheqattack" then
                                         QReset          = true
-                                        QResetT_AsheGSO = GetTickCount()
                                 end
                         end
                 end
                 if QReset then
                         ResetAA_GSO()
+                        QResetT_AsheGSO = GetTickCount()
                 end
                 if QReady then
                         local mode = CurrentMode_GSO()
@@ -77,13 +96,11 @@
                 end
         end)
 
-        local lastW_AsheGSO = 0
-        local function useW_AsheGSO()
-                local mode  = CurrentMode_GSO()
-                local W     = { delay = 0.25, speed = 2000, width = 100, range = 1200 }
-                if (MenuAshe_AsheGSO.combo.wc:Value() and mode == "combo") or (MenuAshe_AsheGSO.harass.wh:Value() and mode == "harass") then
-                        if GetTickCount() > lastW_AsheGSO + 500 and QStacks <= 2 and Game.CanUseSpell(_W) == 0 then
-                                local target = GetTarget_AsheGSO(W.range)
+        ComHarLogicAA_GSO(function()
+                if GetTickCount() > wReadyT_AsheGSO + 500 and Game.CanUseSpell(_W) == 0 then
+                        local mode = CurrentMode_GSO()
+                        if (MenuAshe_AsheGSO.combo.wc:Value() and mode == "combo") or (MenuAshe_AsheGSO.harass.wh:Value() and mode == "harass") then
+                                local target = GetTarget_AsheGSO(1200)
                                 if target ~= nil then
                                         local wPred = target:GetPrediction(2000,0.25)
                                         if wPred and wPred:ToScreen().onScreen and target:GetCollision(100,2000,0.25) == 0 then
@@ -91,7 +108,7 @@
                                                 Control.SetCursorPos(wPred)
                                                 Control.KeyDown(HK_W)
                                                 Control.KeyUp(HK_W)
-                                                lastW_AsheGSO = GetTickCount()
+                                                WReadyT_AsheGSO = GetTickCount()
                                                 DelayAction(function()
                                                         Control.SetCursorPos(cPos.x, cPos.y)
                                                 end, 0.075)
@@ -99,10 +116,9 @@
                                 end
                         end
                 end
-        end
-        CastSpellAA_GSO(function() useW_AsheGSO() end)
+        end)
 
-        local function CheckPassiveDmg_AsheGSO(unit)
+        BonusDmgUnit_GSO(function(unit)
                 local dmg = myHero.totalDamage
                 local crit = 0.1 + myHero.critChance
                 for i = 0, unit.buffCount do
@@ -115,5 +131,8 @@
                         end
                 end
                 return 0
-        end
-        BonusDmgUnit_GSO(function(unit) return CheckPassiveDmg_AsheGSO(unit) end)
+        end)
+
+
+--[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
+
