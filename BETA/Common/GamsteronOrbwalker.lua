@@ -49,99 +49,83 @@
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
 
-                    -- [[  S T A R T  .  A P I  ]]
-                                                                            --[[ after attack ]]
+                    -- [[  S T A R T  .  G L O B A L  ]]
+
         local LocalAfterAttack_GSO = {}
         function AfterAttack_GSO(arg)
                 LocalAfterAttack_GSO[#LocalAfterAttack_GSO + 1] = arg
         end
-                                                                            --[[ before attack ]]
         local LocalBeforeAttack_GSO = {}
         function BeforeAttack_GSO(arg)
                 LocalBeforeAttack_GSO[#LocalBeforeAttack_GSO + 1] = arg
         end
-                                                                            --[[ get current mode ]]
         local LocalCurrentMode_GSO = "none"
         function CurrentMode_GSO()
                 return LocalCurrentMode_GSO
         end
-                                                                            --[[ get can move ]]
         local LocalCanMove_GSO = true
         function CanMove_GSO()
                 return LocalCanMove_GSO
         end
-                                                                            --[[ get can attack ]]
         local LocalCanAttack_GSO = true
         function CanAttack_GSO()
                 return LocalCanAttack_GSO
         end
-                                                                            --[[ block movement ]]
         local LocalBlockMove_GSO = false
         function BlockMovement_GSO(boolean)
                 LocalBlockMove_GSO = boolean
         end
-                                                                            --[[ block attack ]]
         local LocalBlockAttack_GSO = false
         function BlockAttack_GSO(boolean)
                 LocalBlockAttack_GSO = boolean
         end
-                                                                            --[[ get last aa tick ]]
         local LocalLastAA_GSO = 0
         function LastAATick_GSO()
                 return LocalLastAA_GSO
         end
-                                                                            --[[ reset attack ]]
         function ResetAA_GSO()
                 LocalLastAA_GSO = 0
         end
-                                                                            --[[ set attack range as function() return haskogwbuff() and calcrange() or myHero.range end ]]
         local function LocalAttackRange_GSO()
                 return myHero.range
         end
         function AttackRange_GSO(func)
                 LocalAttackRange_GSO = func
         end
-                                                                            --[[ add bonus dmg for laneclear/lasthit as function() return dmg() end ]]
         local function LocalBonusDmg_GSO()
                 return 0
         end
         function BonusDmg_GSO(func)
                 LocalBonusDmg_GSO = func
         end
-                                                                            --[[ add bonus dmg for laneclear/lasthit as function(unit) return dmg(unit) end ]]
         local function LocalBonusDmgUnit_GSO(unit)
                 return 0
         end
         function BonusDmgUnit_GSO(func)
                 LocalBonusDmgUnit_GSO = func
         end
-                                                                            --[[ additional canattack() boolean as function() return hasjhinpassivebuff() end ]]
         local function LocalCanAttackAdd_GSO()
                 return true
         end
         function CanAttackAdd_GSO(func)
                 LocalCanAttackAdd_GSO = func
         end
-                                                                            --[[ your target selector for combo as function() return gettarget() end ]]
         local function LocalYourGetTarget_GSO()
                 return nil
         end
         function YourGetTarget_GSO(func)
                 LocalYourGetTarget_GSO = func
         end
-                                                                            --[[ your logic without aa cancel as function() CastQ() end ]]
         local function LocalComHarLogicAA_GSO()
         end
         function ComHarLogicAA_GSO(func)
                 LocalComHarLogicAA_GSO = func
         end
-                                                                            --[[ your logic (can cancel aa) as function() CastQ() end ]]
         local function LocalComHarLogic_GSO()
         end
         function ComHarLogic_GSO(func)
                 LocalComHarLogic_GSO = func
         end
-                                                                            --[[ your logic called everytime as function() CastQ() end ]]
         local function LocalOnTickLogic_GSO()
         end
         function OnTickLogic_GSO(func)
