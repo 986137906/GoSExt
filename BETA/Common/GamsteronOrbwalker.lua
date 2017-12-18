@@ -129,17 +129,23 @@
         function YourGetTarget_GSO(func)
                 LocalYourGetTarget_GSO = func
         end
-                                                                            --[[ cast spell without aa cancel as function() CastQ() end ]]
-        local function LocalCastSpellAA_GSO()
+                                                                            --[[ your logic without aa cancel as function() CastQ() end ]]
+        local function LocalComHarLogicAA_GSO()
         end
-        function CastSpellAA_GSO(func)
-                LocalCastSpellAA_GSO = func
+        function ComHarLogicAA_GSO(func)
+                LocalComHarLogicAA_GSO = func
         end
-                                                                            --[[ cast spell (can cancel aa) as function() CastQ() end ]]
-        local function LocalCastSpell_GSO()
+                                                                            --[[ your logic (can cancel aa) as function() CastQ() end ]]
+        local function LocalComHarLogic_GSO()
         end
-        function CastSpell_GSO(func)
-                LocalCastSpell_GSO = func
+        function ComHarLogic_GSO(func)
+                LocalComHarLogic_GSO = func
+        end
+                                                                            --[[ your logic called everytime as function() CastQ() end ]]
+        local function LocalOnTickLogic_GSO()
+        end
+        function OnTickLogic_GSO(func)
+                LocalOnTickLogic_GSO = func
         end
 
 
@@ -291,7 +297,7 @@
                         for i = 1, #t do
                                 local unit          = t[i]
                                 local unitpos       = unit.pos
-                                local aacompleteT   = HeroAAdata_GSO.windUpTime + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroAAdata_GSO.projectileSpeed )
+                                local aacompleteT   = HeroAAdata_GSO.windUpTime + ( Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / HeroAAdata_GSO.projectileSpeed )
                                 local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                 local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
                                 if unitHP < heroad and unitHP < lasthitNUM then
@@ -330,7 +336,7 @@
                         for i = 1, #t do
                                 local unit          = t[i]
                                 local unitpos       = unit.pos
-                                local aacompleteT   = HeroAAdata_GSO.windUpTime + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroAAdata_GSO.projectileSpeed )
+                                local aacompleteT   = HeroAAdata_GSO.windUpTime + ( Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / HeroAAdata_GSO.projectileSpeed )
                                 local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                 local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
                                 if unitHP < heroad and unitHP < lasthitNUM then
@@ -359,7 +365,7 @@
                         for i = 1, #t do
                                 local unit          = t[i]
                                 local unitpos       = unit.pos
-                                local aacompleteT   = HeroAAdata_GSO.windUpTime + ( Sqrt_GSO((unitpos.x-HeroPosX_GSO)^2 + (unitpos.z-HeroPosZ_GSO)^2) / HeroAAdata_GSO.projectileSpeed )
+                                local aacompleteT   = HeroAAdata_GSO.windUpTime + ( Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / HeroAAdata_GSO.projectileSpeed )
                                 local unitHP = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                 local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
                                 if unitHP < heroad and unitHP < lasthitNUM then
@@ -373,7 +379,7 @@
         
         local function Orb_GSO(AAtarget, HeroAAdata_GSO, MenuEwin_GSO)
                 local checkT        = Game.Timer()
-                LocalCanAttack_GSO  = LocalCanAttackAdd_GSO() and checkT > LocalLastAA_GSO + HeroAAdata_GSO.animationTime + 0.03
+                LocalCanAttack_GSO  = LocalCanAttackAdd_GSO() and checkT > LocalLastAA_GSO + HeroAAdata_GSO.animationTime + 0.075
                 LocalCanMove_GSO    = checkT > LocalLastAA_GSO + HeroAAdata_GSO.windUpTime + MenuEwin_GSO
                 if LocalCanAttack_GSO and not LocalBlockAttack_GSO and AAtarget ~= nil then
                         for i = 1, #LocalBeforeAttack_GSO do
@@ -381,8 +387,10 @@
                         end
                         local cPos = cursorPos
                         Control.SetCursorPos(AAtarget.pos)
-                        Control.mouse_event(0x0008)
-                        Control.mouse_event(0x0010)
+                        Control.KeyDown(HK_TCO)
+                        Control.KeyUp(HK_TCO)
+                        Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
+                        Control.mouse_event(MOUSEEVENTF_RIGHTUP)
                         LocalLastAA_GSO = Game.Timer()
                         LastMove_GSO = 0
                         DelayAction(function()
@@ -400,17 +408,17 @@
                 end
         end
         
-        local function DoDevFunc(AAtarget, HeroAAdata_GSO, combo, harass)
+        local function DoDevFunc_GSO(AAtarget, HeroAAdata_GSO, MenuEwin_GSO, combo, harass)
                 if combo or harass then
                         local checkT = Game.Timer()
                         if AAtarget == true then
-                                if checkT > LocalLastAA_GSO + HeroAAdata_GSO.windUpTime + MenuEwin_GSO and not LocalCanAttack_GSO and checkT < LocalLastAA_GSO + (HeroAAdata_GSO.animationTime*0.7) + 0.03 then
-                                        LocalCastSpellAA_GSO()
+                                if checkT > LocalLastAA_GSO + HeroAAdata_GSO.windUpTime + MenuEwin_GSO and not LocalCanAttack_GSO and checkT < LocalLastAA_GSO + (HeroAAdata_GSO.animationTime*0.7) then
+                                        LocalComHarLogicAA_GSO()
                                 end
                         elseif checkT > LocalLastAA_GSO + HeroAAdata_GSO.windUpTime + MenuEwin_GSO then
-                                LocalCastSpellAA_GSO()
+                                LocalComHarLogicAA_GSO()
                         end
-                        LocalCastSpell_GSO()
+                        LocalComHarLogic_GSO()
                 end
         end
 
@@ -433,6 +441,7 @@ Callback.Add("WndMsg", function(msg, wParam)
 end)
 
 Callback.Add("Tick", function()
+        LocalOnTickLogic_GSO()
         local combo           = Menu_GSO.keys.combo:Value()
         local harass          = Menu_GSO.keys.har:Value()
         local lane            = Menu_GSO.keys.lane:Value()
@@ -443,8 +452,8 @@ Callback.Add("Tick", function()
         DisableOrbwalkers_GSO()
         if combo or lane or harass or lasthit then
                 local AAtarget = not LocalBlockAttack_GSO and GetTarget_GSO(combo, lane, harass, lasthit, HeroAAdata_GSO) or nil
-                Orb(AAtarget, HeroAAdata_GSO, MenuEwin_GSO)
-                DoDevFunc(AAtarget~=nil, HeroAAdata_GSO, combo, harass)
+                Orb_GSO(AAtarget, HeroAAdata_GSO, MenuEwin_GSO)
+                DoDevFunc_GSO(AAtarget~=nil, HeroAAdata_GSO, MenuEwin_GSO, combo, harass)
         end
 end)
 
