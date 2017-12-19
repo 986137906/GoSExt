@@ -105,6 +105,10 @@
                                 Control.KeyDown(HK_Q)
                                 Control.KeyUp(HK_Q)
                                 lastQ = GetTickCount()
+                                BlockAttack_GSO(true)
+                                DelayAction(function()
+                                        BlockAttack_GSO(false)
+                                end, 0.3)
                         end
                 end
         end)
