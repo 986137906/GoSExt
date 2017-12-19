@@ -75,14 +75,14 @@
         
         local function GetTarget_AsheGSO(range)
                 local t       = GetEnemyHeroes_AsheGSO(range)
-                local num     = 0
+                local num     = 10000
                 local target  = nil
                 for i = 1, #t do
-                        local unit    = t[i]
-                        local unithp  = unit.health * ( 100 / ( 100 + unit.armor ) )
-                        if unithp > num then
-                                num  = unithp
-                                target = unit
+                        local unit        = t[i]
+                        local unithealth  = unit.health + ( 2 * unit.armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
+                        if unithealth < num then
+                                num     = unithealth
+                                target  = unit
                         end
                 end
                 return target
@@ -96,7 +96,7 @@
                                 return true
                         end
                 end
-                return false	
+                return false
         end
 
 
