@@ -15,8 +15,8 @@
                         Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
                 
                 Menu_GSO:MenuElement({type = MENU, id = "move", name = "Movement"})
-                        Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 0, max = 200, step = 25 })
-                        Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
+                        Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 125, max = 200, step = 25 })
+                        Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 125, max = 300, step = 25 })
                 
                 Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm"})
                         Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 75, min = 50, max = 200, step = 25 })
