@@ -276,7 +276,7 @@
                 local AAtarget          = nil
                 local AAlanetarget      = nil
                 local AAkillablesoon    = nil
-                local heroNUM           = 0
+                local heroNUM           = 10000
                 local lasthitNUM        = 10000
                 local laneclearNUM      = 10000
                 local HeroAD_GSO        = myHero.totalDamage + LocalBonusDmg_GSO()
@@ -288,8 +288,8 @@
                                 local t = GetEnemyHeroes_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                                 for i = 1, #t do
                                         local unit        = t[i]
-                                        local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
-                                        if unithealth > heroNUM then
+                                        local unithealth  = unit.health + ( 2 * unit.armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
+                                        if unithealth < heroNUM then
                                                 heroNUM  = unithealth
                                                 AAtarget = unit
                                         end
@@ -356,8 +356,8 @@
                                 local t = GetEnemyHeroes_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                                 for i = 1, #t do
                                         local unit        = t[i]
-                                        local unithealth  = unit.health * ( 100 / ( 100 + unit.armor ) )
-                                        if unithealth > heroNUM then
+                                        local unithealth  = unit.health + ( 2 * unit.armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
+                                        if unithealth < heroNUM then
                                                 heroNUM  = unithealth
                                                 AAtarget = unit
                                         end
