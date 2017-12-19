@@ -75,7 +75,7 @@
 
         local function GetTarget_AsheGSO(range)
                 local t       = GetEnemyHeroes_AsheGSO(range)
-                local num     = math.huge
+                local num     = 10000000
                 local target  = nil
                 for i = 1, #t do
                         local unit  = t[i]
