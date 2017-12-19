@@ -19,7 +19,7 @@
                         Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
                 
                 Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm"})
-                        Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 75, min = 0, max = 200, step = 25 })
+                        Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 75, min = 50, max = 200, step = 25 })
 
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
