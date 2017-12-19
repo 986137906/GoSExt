@@ -102,13 +102,13 @@
                 if QReady then
                         local mode = CurrentMode_GSO()
                         if (MenuAshe_AsheGSO.combo.qc:Value() and mode == "combo") or (MenuAshe_AsheGSO.harass.qh:Value() and mode == "harass") then
-                                Control.KeyDown(HK_Q)
-                                Control.KeyUp(HK_Q)
-                                lastQ = GetTickCount()
                                 BlockAttack_GSO(true)
                                 DelayAction(function()
                                         BlockAttack_GSO(false)
                                 end, 0.3)
+                                Control.KeyDown(HK_Q)
+                                Control.KeyUp(HK_Q)
+                                lastQ = GetTickCount()
                         end
                 end
         end)
