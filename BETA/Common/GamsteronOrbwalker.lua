@@ -3,7 +3,7 @@
                     -- [[  S T A R T  .  M E N U  ]]
 
 
-        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.01"})
+        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.02"})
 
                 Menu_GSO:MenuElement({type = MENU, id = "keys", name = "Keys"})
                         Menu_GSO.keys:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
@@ -250,7 +250,6 @@
                         if _G.SDK and _G.SDK.Orbwalker then
                                 IcyLoaded_GSO = true
                         end
-                        print("GamsteronOrbwalker 0.01 Loaded!")
                         CanCheckOrb_GSO = true
                 end
         end
@@ -274,10 +273,10 @@
                 local AAlanetarget      = nil
                 local AAmaxlanetarget   = nil
                 local AAkillablesoon    = nil
-                local heroNUM           = 10000
-                local lasthitNUM        = 10000
-                local laneclearNUM      = 10000
-                local lanemaxNUM        = 0
+                local heroNUM           = 10000000
+                local lasthitNUM        = 10000000
+                local laneclearNUM      = 10000000
+                local lanemaxNUM        = -10000000
                 local HeroAD_GSO        = myHero.totalDamage + LocalBonusDmg_GSO()
                 if combo then
                         local tfunc = LocalYourGetTarget_GSO()
@@ -286,8 +285,10 @@
                         else
                                 local t = GetEnemyHeroes_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                                 for i = 1, #t do
-                                        local unit        = t[i]
-                                        local unithealth  = unit.health + ( 2 * unit.armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
+                                        local unit  = t[i]
+                                        local armor = unit.armor - myHero.armorPen
+                                              armor = armor > 0 and myHero.bonusArmorPenPercent * armor or armor
+                                        local unithealth  = unit.health + ( 2 * armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
                                         if unithealth < heroNUM then
                                                 heroNUM  = unithealth
                                                 AAtarget = unit
@@ -362,8 +363,10 @@
                         if AAtarget == nil and AAkillablesoon == nil then
                                 local t = GetEnemyHeroes_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                                 for i = 1, #t do
-                                        local unit        = t[i]
-                                        local unithealth  = unit.health + ( 2 * unit.armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
+                                        local unit  = t[i]
+                                        local armor = unit.armor - myHero.armorPen
+                                              armor = armor > 0 and myHero.bonusArmorPenPercent * armor or armor
+                                        local unithealth  = unit.health + ( 2 * armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
                                         if unithealth < heroNUM then
                                                 heroNUM  = unithealth
                                                 AAtarget = unit
@@ -404,9 +407,6 @@
                         LocalLastAA_GSO = GetTickCount()
                         LastMove_GSO = 0
                         DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, GetTickCount(), Menu_GSO.attack.setc:Value() }
-                        --[[DelayAction(function()
-                                Control.SetCursorPos(cPos.x, cPos.y)
-                        end, Menu_GSO.attack.setc:Value() * 0.001)]]
                         DelayAction(function()
                                 for i = 1, #LocalAfterAttack_GSO do
                                         LocalAfterAttack_GSO[i](AAtarget)
