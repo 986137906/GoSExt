@@ -37,6 +37,7 @@
         local CanCheckOrb_GSO       = false
         local EOWLoaded_GSO         = false
         local IcyLoaded_GSO         = false
+        local DelayedActionAA_GSO   = nil
 
         local Sqrt_GSO              = math.sqrt
         local Floor_GSO             = math.floor
@@ -381,7 +382,7 @@
         
         local function Orb_GSO(AAtarget, extraWindUp)
                 local checkT        = GetTickCount()
-                LocalCanAttack_GSO  = LocalCanAttackAdd_GSO() and checkT > LocalLastAA_GSO + LocalGetAnimationAA_GSO() + 75
+                LocalCanAttack_GSO  = LocalCanAttackAdd_GSO() and checkT > LocalLastAA_GSO + LocalGetAnimationAA_GSO() + 125
                 LocalCanMove_GSO    = checkT > LocalLastAA_GSO + LocalGetWindUpAA_GSO() + extraWindUp
                 if LocalCanAttack_GSO and not LocalBlockAttack_GSO and AAtarget ~= nil then
                         for i = 1, #LocalBeforeAttack_GSO do
@@ -395,9 +396,10 @@
                         Control.mouse_event(MOUSEEVENTF_RIGHTUP)
                         LocalLastAA_GSO = GetTickCount()
                         LastMove_GSO = 0
-                        DelayAction(function()
+                        DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, GetTickCount(), Menu_GSO.attack.setc:Value() }
+                        --[[DelayAction(function()
                                 Control.SetCursorPos(cPos.x, cPos.y)
-                        end, Menu_GSO.attack.setc:Value() * 0.001)
+                        end, Menu_GSO.attack.setc:Value() * 0.001)]]
                         DelayAction(function()
                                 for i = 1, #LocalAfterAttack_GSO do
                                         LocalAfterAttack_GSO[i](AAtarget)
@@ -413,14 +415,16 @@
         local function DoDevFunc_GSO(AAtarget, extraWindUp, combo, harass)
                 if combo or harass then
                         local checkT = GetTickCount()
-                        if AAtarget == true then
-                                if checkT > LocalLastAA_GSO + LocalGetWindUpAA_GSO() + extraWindUp and not LocalCanAttack_GSO and checkT < LocalLastAA_GSO + (LocalGetAnimationAA_GSO()*0.7) then
+                        if DelayedActionAA_GSO == nil then
+                                if AAtarget == true then
+                                        if checkT > LocalLastAA_GSO + LocalGetWindUpAA_GSO() + extraWindUp and not LocalCanAttack_GSO and checkT < LocalLastAA_GSO + (LocalGetAnimationAA_GSO()*0.7) + 125 then
+                                                LocalComHarLogicAA_GSO()
+                                        end
+                                elseif checkT > LocalLastAA_GSO + LocalGetWindUpAA_GSO() + extraWindUp then
                                         LocalComHarLogicAA_GSO()
                                 end
-                        elseif checkT > LocalLastAA_GSO + LocalGetWindUpAA_GSO() + extraWindUp then
-                                LocalComHarLogicAA_GSO()
+                                LocalComHarLogic_GSO()
                         end
-                        LocalComHarLogic_GSO()
                 end
         end
 
@@ -428,35 +432,41 @@
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
 
-Callback.Add("WndMsg", function(msg, wParam)
-        if LocalCurrentMode_GSO == "none" or GetTickCount() < LastKeyPress_GSO + 100 then return end
-        local i = wParam
-        if i == HK_Q or i == HK_W or i == HK_E or i == HK_R or i == HK_ITEM_1 or i == HK_ITEM_2 or i == HK_ITEM_3 or i == HK_ITEM_4 or i == HK_ITEM_5 or i == HK_ITEM_6 or i == HK_ITEM_7 or i == HK_SUMMONER_1 or i == HK_SUMMONER_2 then
-                LastKeyPress_GSO = GetTickCount()
-                Control.KeyDown(i)
-                Control.KeyUp(i)
-                Control.KeyDown(i)
-                Control.KeyUp(i)
-                Control.KeyDown(i)
-                Control.KeyUp(i)
-        end
-end)
+        Callback.Add("WndMsg", function(msg, wParam)
+                if LocalCurrentMode_GSO == "none" or GetTickCount() < LastKeyPress_GSO + 100 then return end
+                local i = wParam
+                if i == HK_Q or i == HK_W or i == HK_E or i == HK_R or i == HK_ITEM_1 or i == HK_ITEM_2 or i == HK_ITEM_3 or i == HK_ITEM_4 or i == HK_ITEM_5 or i == HK_ITEM_6 or i == HK_ITEM_7 or i == HK_SUMMONER_1 or i == HK_SUMMONER_2 then
+                        LastKeyPress_GSO = GetTickCount()
+                        Control.KeyDown(i)
+                        Control.KeyUp(i)
+                        Control.KeyDown(i)
+                        Control.KeyUp(i)
+                        Control.KeyDown(i)
+                        Control.KeyUp(i)
+                end
+        end)
 
-Callback.Add("Tick", function()
-        LocalOnTickLogic_GSO()
-        local combo           = Menu_GSO.keys.combo:Value()
-        local harass          = Menu_GSO.keys.har:Value()
-        local lane            = Menu_GSO.keys.lane:Value()
-        local lasthit         = Menu_GSO.keys.lhit:Value()
-        local extraWindUp     = Menu_GSO.move.ewin:Value()
-        SetMode_GSO(combo, harass, lane, lasthit)
-        DisableOrbwalkers_GSO()
-        if combo or lane or harass or lasthit then
-                local AAtarget = not LocalBlockAttack_GSO and GetTarget_GSO(combo, lane, harass, lasthit) or nil
-                Orb_GSO(AAtarget, extraWindUp)
-                DoDevFunc_GSO(AAtarget~=nil, extraWindUp, combo, harass)
-        end
-end)
+        Callback.Add("Tick", function()
+                if DelayedActionAA_GSO ~= nil and GetTickCount() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
+                        DelayedActionAA_GSO[1]()
+                        DelayedActionAA_GSO = nil
+                end
+                if DelayedActionAA_GSO == nil then
+                        LocalOnTickLogic_GSO()
+                end
+                local combo           = Menu_GSO.keys.combo:Value()
+                local harass          = Menu_GSO.keys.har:Value()
+                local lane            = Menu_GSO.keys.lane:Value()
+                local lasthit         = Menu_GSO.keys.lhit:Value()
+                local extraWindUp     = Menu_GSO.move.ewin:Value()
+                SetMode_GSO(combo, harass, lane, lasthit)
+                DisableOrbwalkers_GSO()
+                if combo or lane or harass or lasthit then
+                        local AAtarget = not LocalBlockAttack_GSO and GetTarget_GSO(combo, lane, harass, lasthit) or nil
+                        Orb_GSO(AAtarget, extraWindUp)
+                        DoDevFunc_GSO(AAtarget~=nil, extraWindUp, combo, harass)
+                end
+        end)
 
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
