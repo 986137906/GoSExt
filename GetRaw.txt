@@ -1,5 +1,4 @@
-Script:
-https://raw.githubusercontent.com/gamsteron/GoSExt/master/BETA/Ashe_GSO.lua
-
 Common:
 https://raw.githubusercontent.com/gamsteron/GoSExt/master/BETA/Common/GamsteronOrbwalker.lua
+Script:
+https://raw.githubusercontent.com/gamsteron/GoSExt/master/BETA/Ashe_GSO.lua
