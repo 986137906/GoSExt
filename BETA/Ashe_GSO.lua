@@ -79,7 +79,7 @@
                         end
                         changed = myHero.attackData.endTime
                 end]]
-                local QReadyT = GetTickCount() > lastQ + 500
+                local QReadyT = GetTickCount() > lastQ + 500 and GetTickCount() > lastW + 500
                 local QReady  = false
                 local QResetT = GetTickCount() > lastReset + 4500
                 local QReset  = false
@@ -114,7 +114,7 @@
         end)
 
         ComHarLogicAA_GSO(function()
-                if GetTickCount() > lastW + 500 and Game.CanUseSpell(_W) == 0 then
+                if GetTickCount() > lastQ + 500 and GetTickCount() > lastW + 500 and Game.CanUseSpell(_W) == 0 then
                         local mode = CurrentMode_GSO()
                         if (MenuAshe_AsheGSO.combo.wc:Value() and mode == "combo") or (MenuAshe_AsheGSO.harass.wh:Value() and mode == "harass") then
                                 local target = GetTarget_AsheGSO(1200)
