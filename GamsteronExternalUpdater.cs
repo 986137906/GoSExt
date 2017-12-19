@@ -54,7 +54,7 @@ namespace GamsteronExternalUpdater
 			string rawLink		= "https://raw.githubusercontent.com/gamsteron/GoSExt/master/GetRaw.txt";
 			string[] rawResult	= DownloadFileArray(rawLink);
 			bool isScript		= false;
-			int lenght			= rawResult.Length;
+			int lenght		= rawResult.Length;
 			for (int i = 0; i < lenght; i++)
 			{
 				if (i==0) continue;
