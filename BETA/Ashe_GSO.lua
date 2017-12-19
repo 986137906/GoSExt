@@ -7,7 +7,7 @@
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
 
-        local MenuAshe_AsheGSO = MenuElement({type = MENU, id = "menuashegso", name = "GSO Orb Addon - Ashe"})
+        local MenuAshe_AsheGSO = MenuElement({type = MENU, id = "menuashegso", name = "GSO Orb Addon - Ashe 0.01"})
                 MenuAshe_AsheGSO:MenuElement({id = "rdist", name = "use R if enemy distance < X", value = 500, min = 100, max = 1000, step = 50})
                 MenuAshe_AsheGSO:MenuElement({type = MENU, id = "combo", name = "Combo"})
                         MenuAshe_AsheGSO.combo:MenuElement({id = "qc", name = "UseQ", value = true})
@@ -42,14 +42,14 @@
                 end
                 return false
         end
-        
+
         local function IsValidTarget2_AsheGSO(unit)
                 if not unit.dead and unit.isTargetable and unit.visible and unit.valid then
                         return true
                 end
                 return false
         end
-        
+
         local function CountEnemies_AsheGSO(range, addBB)
                 local result = 0
                 for i = 1, Game.HeroCount() do
@@ -61,7 +61,7 @@
                 end
                 return result
         end
-        
+
         local function GetEnemyHeroes_AsheGSO(range)
                 local result = {}
                 for i = 1, Game.HeroCount() do
@@ -72,14 +72,16 @@
                 end
                 return result
         end
-        
+
         local function GetTarget_AsheGSO(range)
                 local t       = GetEnemyHeroes_AsheGSO(range)
-                local num     = 10000
+                local num     = math.huge
                 local target  = nil
                 for i = 1, #t do
-                        local unit        = t[i]
-                        local unithealth  = unit.health + ( 2 * unit.armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
+                        local unit  = t[i]
+                        local armor = unit.armor - myHero.armorPen
+                              armor = armor > 0 and myHero.bonusArmorPenPercent * armor or armor
+                        local unithealth  = unit.health + ( 2 * armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
                         if unithealth < num then
                                 num     = unithealth
                                 target  = unit
@@ -108,11 +110,9 @@
                 local QReady  = false
                 for i = 0, myHero.buffCount do
                         local buff = myHero:GetBuff(i)
-                        local name = buff.name:lower()
-                        if buff.count > 0 then
-                                if QReadyT and name == "asheqcastready" then
-                                        QReady = true
-                                end
+                        if QReadyT and buff.count > 0 and buff.name:lower() == "asheqcastready" then
+                                QReady = true
+                                break
                         end
                 end
                 if QReady and CountEnemies_AsheGSO(myHero.range + myHero.boundingRadius, true) > 0 then
@@ -227,11 +227,8 @@
                 local crit = 0.1 + myHero.critChance
                 for i = 0, unit.buffCount do
                         local buff = unit:GetBuff(i)
-                        if buff.count > 0 then
-                                local name = buff.name:lower()
-                                if name == "ashepassiveslow" then
-                                        return dmg * crit
-                                end
+                        if buff.count > 0 and buff.name:lower() == "ashepassiveslow" then
+                                return dmg * crit
                         end
                 end
                 return 0
