@@ -64,8 +64,21 @@
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
-
+        --[[local aaticks = 0
+        local timeraa = 0
+        local changed = myHero.attackData.endTime]]
         OnTickLogic_GSO(function()
+                --[[if myHero.attackData.endTime > changed then
+                        if aaticks == 0 then
+                                timeraa = Game.Timer()
+                        end
+                        aaticks = aaticks + 1
+                        if aaticks == 5 then
+                                print(math.floor(1000*(Game.Timer()-timeraa)))
+                                aaticks = 0
+                        end
+                        changed = myHero.attackData.endTime
+                end]]
                 local QReadyT = GetTickCount() > lastQ + 500
                 local QReady  = false
                 local QResetT = GetTickCount() > lastReset + 4500
@@ -111,7 +124,11 @@
                                                 lastW = GetTickCount()
                                                 DelayAction(function()
                                                         Control.SetCursorPos(cPos.x, cPos.y)
-                                                end, 0.075)
+                                                end, 0.05)
+                                                BlockAttack_GSO(true)
+                                                DelayAction(function()
+                                                        BlockAttack_GSO(false)
+                                                end, 0.3)
                                         end
                                 end
                         end
