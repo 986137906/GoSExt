@@ -28,8 +28,8 @@ namespace GamsteronExternalUpdater
 		static string GetFileName(string line)
 		{
 			string result	= "";
-			string name		= "";
-			int lenght		= line.Length;
+			string name	= "";
+			int lenght	= line.Length;
 			for (int i = lenght - 1; i >= 0; i--)
 			{
 				char c = line[i];
