@@ -121,6 +121,10 @@
                                 if target ~= nil then
                                         local wPred = target:GetPrediction(2000,0.25)
                                         if wPred and wPred:ToScreen().onScreen and target:GetCollision(100,2000,0.25) == 0 then
+                                                BlockAttack_GSO(true)
+                                                DelayAction(function()
+                                                        BlockAttack_GSO(false)
+                                                end, 0.3)
                                                 local cPos = cursorPos
                                                 Control.SetCursorPos(wPred)
                                                 Control.KeyDown(HK_W)
@@ -129,10 +133,6 @@
                                                 DelayAction(function()
                                                         Control.SetCursorPos(cPos.x, cPos.y)
                                                 end, 0.05)
-                                                BlockAttack_GSO(true)
-                                                DelayAction(function()
-                                                        BlockAttack_GSO(false)
-                                                end, 0.3)
                                         end
                                 end
                         end
