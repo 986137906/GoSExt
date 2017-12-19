@@ -1,9 +1,9 @@
-                    
-                    
+
+
                     -- [[  S T A R T  .  M E N U  ]]
 
 
-        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker"})
+        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.01"})
 
                 Menu_GSO:MenuElement({type = MENU, id = "keys", name = "Keys"})
                         Menu_GSO.keys:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
@@ -19,11 +19,7 @@
                         Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 0, max = 300, step = 25 })
                 
                 Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm"})
-                        Menu_GSO.farm:MenuElement({id = "wait", name = "LaneClear false = faster clear, but less cs", value = false})
                         Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 50, min = 0, max = 200, step = 25 })
-                        Menu_GSO.farm:MenuElement({type = SPACE, id = "note1", name = "For Ping < 70, better value is 50-100"})
-                        Menu_GSO.farm:MenuElement({type = SPACE, id = "note2", name = "For Ping > 70, better value is 0-50"})
-                        Menu_GSO.farm:MenuElement({type = SPACE, id = "note3", name = "CPU throttling, better value is 0-50"})
 
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
@@ -133,13 +129,13 @@
                 LocalOnTickLogic_GSO = func
         end
         local function LocalGetWindUpAA_GSO()
-                return Floor_GSO(myHero.attackData.windUpTime*1000)
+                return myHero.attackData.windUpTime
         end
         function GetWindUpAA_GSO(func)
                 LocalGetWindUpAA_GSO = func
         end
         local function LocalGetAnimationAA_GSO()
-                return Floor_GSO(myHero.attackData.animationTime*1000)
+                return myHero.attackData.animationTime
         end
         function GetAnimationAA_GSO(func)
                 LocalGetAnimationAA_GSO = func
@@ -254,6 +250,7 @@
                         if _G.SDK and _G.SDK.Orbwalker then
                                 IcyLoaded_GSO = true
                         end
+                        print("GamsteronOrbwalker 0.01 Loaded!")
                         CanCheckOrb_GSO = true
                 end
         end
@@ -275,10 +272,12 @@
         local function GetTarget_GSO(combo, lane, harass, lasthit)
                 local AAtarget          = nil
                 local AAlanetarget      = nil
+                local AAmaxlanetarget   = nil
                 local AAkillablesoon    = nil
                 local heroNUM           = 10000
                 local lasthitNUM        = 10000
                 local laneclearNUM      = 10000
+                local lanemaxNUM        = 0
                 local HeroAD_GSO        = myHero.totalDamage + LocalBonusDmg_GSO()
                 if combo then
                         local tfunc = LocalYourGetTarget_GSO()
@@ -300,24 +299,30 @@
                         for i = 1, #t do
                                 local unit          = t[i]
                                 local unitpos       = unit.pos
-                                local aacompleteT   = (0.001*LocalGetWindUpAA_GSO()) + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
+                                local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
                                 local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                 local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
                                 if unitHP < heroad and unitHP < lasthitNUM then
                                         AAtarget = unit
                                         lasthitNUM = unitHP
                                 else
-                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO() * 0.001)
+                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO())
                                         if unitHP < heroad then
                                                 AAkillablesoon = unit
-                                        elseif unitHP < laneclearNUM then
-                                                laneclearNUM = unitHP
-                                                AAlanetarget = unit
+                                        else
+                                                if unitHP < laneclearNUM then
+                                                        laneclearNUM = unitHP
+                                                        AAlanetarget = unit
+                                                end
+                                                if unitHP > lanemaxNUM then
+                                                        lanemaxNUM = unitHP
+                                                        AAmaxlanetarget = unit
+                                                end
                                         end
                                 end
                         end
                         if AAtarget == nil and AAkillablesoon == nil and AAlanetarget ~= nil then
-                                if Menu_GSO.farm.wait:Value() and laneclearNUM < (LocalBonusDmgUnit_GSO(AAlanetarget) + HeroAD_GSO) * 1.5 then
+                                if laneclearNUM < (LocalBonusDmgUnit_GSO(AAlanetarget) + HeroAD_GSO) * 2 then
                                         local pos = AAlanetarget.pos
                                         local canaa = true
                                         for i = 1, MinionCount_GSO() do
@@ -329,6 +334,8 @@
                                         end
                                         if canaa then
                                                 AAtarget = AAlanetarget
+                                        elseif AAmaxlanetarget ~= nil then
+                                                AAtarget = AAmaxlanetarget
                                         end
                                 else
                                         AAtarget = AAlanetarget
@@ -339,14 +346,14 @@
                         for i = 1, #t do
                                 local unit          = t[i]
                                 local unitpos       = unit.pos
-                                local aacompleteT   = (0.001*LocalGetWindUpAA_GSO()) + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
+                                local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
                                 local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                 local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
                                 if unitHP < heroad and unitHP < lasthitNUM then
                                         AAtarget = unit
                                         lasthitNUM = unitHP
                                 else
-                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO() * 0.001)
+                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO())
                                         if unitHP < heroad then
                                                 AAkillablesoon = unit
                                         end
@@ -368,7 +375,7 @@
                         for i = 1, #t do
                                 local unit          = t[i]
                                 local unitpos       = unit.pos
-                                local aacompleteT   = (0.001*LocalGetWindUpAA_GSO()) + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
+                                local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
                                 local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                 local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
                                 if unitHP < heroad and unitHP < lasthitNUM then
@@ -382,8 +389,8 @@
         
         local function Orb_GSO(AAtarget, extraWindUp)
                 local checkT        = GetTickCount()
-                LocalCanAttack_GSO  = LocalCanAttackAdd_GSO() and checkT > LocalLastAA_GSO + LocalGetAnimationAA_GSO() + 125
-                LocalCanMove_GSO    = checkT > LocalLastAA_GSO + LocalGetWindUpAA_GSO() + extraWindUp
+                LocalCanAttack_GSO  = LocalCanAttackAdd_GSO() and checkT > LocalLastAA_GSO + (LocalGetAnimationAA_GSO()*1000) + 125
+                LocalCanMove_GSO    = checkT > LocalLastAA_GSO + (LocalGetWindUpAA_GSO()*1000) + extraWindUp
                 if LocalCanAttack_GSO and not LocalBlockAttack_GSO and AAtarget ~= nil then
                         for i = 1, #LocalBeforeAttack_GSO do
                                 LocalBeforeAttack_GSO[i](AAtarget)
@@ -404,7 +411,7 @@
                                 for i = 1, #LocalAfterAttack_GSO do
                                         LocalAfterAttack_GSO[i](AAtarget)
                                 end
-                        end, LocalGetWindUpAA_GSO() + extraWindUp)
+                        end, LocalGetWindUpAA_GSO() + (extraWindUp*0.001))
                 elseif LocalCanMove_GSO and not LocalBlockMove_GSO and GetTickCount() > LastMove_GSO + Menu_GSO.move.hum:Value() then
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
@@ -417,10 +424,10 @@
                         local checkT = GetTickCount()
                         if DelayedActionAA_GSO == nil then
                                 if AAtarget == true then
-                                        if checkT > LocalLastAA_GSO + LocalGetWindUpAA_GSO() + extraWindUp and not LocalCanAttack_GSO and checkT < LocalLastAA_GSO + (LocalGetAnimationAA_GSO()*0.7) + 125 then
+                                        if checkT > LocalLastAA_GSO + (LocalGetWindUpAA_GSO()*1000) + extraWindUp and not LocalCanAttack_GSO and checkT < LocalLastAA_GSO + (LocalGetAnimationAA_GSO()*700) + 125 then
                                                 LocalComHarLogicAA_GSO()
                                         end
-                                elseif checkT > LocalLastAA_GSO + LocalGetWindUpAA_GSO() + extraWindUp then
+                                elseif checkT > LocalLastAA_GSO + (LocalGetWindUpAA_GSO()*1000) + extraWindUp then
                                         LocalComHarLogicAA_GSO()
                                 end
                                 LocalComHarLogic_GSO()
