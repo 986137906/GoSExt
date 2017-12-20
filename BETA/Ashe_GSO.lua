@@ -7,7 +7,7 @@
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
 
-        local MenuAshe_AsheGSO = MenuElement({type = MENU, id = "menuashegso", name = "GSO Orb Addon - Ashe 0.01"})
+        local MenuAshe_AsheGSO = MenuElement({type = MENU, id = "menuashegso", name = "Gamsteron Ashe 0.01", leftIcon = "https://i.imgur.com/KZMYXcH.png"})
                 MenuAshe_AsheGSO:MenuElement({id = "rdist", name = "use R if enemy distance < X", value = 500, min = 100, max = 1000, step = 50})
                 MenuAshe_AsheGSO:MenuElement({type = MENU, id = "combo", name = "Combo"})
                         MenuAshe_AsheGSO.combo:MenuElement({id = "qc", name = "UseQ", value = true})
