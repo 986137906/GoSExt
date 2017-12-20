@@ -46,7 +46,6 @@
         local DelayedActionAA_GSO   = nil
 
         local Sqrt_GSO              = math.sqrt
-        local Floor_GSO             = math.floor
         local MinionCount_GSO       = Game.MinionCount
         local Minion_GSO            = Game.Minion
         local HeroCount_GSO         = Game.HeroCount
@@ -163,11 +162,11 @@
 
                     -- [[  S T A R T  .  F U N C T I O N S  ]]
 
-        local function IsValidTarget_GSO(range, unit, sourcePos)
+        local function IsValidTarget_GSO(range, unit, x, z)
                 local type      = unit.type
                 local isUnit    = type == Obj_AI_Hero or type == Obj_AI_Minion or type == Obj_AI_Turret
                 local isValid   = isUnit and unit.valid or true
-                if math.sqrt((unit.pos.x-sourcePos.x)^2 + (unit.pos.z-sourcePos.z)^2) < range and not unit.dead and unit.isTargetable and unit.visible and isValid then
+                if x*x+z*z<=range*range and not unit.dead and unit.isTargetable and unit.visible and isValid then
                         return true
                 end
                 return false
@@ -175,9 +174,11 @@
 
         local function GetAllyMinions_GSO(range)
                 local result = {}
+                local me = myHero.pos
                 for i = 1, MinionCount_GSO() do
                         local minion = Minion_GSO(i)
-                        if minion.isAlly and IsValidTarget_GSO(range, minion, myHero.pos) then
+                        local he = minion.pos
+                        if minion.isAlly and IsValidTarget_GSO(range, minion, he.x-me.x, he.z-me.z) then
                                 result[#result + 1] = minion
                         end
                 end
@@ -186,10 +187,12 @@
 
         local function GetEnemyMinions_GSO(range)
                 local result = {}
+                local me = myHero.pos
                 for i = 1, MinionCount_GSO() do
                         local minion = Minion_GSO(i)
+                        local he = minion.pos
                         local isotherminion = minion.maxHealth <= 6
-                        if minion.isEnemy and not isotherminion and IsValidTarget_GSO(range + minion.boundingRadius, minion, myHero.pos) then
+                        if minion.isEnemy and not isotherminion and IsValidTarget_GSO(range + (minion.boundingRadius-30), minion, he.x-me.x, he.z-me.z) then
                                 result[#result + 1] = minion
                         end
                 end
@@ -198,9 +201,11 @@
 
         local function GetEnemyHeroes_GSO(range)
                 local result = {}
+                local me = myHero.pos
                 for i = 1, HeroCount_GSO() do
                         local hero = Hero_GSO(i)
-                        if hero.isEnemy and IsValidTarget_GSO(range + hero.boundingRadius, hero, myHero.pos) then
+                        local he = hero.pos
+                        if hero.isEnemy and IsValidTarget_GSO(range + (hero.boundingRadius-30), hero, he.x-me.x, he.z-me.z) then
                                 result[#result + 1] = hero
                         end
                 end
@@ -225,7 +230,7 @@
                                 local checkT            = Game.Timer()
                                 aacompleteT             = checkT < aacompleteT and aacompleteT or aacompleteT + minion_animT
                                 if aacompleteT - checkT < time + menulcs then
-                                        local minion_ad = Floor_GSO(minion.totalDamage*0.8)
+                                        local minion_ad = minion.totalDamage*0.8
                                         result = result + minion_ad
                                         for j = 1, 10 do
                                                 aacompleteT = aacompleteT + minion_animT
@@ -330,18 +335,22 @@
                         local EnemyHP       = EnemyM.health
                         local EnemyPos      = EnemyM.pos
                         local EnemyBB       = EnemyM.boundingRadius
+                        local dmg           = LocalBonusDmgUnit_GSO(EnemyM) + HeroAD_GSO
                         for i = 1, #tAllyM do
                                 local AllyM = tAllyM[i]
-                                if math.sqrt((EnemyPos.x-AllyM.pos.x)^2 + (EnemyPos.z-AllyM.pos.z)^2) < AllyM.range + AllyM.boundingRadius + EnemyBB + 150 then
+                                local ran = AllyM.range + AllyM.boundingRadius + EnemyBB + 100
+                                local x = EnemyPos.x-AllyM.pos.x
+                                local z = EnemyPos.z-AllyM.pos.z
+                                if x*x+z*z<ran*ran then
                                         EnemyHP = EnemyHP - AllyM.totalDamage
                                 end
                                 Count = Count + 1
-                                if EnemyHP < (LocalBonusDmgUnit_GSO(EnemyM) + HeroAD_GSO) * 3 then
+                                if EnemyHP < dmg * 3 then
                                         CanM = false
                                         break
                                 end
                         end
-                        if Count == 0 or (CanM and EnemyHP > (LocalBonusDmgUnit_GSO(EnemyM) + HeroAD_GSO) * 3) then
+                        if Count == 0 or (CanM and EnemyHP > dmg * 3) then
                                 LaneMTable[#LaneMTable + 1] = EnemyM
                         end
                 end
@@ -487,14 +496,14 @@
         Callback.Add("Draw", function()
                 if not Menu_GSO.draw.denab:Value() then return end
                 if Menu_GSO.draw.me.drawme:Value() and not myHero.dead and myHero.pos:ToScreen().onScreen then
-                        Draw.Circle(myHero.pos, LocalAttackRange_GSO() + (2*myHero.boundingRadius), Menu_GSO.draw.me.widme:Value(), Menu_GSO.draw.me.colme:Value())
+                        Draw.Circle(myHero.pos, LocalAttackRange_GSO() + myHero.boundingRadius + 35, Menu_GSO.draw.me.widme:Value(), Menu_GSO.draw.me.colme:Value())
                 end
                 if Menu_GSO.draw.he.drawhe:Value() then
                         local t = GetEnemyHeroes_GSO(2000)
                         for i = 1, #t do
                                 local unit = t[i]
                                 if unit.pos:ToScreen().onScreen then
-                                        Draw.Circle(unit.pos, unit.range + (2*unit.boundingRadius), Menu_GSO.draw.he.widhe:Value(), Menu_GSO.draw.he.colhe:Value())
+                                        Draw.Circle(unit.pos, unit.range + unit.boundingRadius + 35, Menu_GSO.draw.he.widhe:Value(), Menu_GSO.draw.he.colhe:Value())
                                 end
                         end
                 end
