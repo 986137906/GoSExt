@@ -3,7 +3,7 @@
                     -- [[  S T A R T  .  M E N U  ]]
 
 
-        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.02"})
+        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.03"})
 
                 Menu_GSO:MenuElement({type = MENU, id = "keys", name = "Keys"})
                         Menu_GSO.keys:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
@@ -15,11 +15,11 @@
                         Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
                 
                 Menu_GSO:MenuElement({type = MENU, id = "move", name = "Movement"})
-                        Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 125, max = 200, step = 25 })
-                        Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 125, max = 300, step = 25 })
+                        Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 100, max = 200, step = 25 })
+                        Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 100, max = 300, step = 25 })
                 
                 Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm"})
-                        Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 75, min = 50, max = 200, step = 25 })
+                        Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 75, min = 50, max = 100, step = 5 })
 
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
@@ -217,7 +217,7 @@
                                 if aacompleteT - checkT < time + menulcs then
                                         local minion_ad = Floor_GSO(minion.totalDamage*0.8)
                                         result = result + minion_ad
-                                        for j = 1, 5 do
+                                        for j = 1, 10 do
                                                 aacompleteT = aacompleteT + minion_animT
                                                 if checkT < aacompleteT and aacompleteT - checkT < time + menulcs then
                                                         result = result + minion_ad
@@ -268,112 +268,110 @@
                 end
         end
         
-        local function GetTarget_GSO(combo, lane, harass, lasthit)
-                local AAtarget          = nil
-                local AAlanetarget      = nil
-                local AAmaxlanetarget   = nil
-                local AAkillablesoon    = nil
-                local heroNUM           = 10000000
-                local lasthitNUM        = 10000000
-                local laneclearNUM      = 10000000
-                local lanemaxNUM        = -10000000
-                local HeroAD_GSO        = myHero.totalDamage + LocalBonusDmg_GSO()
-                if combo then
-                        local tfunc = LocalYourGetTarget_GSO()
-                        if tfunc ~= nil then
-                                AAtarget = tfunc
-                        else
-                                local t = GetEnemyHeroes_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
-                                for i = 1, #t do
-                                        local unit  = t[i]
-                                        local armor = unit.armor - myHero.armorPen
-                                              armor = armor > 0 and myHero.bonusArmorPenPercent * armor or armor
-                                        local unithealth  = unit.health + ( 2 * armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
-                                        if unithealth < heroNUM then
-                                                heroNUM  = unithealth
-                                                AAtarget = unit
-                                        end
-                                end
-                        end
-                elseif lane then
-                        local t = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
+        local function GetComHarHero_GSO()
+                local result    = LocalYourGetTarget_GSO()
+                if result == nil then
+                        local heroNUM = 10000000
+                        local t = GetEnemyHeroes_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                         for i = 1, #t do
-                                local unit          = t[i]
-                                local unitpos       = unit.pos
-                                local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
-                                local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
-                                local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
-                                if unitHP < heroad and unitHP < lasthitNUM then
-                                        AAtarget = unit
-                                        lasthitNUM = unitHP
-                                else
-                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO())
-                                        if unitHP < heroad then
-                                                AAkillablesoon = unit
-                                        else
-                                                if unitHP < laneclearNUM then
-                                                        laneclearNUM = unitHP
-                                                        AAlanetarget = unit
-                                                end
-                                                if unitHP > lanemaxNUM then
-                                                        lanemaxNUM = unitHP
-                                                        AAmaxlanetarget = unit
-                                                end
-                                        end
+                                local unit  = t[i]
+                                local armor = unit.armor - myHero.armorPen
+                                      armor = armor > 0 and myHero.bonusArmorPenPercent * armor or armor
+                                local unithealth  = unit.health + ( 2 * armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
+                                if unithealth < heroNUM then
+                                        heroNUM  = unithealth
+                                        result = unit
                                 end
                         end
-                        if AAtarget == nil and AAkillablesoon == nil and AAlanetarget ~= nil then
-                                if laneclearNUM < (LocalBonusDmgUnit_GSO(AAlanetarget) + HeroAD_GSO) * 2 then
-                                        local pos = AAlanetarget.pos
-                                        local canaa = true
-                                        for i = 1, MinionCount_GSO() do
-                                                local minion = Minion_GSO(i)
-                                                if minion.isAlly and IsValidTarget_GSO(minion.range + 200, AAlanetarget, pos) then
-                                                        canaa = false
-                                                        break
-                                                end
-                                        end
-                                        if canaa then
-                                                AAtarget = AAlanetarget
-                                        elseif AAmaxlanetarget ~= nil then
-                                                AAtarget = AAmaxlanetarget
-                                        end
-                                else
-                                        AAtarget = AAlanetarget
+                end
+                return result
+        end
+        
+        local function GetLastHitSoon_GSO(HeroAD_GSO)
+                local result = { nil, 10000000, false }
+                local t = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
+                for i = 1, #t do
+                        local unit          = t[i]
+                        local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unit.pos.x-myHero.pos.x)^2 + (unit.pos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
+                        local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
+                        local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
+                        if unitHP < heroad and unitHP < result[2] then
+                                result[1] = unit
+                                result[2] = unitHP
+                        elseif result[3] == false then
+                                unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO())
+                                if unitHP < heroad then
+                                        result[3] = true
                                 end
+                        end
+                end
+                return result
+        end
+
+        local function GetLaneMinion_GSO(HeroAD_GSO)
+                local result      = nil
+                local LaneMTable  = {}
+                local tAllyM      = GetAllyMinions_GSO(2000)
+                local tEnemyM     = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
+                for i = 1, #tEnemyM do
+                        local EnemyM        = tEnemyM[i]
+                        local Count         = 0
+                        local CanM          = true
+                        local EnemyHP       = EnemyM.health
+                        local EnemyPos      = EnemyM.pos
+                        local EnemyBB       = EnemyM.boundingRadius
+                        for i = 1, #tAllyM do
+                                local AllyM = tAllyM[i]
+                                if math.sqrt((EnemyPos.x-AllyM.pos.x)^2 + (EnemyPos.z-AllyM.pos.z)^2) < AllyM.range + AllyM.boundingRadius + EnemyBB + 150 then
+                                        EnemyHP = EnemyHP - AllyM.totalDamage
+                                end
+                                Count = Count + 1
+                                if EnemyHP < (LocalBonusDmgUnit_GSO(EnemyM) + HeroAD_GSO) * 3 then
+                                        CanM = false
+                                        break
+                                end
+                        end
+                        if Count == 0 or (CanM and EnemyHP > (LocalBonusDmgUnit_GSO(EnemyM) + HeroAD_GSO) * 3) then
+                                LaneMTable[#LaneMTable + 1] = EnemyM
+                        end
+                end
+                local minNum = 10000000
+                for i = 1, #LaneMTable do
+                        local EnemyM  = LaneMTable[i]
+                        local MHP     = EnemyM.health
+                        if MHP < minNum then
+                                minNum = MHP
+                                result = EnemyM
+                        end
+                end
+                return result
+        end
+        
+        local function GetTarget_GSO(combo, lane, harass, lasthit)
+                local AAtarget    = nil
+                local HeroAD_GSO  = myHero.totalDamage + LocalBonusDmg_GSO()
+                if combo then
+                        AAtarget = GetComHarHero_GSO()
+                elseif lane then
+                        local lasthitsoon = GetLastHitSoon_GSO(HeroAD_GSO)
+                        if lasthitsoon[1] == nil then
+                                if lasthitsoon[3] == false then
+                                        AAtarget = GetLaneMinion_GSO(HeroAD_GSO)
+                                end
+                        else
+                                AAtarget = lasthitsoon[1]
                         end
                 elseif harass then
-                        local t = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
-                        for i = 1, #t do
-                                local unit          = t[i]
-                                local unitpos       = unit.pos
-                                local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
-                                local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
-                                local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
-                                if unitHP < heroad and unitHP < lasthitNUM then
-                                        AAtarget = unit
-                                        lasthitNUM = unitHP
-                                else
-                                        unitHP = unitHP - GetHealthPrediction_GSO(unit, 3 * LocalGetAnimationAA_GSO())
-                                        if unitHP < heroad then
-                                                AAkillablesoon = unit
-                                        end
+                        local lasthitsoon = GetLastHitSoon_GSO(HeroAD_GSO)
+                        if lasthitsoon[1] == nil then
+                                if lasthitsoon[3] == false then
+                                        AAtarget = GetComHarHero_GSO()
                                 end
-                        end
-                        if AAtarget == nil and AAkillablesoon == nil then
-                                local t = GetEnemyHeroes_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
-                                for i = 1, #t do
-                                        local unit  = t[i]
-                                        local armor = unit.armor - myHero.armorPen
-                                              armor = armor > 0 and myHero.bonusArmorPenPercent * armor or armor
-                                        local unithealth  = unit.health + ( 2 * armor ) - ( unit.attackSpeed * unit.totalDamage ) - ( 1.5 * unit.ap )
-                                        if unithealth < heroNUM then
-                                                heroNUM  = unithealth
-                                                AAtarget = unit
-                                        end
-                                end
+                        else
+                                AAtarget = lasthitsoon[1]
                         end
                 elseif lasthit then
+                        local lasthitNUM = 10000000
                         local t = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                         for i = 1, #t do
                                 local unit          = t[i]
