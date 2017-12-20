@@ -2,24 +2,34 @@
 
                     -- [[  S T A R T  .  M E N U  ]]
 
+        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.04", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
+                
+                Menu_GSO:MenuElement({type = MENU, id = "attack", name = "Attack", leftIcon = "https://i.imgur.com/DsGzSEv.png"})
+                        Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
+                
+                Menu_GSO:MenuElement({type = MENU, id = "move", name = "Movement", leftIcon = "https://i.imgur.com/Utq5iah.png"})
+                        Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 100, max = 200, step = 25 })
+                        Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 100, max = 300, step = 25 })
+                
+                Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm", leftIcon = "https://i.imgur.com/y4KLUu9.png"})
+                        Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 75, min = 50, max = 100, step = 5 })
 
-        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.03"})
+                Menu_GSO:MenuElement({type = MENU, id = "draw", name = "Drawings", leftIcon = "https://i.imgur.com/GuE9yOL.png"})
+                        Menu_GSO.draw:MenuElement({name = "Enable",  id = "denab", value = true})
+                        Menu_GSO.draw:MenuElement({type = MENU, name = "MyHero attack range",  id = "me"})
+                        Menu_GSO.draw.me:MenuElement({name = "Enable",  id = "drawme", value = true})
+                        Menu_GSO.draw.me:MenuElement({name = "Color",  id = "colme", color = Draw.Color(150, 49, 210, 0)})
+                        Menu_GSO.draw.me:MenuElement({name = "Width",  id = "widme", value = 1, min = 1, max = 10})
+                        Menu_GSO.draw:MenuElement({type = MENU, name = "Enemy attack range",  id = "he"})
+                        Menu_GSO.draw.he:MenuElement({name = "Enable",  id = "drawhe", value = true})
+                        Menu_GSO.draw.he:MenuElement({name = "Color",  id = "colhe", color = Draw.Color(150, 255, 0, 0)})
+                        Menu_GSO.draw.he:MenuElement({name = "Width",  id = "widhe", value = 1, min = 1, max = 10})
 
-                Menu_GSO:MenuElement({type = MENU, id = "keys", name = "Keys"})
+                Menu_GSO:MenuElement({type = MENU, id = "keys", name = "Keys", leftIcon = "https://i.imgur.com/QXvoHmH.png"})
                         Menu_GSO.keys:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
                         Menu_GSO.keys:MenuElement({id = "har", name = "Harrass Key", key = string.byte("C")})
                         Menu_GSO.keys:MenuElement({id = "lhit", name = "LastHit Key", key = string.byte("X")})
                         Menu_GSO.keys:MenuElement({id = "lane", name = "LaneClear Key", key = string.byte("V")})
-                
-                Menu_GSO:MenuElement({type = MENU, id = "attack", name = "Attack"})
-                        Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
-                
-                Menu_GSO:MenuElement({type = MENU, id = "move", name = "Movement"})
-                        Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 100, max = 200, step = 25 })
-                        Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 100, max = 300, step = 25 })
-                
-                Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm"})
-                        Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 75, min = 50, max = 100, step = 5 })
 
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
@@ -470,6 +480,23 @@
                         local AAtarget = not LocalBlockAttack_GSO and GetTarget_GSO(combo, lane, harass, lasthit) or nil
                         Orb_GSO(AAtarget, extraWindUp)
                         DoDevFunc_GSO(AAtarget~=nil, extraWindUp, combo, harass)
+                end
+        end)
+        
+
+        Callback.Add("Draw", function()
+                if not Menu_GSO.draw.denab:Value() then return end
+                if Menu_GSO.draw.me.drawme:Value() and not myHero.dead and myHero.pos:ToScreen().onScreen then
+                        Draw.Circle(myHero.pos, LocalAttackRange_GSO() + (2*myHero.boundingRadius), Menu_GSO.draw.me.widme:Value(), Menu_GSO.draw.me.colme:Value())
+                end
+                if Menu_GSO.draw.he.drawhe:Value() then
+                        local t = GetEnemyHeroes_GSO(2000)
+                        for i = 1, #t do
+                                local unit = t[i]
+                                if unit.pos:ToScreen().onScreen then
+                                        Draw.Circle(unit.pos, unit.range + (2*unit.boundingRadius), Menu_GSO.draw.he.widhe:Value(), Menu_GSO.draw.he.colhe:Value())
+                                end
+                        end
                 end
         end)
 
