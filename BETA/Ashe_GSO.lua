@@ -34,10 +34,9 @@
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
-
-        local function IsValidTarget_AsheGSO(range, unit)
-                local distance = math.sqrt((unit.pos.x-myHero.pos.x)^2 + (unit.pos.z-myHero.pos.z)^2)
-                if distance < range and not unit.dead and unit.isTargetable and unit.visible and unit.valid then
+        
+        local function IsValidTarget_AsheGSO(range, x, z, unit)
+                if x*x+z*z<=range*range and not unit.dead and unit.isTargetable and unit.visible and unit.valid then
                         return true
                 end
                 return false
@@ -52,10 +51,12 @@
 
         local function CountEnemies_AsheGSO(range, addBB)
                 local result = 0
+                local me = myHero.pos
                 for i = 1, Game.HeroCount() do
                         local hero = Game.Hero(i)
-                        local r = addBB and range + hero.boundingRadius or range
-                        if hero.isEnemy and IsValidTarget_AsheGSO(r, hero) then
+                        local he = hero.pos
+                        local r = addBB and range + (hero.boundingRadius-30) or range
+                        if hero.isEnemy and IsValidTarget_AsheGSO(r, he.x-me.x, he.z-me.z, hero) then
                                 result = result + 1
                         end
                 end
@@ -64,9 +65,11 @@
 
         local function GetEnemyHeroes_AsheGSO(range)
                 local result = {}
+                local me = myHero.pos
                 for i = 1, Game.HeroCount() do
                         local hero = Game.Hero(i)
-                        if hero.isEnemy and IsValidTarget_AsheGSO(range, hero) then
+                        local he = hero.pos
+                        if hero.isEnemy and IsValidTarget_AsheGSO(range, he.x-me.x, he.z-me.z, hero) then
                                 result[#result + 1] = hero
                         end
                 end
@@ -157,12 +160,17 @@
                         local RcomboD   = MenuAshe_AsheGSO.combo.rcd:Value()
                         local RcomboI   = MenuAshe_AsheGSO.combo.rci:Value()
                         local mode = CurrentMode_GSO()
+                        local me = myHero.pos
                         if (RcomboD and mode == "combo") or (RharassD and mode == "harass") then
                                 local num = MenuAshe_AsheGSO.rdist:Value()
+                                num = num*num
                                 local t = nil
                                 for i = 1, Game.HeroCount() do
                                         local hero = Game.Hero(i)
-                                        local distance = math.sqrt((hero.pos.x-myHero.pos.x)^2 + (hero.pos.z-myHero.pos.z)^2)
+                                        local he = hero.pos
+                                        local x = he.x-me.x
+                                        local z = he.z-me.z
+                                        local distance = x*x+z*z
                                         if hero.isEnemy and IsValidTarget2_AsheGSO(hero) and distance < num then
                                                 num = distance
                                                 t = hero
@@ -194,7 +202,8 @@
                                 local t = nil
                                 for i = 1, Game.HeroCount() do
                                         local hero = Game.Hero(i)
-                                        if hero.isEnemy and IsValidTarget_AsheGSO(1000, hero) and IsImmobileTarget(hero) then
+                                        local he = hero.pos
+                                        if hero.isEnemy and IsValidTarget_AsheGSO(1000, he.x-me.x, he.z-me.z, hero) and IsImmobileTarget(hero) then
                                                 t = hero
                                                 break
                                         end
