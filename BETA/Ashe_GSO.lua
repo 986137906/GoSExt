@@ -237,7 +237,15 @@
                 for i = 0, unit.buffCount do
                         local buff = unit:GetBuff(i)
                         if buff.count > 0 and buff.name:lower() == "ashepassiveslow" then
-                                return dmg * crit
+                                local aacompleteT = myHero.attackData.windUpTime + (math.sqrt((unit.pos.x-myHero.pos.x)^2 + (unit.pos.z-myHero.pos.z)^2) / myHero.attackData.projectileSpeed)
+                                if aacompleteT + 0.1 < buff.duration then
+                                        return dmg * crit
+                                end
+                                --[[ buff.duration, example:
+                                        print(buff.startTime.." "..buff.expireTime.." "..buff.duration.." "..Game.Timer())
+                                        221.715438842277    223.71543884277      0.16038513183594           223.55505371094
+                                        223,71543884277-223,55505371094=0,16038513183
+                                  ]]
                         end
                 end
                 return 0
