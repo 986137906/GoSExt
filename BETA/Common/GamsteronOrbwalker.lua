@@ -435,7 +435,7 @@
                 if PingCount_GSO == 10 then
                         Ping_GSO = (PingPlus_GSO/PingCount_GSO)*0.001
                         PingPlus_GSO = 0
-                        PingCount_GSO = 0156/2*0,001
+                        PingCount_GSO = 0
                 end
                 if DelayedActionAA_GSO ~= nil and GetTickCount() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
                         DelayedActionAA_GSO[1]()
