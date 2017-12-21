@@ -274,7 +274,7 @@
                         for i = 1, HeroCount_GSO() do
                                 local hero = Hero_GSO(i)
                                 local he = hero.pos
-                                if hero.isEnemy and IsValidTarget_GSO(range + (hero.boundingRadius-30), hero, he.x-me.x, he.z-me.z) then
+                                if hero.isEnemy and IsValidTarget_GSO(range, hero, he.x-me.x, he.z-me.z) then
                                         result[#result + 1] = hero
                                 end
                         end
