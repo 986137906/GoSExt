@@ -2,7 +2,7 @@
 
                     -- [[  S T A R T  .  M E N U  ]]
 
-        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.06", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
+        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.07", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
                 
                 Menu_GSO:MenuElement({type = MENU, id = "attack", name = "Attack", leftIcon = "https://i.imgur.com/DsGzSEv.png"})
                         Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
@@ -400,10 +400,9 @@
                                         end
                                 end,
                                 GetTickCount(),
-                                LocalGetWindUpAA_GSO() + (extraWindUp*0.001)
+                                1000 * LocalGetWindUpAA_GSO() + extraWindUp
                         }
                 elseif LocalCanMove_GSO and not LocalBlockMove_GSO and GetTickCount() > LastMove_GSO + Menu_GSO.move.hum:Value() then
-                        LocalIsAttacking_GSO = false
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
                         LastMove_GSO = GetTickCount()
