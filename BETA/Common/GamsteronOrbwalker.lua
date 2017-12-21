@@ -2,7 +2,7 @@
 
                     -- [[  S T A R T  .  M E N U  ]]
 
-        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.05", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
+        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.06", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
                 
                 Menu_GSO:MenuElement({type = MENU, id = "attack", name = "Attack", leftIcon = "https://i.imgur.com/DsGzSEv.png"})
                         Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
@@ -45,6 +45,7 @@
         local EOWLoaded_GSO         = false
         local IcyLoaded_GSO         = false
         local DelayedActionAA_GSO   = nil
+        local DelayedActionAA2_GSO  = nil
 
         local Sqrt_GSO              = math.sqrt
         local MinionCount_GSO       = Game.MinionCount
@@ -77,6 +78,14 @@
         local LocalCanAttack_GSO = true
         function CanAttack_GSO()
                 return LocalCanAttack_GSO
+        end
+        local LocalIsAttacking_GSO = false
+        function IsAttacking_GSO()
+                return LocalIsAttacking_GSO
+        end
+        local LocalLastAttackTarget_GSO = nil
+        function LastAttackTarget_GSO()
+                return LocalLastAttackTarget_GSO
         end
         local LocalBlockMove_GSO = false
         function BlockMovement_GSO(boolean)
@@ -368,6 +377,8 @@
                 LocalCanAttack_GSO  = LocalCanAttackAdd_GSO() and checkT > LocalLastAA_GSO + (LocalGetAnimationAA_GSO()*1000) + 125
                 LocalCanMove_GSO    = checkT > LocalLastAA_GSO + (LocalGetWindUpAA_GSO()*1000) + extraWindUp
                 if LocalCanAttack_GSO and not LocalBlockAttack_GSO and AAtarget ~= nil then
+                        LocalLastAttackTarget_GSO = AAtarget
+                        LocalIsAttacking_GSO = true
                         for i = 1, #LocalBeforeAttack_GSO do
                                 LocalBeforeAttack_GSO[i](AAtarget)
                         end
@@ -380,12 +391,19 @@
                         LocalLastAA_GSO = GetTickCount()
                         LastMove_GSO = 0
                         DelayedActionAA_GSO = { function() Control.SetCursorPos(cPos.x, cPos.y) end, GetTickCount(), Menu_GSO.attack.setc:Value() }
-                        DelayAction(function()
-                                for i = 1, #LocalAfterAttack_GSO do
-                                        LocalAfterAttack_GSO[i](AAtarget)
-                                end
-                        end, LocalGetWindUpAA_GSO() + (extraWindUp*0.001))
+                        DelayedActionAA2_GSO =
+                        {
+                                function()
+                                        LocalIsAttacking_GSO = false
+                                        for i = 1, #LocalAfterAttack_GSO do
+                                                LocalAfterAttack_GSO[i](AAtarget)
+                                        end
+                                end,
+                                GetTickCount(),
+                                LocalGetWindUpAA_GSO() + (extraWindUp*0.001)
+                        }
                 elseif LocalCanMove_GSO and not LocalBlockMove_GSO and GetTickCount() > LastMove_GSO + Menu_GSO.move.hum:Value() then
+                        LocalIsAttacking_GSO = false
                         Control.mouse_event(0x0008)
                         Control.mouse_event(0x0010)
                         LastMove_GSO = GetTickCount()
@@ -440,6 +458,10 @@
                 if DelayedActionAA_GSO ~= nil and GetTickCount() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
                         DelayedActionAA_GSO[1]()
                         DelayedActionAA_GSO = nil
+                end
+                if DelayedActionAA2_GSO ~= nil and GetTickCount() - DelayedActionAA2_GSO[2] > DelayedActionAA2_GSO[3] then
+                        DelayedActionAA2_GSO[1]()
+                        DelayedActionAA2_GSO = nil
                 end
                 if DelayedActionAA_GSO == nil then
                         LocalOnTickLogic_GSO()
