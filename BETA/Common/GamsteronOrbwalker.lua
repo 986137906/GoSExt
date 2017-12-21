@@ -2,7 +2,7 @@
 
                     -- [[  S T A R T  .  M E N U  ]]
 
-        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.04", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
+        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.05", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
                 
                 Menu_GSO:MenuElement({type = MENU, id = "attack", name = "Attack", leftIcon = "https://i.imgur.com/DsGzSEv.png"})
                         Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
@@ -10,9 +10,6 @@
                 Menu_GSO:MenuElement({type = MENU, id = "move", name = "Movement", leftIcon = "https://i.imgur.com/Utq5iah.png"})
                         Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 100, max = 200, step = 25 })
                         Menu_GSO.move:MenuElement({id = "hum", name = "Humanizer Movement Delay", value = 225, min = 100, max = 300, step = 25 })
-                
-                Menu_GSO:MenuElement({type = MENU, id = "farm", name = "Farm", leftIcon = "https://i.imgur.com/y4KLUu9.png"})
-                        Menu_GSO.farm:MenuElement({id = "lcs", name = "LastHit Delay", value = 75, min = 50, max = 100, step = 5 })
 
                 Menu_GSO:MenuElement({type = MENU, id = "draw", name = "Drawings", leftIcon = "https://i.imgur.com/GuE9yOL.png"})
                         Menu_GSO.draw:MenuElement({name = "Enable",  id = "denab", value = true})
@@ -37,6 +34,10 @@
 
                     -- [[  S T A R T  .  V A R S  ]]
 
+        local PingTimer_GSO         = 0
+        local PingCount_GSO         = 0
+        local PingPlus_GSO          = 0
+        local Ping_GSO              = Game.Latency()*0.001
         local LastMove_GSO          = 0
         local LastKeyPress_GSO      = 0
         local OtherOrbTimer_GSO     = GetTickCount()
@@ -156,7 +157,6 @@
                 LocalGetProjSpeedAA_GSO = func
         end
 
-
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
 
@@ -217,7 +217,6 @@
                 local unitpos   = unit.pos
                 local unitid    = unit.handle
                 local t         = GetAllyMinions_GSO(2000)
-                local menulcs   = 0.001 * (200 - Menu_GSO.farm.lcs:Value())
                 for i = 1, #t do
                         local minion = t[i]
                         if minion.attackData.target == unitid then
@@ -229,12 +228,12 @@
                                 local aacompleteT       = minion_aadata.endTime + minion_projT - ( minion_animT - minion_aadata.windUpTime )
                                 local checkT            = Game.Timer()
                                 aacompleteT             = checkT < aacompleteT and aacompleteT or aacompleteT + minion_animT
-                                if aacompleteT - checkT < time + menulcs then
-                                        local minion_ad = minion.totalDamage*0.8
-                                        result = result + minion_ad
+                                if aacompleteT - checkT < time + Ping_GSO - 0.02 then
+                                        local minion_ad = minion.totalDamage*(1+minion.bonusDamagePercent)
+                                        result = result + minion_ad-1
                                         for j = 1, 10 do
                                                 aacompleteT = aacompleteT + minion_animT
-                                                if checkT < aacompleteT and aacompleteT - checkT < time + menulcs then
+                                                if checkT < aacompleteT and aacompleteT - checkT < time + Ping_GSO - 0.02 then
                                                         result = result + minion_ad
                                                 else
                                                         break
@@ -303,7 +302,7 @@
         end
         
         local function GetLastHitSoon_GSO(HeroAD_GSO)
-                local result = { nil, 10000000, false }
+                local result = { nil, 10000000, false, nil, -10000000 }
                 local t = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                 for i = 1, #t do
                         local unit          = t[i]
@@ -319,48 +318,9 @@
                                         result[3] = true
                                 end
                         end
-                end
-                return result
-        end
-
-        local function GetLaneMinion_GSO(HeroAD_GSO)
-                local result      = nil
-                local LaneMTable  = {}
-                local tAllyM      = GetAllyMinions_GSO(2000)
-                local tEnemyM     = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
-                for i = 1, #tEnemyM do
-                        local EnemyM        = tEnemyM[i]
-                        local Count         = 0
-                        local CanM          = true
-                        local EnemyHP       = EnemyM.health
-                        local EnemyPos      = EnemyM.pos
-                        local EnemyBB       = EnemyM.boundingRadius
-                        local dmg           = LocalBonusDmgUnit_GSO(EnemyM) + HeroAD_GSO
-                        for i = 1, #tAllyM do
-                                local AllyM = tAllyM[i]
-                                local ran = AllyM.range + AllyM.boundingRadius + EnemyBB + 100
-                                local x = EnemyPos.x-AllyM.pos.x
-                                local z = EnemyPos.z-AllyM.pos.z
-                                if x*x+z*z<ran*ran then
-                                        EnemyHP = EnemyHP - AllyM.totalDamage
-                                end
-                                Count = Count + 1
-                                if EnemyHP < dmg * 3 then
-                                        CanM = false
-                                        break
-                                end
-                        end
-                        if Count == 0 or (CanM and EnemyHP > dmg * 3) then
-                                LaneMTable[#LaneMTable + 1] = EnemyM
-                        end
-                end
-                local minNum = 10000000
-                for i = 1, #LaneMTable do
-                        local EnemyM  = LaneMTable[i]
-                        local MHP     = EnemyM.health
-                        if MHP < minNum then
-                                minNum = MHP
-                                result = EnemyM
+                        if unitHP > result[5] then
+                                result[4] = unit
+                                result[5] = unitHP
                         end
                 end
                 return result
@@ -373,19 +333,15 @@
                         AAtarget = GetComHarHero_GSO()
                 elseif lane then
                         local lasthitsoon = GetLastHitSoon_GSO(HeroAD_GSO)
-                        if lasthitsoon[1] == nil then
-                                if lasthitsoon[3] == false then
-                                        AAtarget = GetLaneMinion_GSO(HeroAD_GSO)
-                                end
+                        if lasthitsoon[1] == nil and lasthitsoon[3] == false then
+                                AAtarget = lasthitsoon[4]
                         else
                                 AAtarget = lasthitsoon[1]
                         end
                 elseif harass then
                         local lasthitsoon = GetLastHitSoon_GSO(HeroAD_GSO)
-                        if lasthitsoon[1] == nil then
-                                if lasthitsoon[3] == false then
-                                        AAtarget = GetComHarHero_GSO()
-                                end
+                        if lasthitsoon[1] == nil and lasthitsoon[3] == false then
+                                AAtarget = GetComHarHero_GSO()
                         else
                                 AAtarget = lasthitsoon[1]
                         end
@@ -471,6 +427,16 @@
         end)
 
         Callback.Add("Tick", function()
+                if GetTickCount() > PingTimer_GSO + 50 then
+                        PingTimer_GSO = GetTickCount()
+                        PingCount_GSO = PingCount_GSO + 1
+                        PingPlus_GSO = PingPlus_GSO + Game.Latency()
+                end
+                if PingCount_GSO == 10 then
+                        Ping_GSO = (PingPlus_GSO/PingCount_GSO)*0.001
+                        PingPlus_GSO = 0
+                        PingCount_GSO = 0156/2*0,001
+                end
                 if DelayedActionAA_GSO ~= nil and GetTickCount() - DelayedActionAA_GSO[2] > DelayedActionAA_GSO[3] then
                         DelayedActionAA_GSO[1]()
                         DelayedActionAA_GSO = nil
