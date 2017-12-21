@@ -246,7 +246,7 @@
 
         elseif myHero.charName == "Twitch" then
 
-                local MenuTwitch_GSO = MenuElement({type = MENU, id = "twitchgso", name = "GSO Twitch 0.01"})
+                local MenuTwitch_GSO = MenuElement({type = MENU, id = "twitchgso", name = "GSO Twitch 0.01", leftIcon = "https://i.imgur.com/0gy25Yj.png"})
                         MenuTwitch_GSO:MenuElement({type = MENU, id = "combo", name = "Combo"})
                                 MenuTwitch_GSO.combo:MenuElement({id = "wc", name = "UseW", value = true})
                                 MenuTwitch_GSO.combo:MenuElement({id = "ec", name = "UseE", value = true})
