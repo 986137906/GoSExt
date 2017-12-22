@@ -63,6 +63,7 @@
 
                     -- [[  S T A R T  .  G L O B A L S  ]]
 
+        GSO_Orbwalker_Loaded = true
         local LocalAfterAttack_GSO = {}
         function AfterAttack_GSO(arg)
                 LocalAfterAttack_GSO[#LocalAfterAttack_GSO + 1] = arg
