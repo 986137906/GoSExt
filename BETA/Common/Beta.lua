@@ -52,7 +52,6 @@
         local DelayedActionAA_GSO   = nil
         local DelayedActionAA2_GSO  = nil
 
-        local Sqrt_GSO              = math.sqrt
         local MinionCount_GSO       = Game.MinionCount
         local Minion_GSO            = Game.Minion
         local HeroCount_GSO         = Game.HeroCount
@@ -176,11 +175,11 @@
 
                     -- [[  S T A R T  .  F U N C T I O N S  ]]
 
-        local function IsValidTarget_GSO(range, unit, x, z)
+        local function IsValidTarget_GSO(range, unit)
                 local type      = unit.type
                 local isUnit    = type == Obj_AI_Hero or type == Obj_AI_Minion or type == Obj_AI_Turret
                 local isValid   = isUnit and unit.valid or true
-                if x*x+z*z<=range*range and not unit.dead and unit.isTargetable and unit.visible and isValid then
+                if unit.distance<=range and not unit.dead and unit.isTargetable and unit.visible and isValid then
                         return true
                 end
                 return false
@@ -188,11 +187,9 @@
 
         local function GetAllyMinions_GSO(range)
                 local result = {}
-                local me = myHero.pos
                 for i = 1, MinionCount_GSO() do
                         local minion = Minion_GSO(i)
-                        local he = minion.pos
-                        if minion.isAlly and IsValidTarget_GSO(range, minion, he.x-me.x, he.z-me.z) then
+                        if minion.isAlly and IsValidTarget_GSO(range, minion) then
                                 result[#result + 1] = minion
                         end
                 end
@@ -201,12 +198,10 @@
 
         local function GetEnemyMinions_GSO(range)
                 local result = {}
-                local me = myHero.pos
                 for i = 1, MinionCount_GSO() do
                         local minion = Minion_GSO(i)
-                        local he = minion.pos
                         local isotherminion = minion.maxHealth <= 6
-                        if minion.isEnemy and not isotherminion and IsValidTarget_GSO(range + (minion.boundingRadius-30), minion, he.x-me.x, he.z-me.z) then
+                        if minion.isEnemy and not isotherminion and IsValidTarget_GSO(range + (minion.boundingRadius-30), minion) then
                                 result[#result + 1] = minion
                         end
                 end
@@ -215,11 +210,9 @@
 
         local function GetEnemyHeroes_GSO(range)
                 local result = {}
-                local me = myHero.pos
                 for i = 1, HeroCount_GSO() do
                         local hero = Hero_GSO(i)
-                        local he = hero.pos
-                        if hero.isEnemy and IsValidTarget_GSO(range + (hero.boundingRadius-30), hero, he.x-me.x, he.z-me.z) then
+                        if hero.isEnemy and IsValidTarget_GSO(range + (hero.boundingRadius-30), hero) then
                                 result[#result + 1] = hero
                         end
                 end
@@ -228,17 +221,15 @@
 
         local function GetHealthPrediction_GSO(unit, time)
                 local result    = 0
-                local unitpos   = unit.pos
                 local unitid    = unit.handle
                 local t         = GetAllyMinions_GSO(2000)
                 for i = 1, #t do
                         local minion = t[i]
                         if minion.attackData.target == unitid then
-                                local minion_pos        = minion.pos
                                 local minion_aadata     = minion.attackData
                                 local minion_projspeed  = minion_aadata.projectileSpeed
                                 local minion_animT      = minion_aadata.animationTime
-                                local minion_projT      = minion_projspeed > 0 and Sqrt_GSO((unitpos.x-minion_pos.x)^2 + (unitpos.z-minion_pos.z)^2) / minion_projspeed or 0
+                                local minion_projT      = minion_projspeed > 0 and minion.pos:DistanceTo(unit.pos) / minion_projspeed or 0
                                 local aacompleteT       = minion_aadata.endTime + minion_projT - ( minion_animT - minion_aadata.windUpTime )
                                 local checkT            = Game.Timer()
                                 aacompleteT             = checkT < aacompleteT and aacompleteT or aacompleteT + minion_animT
@@ -321,7 +312,7 @@
                 local t = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                 for i = 1, #t do
                         local unit          = t[i]
-                        local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unit.pos.x-myHero.pos.x)^2 + (unit.pos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
+                        local aacompleteT   = LocalGetWindUpAA_GSO() + (unit.distance / LocalGetProjSpeedAA_GSO())
                         local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                         if unitHP < heroad + LocalBonusDmgUnit_GSO(unit) and unitHP < result[2] then
                                 result[1] = unit
@@ -365,7 +356,7 @@
                         for i = 1, #t do
                                 local unit          = t[i]
                                 local unitpos       = unit.pos
-                                local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
+                                local aacompleteT   = LocalGetWindUpAA_GSO() + (unit.distance / LocalGetProjSpeedAA_GSO())
                                 local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                 local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
                                 if unitHP < heroad and unitHP < lasthitNUM then
@@ -389,8 +380,6 @@
                         end
                         local cPos = cursorPos
                         Control.SetCursorPos(AAtarget.pos)
-                        Control.KeyDown(HK_TCO)
-                        Control.KeyUp(HK_TCO)
                         Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
                         Control.mouse_event(MOUSEEVENTF_RIGHTUP)
                         LocalLastAA_GSO = GetTickCount()
