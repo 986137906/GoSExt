@@ -2,10 +2,11 @@
 
                     -- [[  S T A R T  .  M E N U  ]]
 
-        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.07", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
+        local Menu_GSO = MenuElement({type = MENU, id = "menugso", name = "Gamsteron Orbwalker 0.08", leftIcon = "https://i.imgur.com/nahe4Ua.png"})
                 
                 Menu_GSO:MenuElement({type = MENU, id = "attack", name = "Attack", leftIcon = "https://i.imgur.com/DsGzSEv.png"})
                         Menu_GSO.attack:MenuElement({id = "setc", name = "Set cursorPos delay", value = 50, min = 50, max = 100, step = 5 })
+                        Menu_GSO.attack:MenuElement({id = "adlh", name = "Attack ms delay -> for lasthit", value = 0, min = 0, max = 50, step = 1 })
                 
                 Menu_GSO:MenuElement({type = MENU, id = "move", name = "Movement", leftIcon = "https://i.imgur.com/Utq5iah.png"})
                         Menu_GSO.move:MenuElement({id = "ewin", name = "Kite Delay", value = 150, min = 0, max = 200, step = 10 })
@@ -14,13 +15,17 @@
                 Menu_GSO:MenuElement({type = MENU, id = "draw", name = "Drawings", leftIcon = "https://i.imgur.com/GuE9yOL.png"})
                         Menu_GSO.draw:MenuElement({name = "Enable",  id = "denab", value = true})
                         Menu_GSO.draw:MenuElement({type = MENU, name = "MyHero attack range",  id = "me"})
-                        Menu_GSO.draw.me:MenuElement({name = "Enable",  id = "drawme", value = true})
-                        Menu_GSO.draw.me:MenuElement({name = "Color",  id = "colme", color = Draw.Color(150, 49, 210, 0)})
-                        Menu_GSO.draw.me:MenuElement({name = "Width",  id = "widme", value = 1, min = 1, max = 10})
+                                Menu_GSO.draw.me:MenuElement({name = "Enable",  id = "drawme", value = true})
+                                Menu_GSO.draw.me:MenuElement({name = "Color",  id = "colme", color = Draw.Color(150, 49, 210, 0)})
+                                Menu_GSO.draw.me:MenuElement({name = "Width",  id = "widme", value = 1, min = 1, max = 10})
                         Menu_GSO.draw:MenuElement({type = MENU, name = "Enemy attack range",  id = "he"})
-                        Menu_GSO.draw.he:MenuElement({name = "Enable",  id = "drawhe", value = true})
-                        Menu_GSO.draw.he:MenuElement({name = "Color",  id = "colhe", color = Draw.Color(150, 255, 0, 0)})
-                        Menu_GSO.draw.he:MenuElement({name = "Width",  id = "widhe", value = 1, min = 1, max = 10})
+                                Menu_GSO.draw.he:MenuElement({name = "Enable",  id = "drawhe", value = true})
+                                Menu_GSO.draw.he:MenuElement({name = "Color",  id = "colhe", color = Draw.Color(150, 255, 0, 0)})
+                                Menu_GSO.draw.he:MenuElement({name = "Width",  id = "widhe", value = 1, min = 1, max = 10})
+                        Menu_GSO.draw:MenuElement({type = MENU, name = "Cursor Posistion",  id = "cpos"})
+                                Menu_GSO.draw.cpos:MenuElement({name = "Enable",  id = "drawcpos", value = true})
+                                Menu_GSO.draw.cpos:MenuElement({name = "Color",  id = "colcpos", color = Draw.Color(150, 153, 0, 76)})
+                                Menu_GSO.draw.cpos:MenuElement({name = "Width",  id = "widcpos", value = 5, min = 1, max = 10})
 
                 Menu_GSO:MenuElement({type = MENU, id = "keys", name = "Keys", leftIcon = "https://i.imgur.com/QXvoHmH.png"})
                         Menu_GSO.keys:MenuElement({id = "combo", name = "Combo Key", key = string.byte(" ")})
@@ -47,7 +52,6 @@
         local DelayedActionAA_GSO   = nil
         local DelayedActionAA2_GSO  = nil
 
-        local Sqrt_GSO              = math.sqrt
         local MinionCount_GSO       = Game.MinionCount
         local Minion_GSO            = Game.Minion
         local HeroCount_GSO         = Game.HeroCount
@@ -171,11 +175,11 @@
 
                     -- [[  S T A R T  .  F U N C T I O N S  ]]
 
-        local function IsValidTarget_GSO(range, unit, x, z)
+        local function IsValidTarget_GSO(range, unit)
                 local type      = unit.type
                 local isUnit    = type == Obj_AI_Hero or type == Obj_AI_Minion or type == Obj_AI_Turret
                 local isValid   = isUnit and unit.valid or true
-                if x*x+z*z<=range*range and not unit.dead and unit.isTargetable and unit.visible and isValid then
+                if unit.distance<=range and not unit.dead and unit.isTargetable and unit.visible and isValid then
                         return true
                 end
                 return false
@@ -183,11 +187,9 @@
 
         local function GetAllyMinions_GSO(range)
                 local result = {}
-                local me = myHero.pos
                 for i = 1, MinionCount_GSO() do
                         local minion = Minion_GSO(i)
-                        local he = minion.pos
-                        if minion.isAlly and IsValidTarget_GSO(range, minion, he.x-me.x, he.z-me.z) then
+                        if minion.isAlly and IsValidTarget_GSO(range, minion) then
                                 result[#result + 1] = minion
                         end
                 end
@@ -196,12 +198,10 @@
 
         local function GetEnemyMinions_GSO(range)
                 local result = {}
-                local me = myHero.pos
                 for i = 1, MinionCount_GSO() do
                         local minion = Minion_GSO(i)
-                        local he = minion.pos
                         local isotherminion = minion.maxHealth <= 6
-                        if minion.isEnemy and not isotherminion and IsValidTarget_GSO(range + (minion.boundingRadius-30), minion, he.x-me.x, he.z-me.z) then
+                        if minion.isEnemy and not isotherminion and IsValidTarget_GSO(range + (minion.boundingRadius-30), minion) then
                                 result[#result + 1] = minion
                         end
                 end
@@ -210,11 +210,9 @@
 
         local function GetEnemyHeroes_GSO(range)
                 local result = {}
-                local me = myHero.pos
                 for i = 1, HeroCount_GSO() do
                         local hero = Hero_GSO(i)
-                        local he = hero.pos
-                        if hero.isEnemy and IsValidTarget_GSO(range + (hero.boundingRadius-30), hero, he.x-me.x, he.z-me.z) then
+                        if hero.isEnemy and IsValidTarget_GSO(range + (hero.boundingRadius-30), hero) then
                                 result[#result + 1] = hero
                         end
                 end
@@ -223,26 +221,25 @@
 
         local function GetHealthPrediction_GSO(unit, time)
                 local result    = 0
-                local unitpos   = unit.pos
                 local unitid    = unit.handle
                 local t         = GetAllyMinions_GSO(2000)
                 for i = 1, #t do
                         local minion = t[i]
                         if minion.attackData.target == unitid then
-                                local minion_pos        = minion.pos
                                 local minion_aadata     = minion.attackData
                                 local minion_projspeed  = minion_aadata.projectileSpeed
                                 local minion_animT      = minion_aadata.animationTime
-                                local minion_projT      = minion_projspeed > 0 and Sqrt_GSO((unitpos.x-minion_pos.x)^2 + (unitpos.z-minion_pos.z)^2) / minion_projspeed or 0
+                                local minion_projT      = minion_projspeed > 0 and minion.pos:DistanceTo(unit.pos) / minion_projspeed or 0
                                 local aacompleteT       = minion_aadata.endTime + minion_projT - ( minion_animT - minion_aadata.windUpTime )
                                 local checkT            = Game.Timer()
                                 aacompleteT             = checkT < aacompleteT and aacompleteT or aacompleteT + minion_animT
-                                if aacompleteT - checkT < time + Ping_GSO - 0.02 then
+                                local menudelay         = Menu_GSO.attack.adlh:Value()*0.001
+                                if aacompleteT - checkT < time + Ping_GSO - menudelay then
                                         local minion_ad = minion.totalDamage*(1+minion.bonusDamagePercent)
                                         result = result + minion_ad-1
                                         for j = 1, 10 do
                                                 aacompleteT = aacompleteT + minion_animT
-                                                if checkT < aacompleteT and aacompleteT - checkT < time + Ping_GSO - 0.02 then
+                                                if checkT < aacompleteT and aacompleteT - checkT < time + Ping_GSO - menudelay then
                                                         result = result + minion_ad
                                                 else
                                                         break
@@ -310,15 +307,14 @@
                 return result
         end
         
-        local function GetLastHitSoon_GSO(HeroAD_GSO)
+        local function GetLastHitSoon_GSO(heroad)
                 local result = { nil, 10000000, false, nil, -10000000 }
                 local t = GetEnemyMinions_GSO(LocalAttackRange_GSO() + myHero.boundingRadius)
                 for i = 1, #t do
                         local unit          = t[i]
-                        local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unit.pos.x-myHero.pos.x)^2 + (unit.pos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
+                        local aacompleteT   = LocalGetWindUpAA_GSO() + (unit.distance / LocalGetProjSpeedAA_GSO())
                         local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
-                        local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
-                        if unitHP < heroad and unitHP < result[2] then
+                        if unitHP < heroad + LocalBonusDmgUnit_GSO(unit) and unitHP < result[2] then
                                 result[1] = unit
                                 result[2] = unitHP
                         elseif result[3] == false then
@@ -360,7 +356,7 @@
                         for i = 1, #t do
                                 local unit          = t[i]
                                 local unitpos       = unit.pos
-                                local aacompleteT   = LocalGetWindUpAA_GSO() + (Sqrt_GSO((unitpos.x-myHero.pos.x)^2 + (unitpos.z-myHero.pos.z)^2) / LocalGetProjSpeedAA_GSO())
+                                local aacompleteT   = LocalGetWindUpAA_GSO() + (unit.distance / LocalGetProjSpeedAA_GSO())
                                 local unitHP        = unit.health - GetHealthPrediction_GSO(unit, aacompleteT)
                                 local heroad        = LocalBonusDmgUnit_GSO(unit) + HeroAD_GSO
                                 if unitHP < heroad and unitHP < lasthitNUM then
@@ -384,8 +380,6 @@
                         end
                         local cPos = cursorPos
                         Control.SetCursorPos(AAtarget.pos)
-                        Control.KeyDown(HK_TCO)
-                        Control.KeyUp(HK_TCO)
                         Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
                         Control.mouse_event(MOUSEEVENTF_RIGHTUP)
                         LocalLastAA_GSO = GetTickCount()
@@ -494,8 +488,10 @@
                                 end
                         end
                 end
+                if Menu_GSO.draw.cpos.drawcpos:Value() then
+                        Draw.Circle(mousePos, 250, Menu_GSO.draw.cpos.widcpos:Value(), Menu_GSO.draw.cpos.colcpos:Value())
+                end
         end)
 
 
 --[------------------------------------------------------------------------------------------------------------------------------------------------------------]]
-
