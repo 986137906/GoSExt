@@ -8,7 +8,7 @@
 
         if myHero.charName == "Ashe" then
         
-                local MenuAshe_AsheGSO = MenuElement({type = MENU, id = "menuashegso", name = "Gamsteron Ashe 0.03", leftIcon = "https://i.imgur.com/WohLMsm.png"})
+                local MenuAshe_AsheGSO = MenuElement({type = MENU, id = "menuashegso", name = "GSO AIO 0.03 - Ashe", leftIcon = "https://i.imgur.com/WohLMsm.png"})
                         MenuAshe_AsheGSO:MenuElement({id = "rdist", name = "use R if enemy distance < X", value = 500, min = 100, max = 1000, step = 50})
                         MenuAshe_AsheGSO:MenuElement({type = MENU, id = "combo", name = "Combo"})
                                 MenuAshe_AsheGSO.combo:MenuElement({id = "qc", name = "UseQ", value = true})
@@ -236,7 +236,7 @@
 
         elseif myHero.charName == "Twitch" then
 
-                local MenuTwitch_GSO = MenuElement({type = MENU, id = "twitchgso", name = "GSO Twitch 0.02", leftIcon = "https://i.imgur.com/tVpVF5L.png"})
+                local MenuTwitch_GSO = MenuElement({type = MENU, id = "twitchgso", name = "GSO AIO 0.03 - Twitch", leftIcon = "https://i.imgur.com/tVpVF5L.png"})
                         MenuTwitch_GSO:MenuElement({type = MENU, id = "ekil", name = "E killsteal"})
                                 MenuTwitch_GSO.ekil:MenuElement({id = "ekne", name = "number of killable enemies", value = 1, min = 1, max = 5, step = 1 })
                         MenuTwitch_GSO:MenuElement({type = MENU, id = "combo", name = "Combo"})
@@ -545,5 +545,5 @@
                         end
                 end)
         else
-                print("this hero is not supported!")
+                print("GSO AIO 0.03 - this champion is not supported!")
         end
