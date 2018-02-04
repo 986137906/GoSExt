@@ -3,7 +3,7 @@ local GetTickCount = GetTickCount
 local Game = Game
 local myHero = myHero
 local Control = Control
-local math = math
+local mathSqrt = math.sqrt
 local Vector = Vector
 local Draw = Draw
 
@@ -43,6 +43,7 @@ function __gsoVars:__init()
     self.hName = myHero.charName
     
     self.loaded = true
+    self.loadedT = os.clock()
     
     self.supportedChampions = {
       ["Ashe"] = true,
@@ -155,56 +156,88 @@ function __gsoOB:__init()
     self.enemyMinions = {}
     self.enemyHeroes  = {}
     self.enemyTurrets = {}
+    self.allyM2       = {}
+    self.enemyM2      = {}
+    self.enemyH2      = {}
+    self.enemyT2      = {}
+    self.lastM        = 0
+    self.lastH        = 0
+    self.lastT        = 0
     self.meTeam       = myHero.team
 end
 
 function __gsoOB:_getDistance(a, b)
   local x = a.x - b.x
   local z = a.z - b.z
-  return math.sqrt(x * x + z * z)
-end
-
-function __gsoOB:_getDistance2(a, b)
-  local x = a.x - b.x
-  local z = a.z - b.z
-  return x * x + z * z
+  return mathSqrt(x * x + z * z)
 end
 
 function __gsoOB:_tick()
-    local cAM = #self.allyMinions
-    for i=1, cAM do self.allyMinions[i]=nil end
     
-    local cEM = #self.enemyMinions
-    for i=1, cEM do self.enemyMinions[i]=nil end
-    
-    local cEH = #self.enemyHeroes
-    for i=1, cEH do self.enemyHeroes[i]=nil end
-    
-    local cET = #self.enemyTurrets
-    for i=1, cET do self.enemyTurrets[i]=nil end
-    
-    local mePos = myHero.pos
-    for i = 1, Game.MinionCount() do
-        local minion = Game.Minion(i)
-        if minion and self:_getDistance2(mePos, minion.pos) < 4000000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid then
-            if minion.team ~= self.meTeam then
-                self.enemyMinions[#self.enemyMinions+1] = minion
-            else
-                self.allyMinions[#self.allyMinions+1] = minion
+    if os.clock() > self.lastM + 2 then
+        for i=1, #self.allyM2 do self.allyM2[i]=nil end
+        for i=1, #self.enemyM2 do self.enemyM2[i]=nil end
+        for i = 1, Game.MinionCount() do
+            local minion = Game.Minion(i)
+            if minion then
+                if minion.team ~= self.meTeam then
+                    self.enemyM2[#self.enemyM2+1] = minion
+                else
+                    self.allyM2[#self.allyM2+1] = minion
+                end
             end
         end
+        self.lastM = os.clock()
     end
     
-    for i = 1, Game.HeroCount() do
-        local hero = Game.Hero(i)
-        if hero and hero.team ~= self.meTeam and self:_getDistance2(mePos, hero.pos) < 100000000 and not hero.dead and hero.isTargetable and hero.visible and hero.valid then
+    if os.clock() > self.lastH + 2 then
+        for i=1, #self.enemyH2 do self.enemyH2[i]=nil end
+        for i = 1, Game.HeroCount() do
+            local hero = Game.Hero(i)
+            if hero and hero.team ~= self.meTeam then
+                self.enemyH2[#self.enemyH2+1] = hero
+            end
+        end
+        self.lastH = os.clock()
+    end
+    
+    if os.clock() > self.lastT + 5 then
+        for i=1, #self.enemyT2 do self.enemyT2[i]=nil end
+        for i = 1, Game.TurretCount() do
+            local turret = Game.Turret(i)
+            if turret and turret.team ~= self.meTeam then
+                self.enemyT2[#self.enemyT2+1] = turret
+            end
+        end
+        self.lastT = os.clock()
+    end
+    
+    local mePos = myHero.pos
+    for i=1, #self.allyMinions do self.allyMinions[i]=nil end
+    for i=1, #self.enemyMinions do self.enemyMinions[i]=nil end
+    for i=1, #self.enemyHeroes do self.enemyHeroes[i]=nil end
+    for i=1, #self.enemyTurrets do self.enemyTurrets[i]=nil end
+    for i = 1, #self.allyM2 do
+        local minion = self.allyM2[i]
+        if minion and self:_getDistance(mePos, minion.pos) < 2000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid then
+            self.allyMinions[#self.allyMinions+1] = minion
+        end
+    end
+    for i = 1, #self.enemyM2 do
+        local minion = self.enemyM2[i]
+        if minion and self:_getDistance(mePos, minion.pos) < 2000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid then
+            self.enemyMinions[#self.enemyMinions+1] = minion
+        end
+    end
+    for i = 1, #self.enemyH2 do
+        local hero = self.enemyH2[i]
+        if hero and self:_getDistance(mePos, hero.pos) < 10000 and not hero.dead and hero.isTargetable and hero.visible and hero.valid then
             self.enemyHeroes[#self.enemyHeroes+1] = hero
         end
     end
-    
-    for i = 1, Game.TurretCount() do
-        local turret = Game.Turret(i)
-        if turret and turret.team ~= self.meTeam and self:_getDistance2(mePos, turret.pos) < 4000000 and not turret.dead and turret.isTargetable and turret.visible and turret.valid then
+    for i = 1, #self.enemyT2 do
+        local turret = self.enemyT2[i]
+        if turret and self:_getDistance(mePos, turret.pos) < 2000 and not turret.dead and turret.isTargetable and turret.visible and turret.valid then
             self.enemyTurrets[#self.enemyTurrets+1] = turret
         end
     end
@@ -254,10 +287,7 @@ function __gsoTS:__init()
     
     self.loadedChamps = false
     
-    self.isKayle = false
-    self.isTaric = false
-    self.isKindred = false
-    self.isZilean = false
+    self.undyingBuffs = { ["zhonyasringshield"] = true }
     
     self.Priorities = {
         ["Aatrox"] = 3,
@@ -441,25 +471,14 @@ end
 
 function __gsoTS:_isImmortal(unit, orb)
     local unitHPPercent = 100 * unit.health / unit.maxHealth
-    local uName = unit.charName
-    local undyingBuffs = {}
-    undyingBuffs["zhonyasringshield"] = true
-    undyingBuffs["JaxCounterStrike"] = unit.charName == "Jax" and orb or nil
-    undyingBuffs["FioraW"] = unit.charName == "Fiora" and true or nil
-    undyingBuffs["aatroxpassivedeath"] = unit.charName == "Aatrox" and true or nil
-    undyingBuffs["VladimirSanguinePool"] = unit.charName == "Vladimir" and true or nil
-    undyingBuffs["KogMawIcathianSurprise"] = unit.charName == "KogMaw" and true or nil
-    undyingBuffs["KarthusDeathDefiedBuff"] = unit.charName == "Karthus" and true or nil
-    undyingBuffs["UndyingRage"] = unit.charName == "Tryndamere" and unitHPPercent < 15 or nil
-    undyingBuffs["JudicatorIntervention"] = self.isKayle and true or nil
-    undyingBuffs["TaricR"] = self.isTaric and true or nil
-    undyingBuffs["kindredrnodeathbuff"] = self.isKindred and unitHPPercent < 10 or nil
-    undyingBuffs["ChronoShift"] = self.isZilean and unitHPPercent < 15 or nil
-    undyingBuffs["chronorevive"] = self.isZilean and unitHPPercent < 15 or nil
+    if self.undyingBuffs["JaxCounterStrike"] ~= nil then    self.undyingBuffs["JaxCounterStrike"] = orb end
+    if self.undyingBuffs["kindredrnodeathbuff"] ~= nil then self.undyingBuffs["kindredrnodeathbuff"] = unitHPPercent < 10 end
+    if self.undyingBuffs["UndyingRage"] ~= nil then         self.undyingBuffs["UndyingRage"] = unitHPPercent < 15 end
+    if self.undyingBuffs["ChronoShift"] ~= nil then         self.undyingBuffs["ChronoShift"] = unitHPPercent < 15; self.undyingBuffs["chronorevive"] = unitHPPercent < 15 end
     for i = 1, unit.buffCount do
         local buff = unit:GetBuff(i)
-        if buff.count > 0 then
-            local undyingBuff = undyingBuffs[buff.name]
+        if buff and buff.count > 0 then
+            local undyingBuff = self.undyingBuffs[buff.name]
             if undyingBuff and undyingBuff == true then
                 return true
             end
@@ -469,10 +488,7 @@ function __gsoTS:_isImmortal(unit, orb)
 end
 
 function __gsoTS:_valid(unit, orb)
-    if not unit or unit == nil then
-        return false
-    end
-    if unit.type == Obj_AI_Hero and self:_isImmortal(unit, orb) then
+    if not unit or self:_isImmortal(unit, orb) then
         return false
     end
     if not unit.dead and unit.isTargetable and unit.visible and unit.valid then
@@ -949,7 +965,7 @@ end
 function __gsoTPred:VectorMovementCollision(startPoint1, endPoint1, v1, startPoint2, v2, delay)
     local sP1x, sP1y, eP1x, eP1y, sP2x, sP2y = startPoint1.x, startPoint1.z, endPoint1.x, endPoint1.z, startPoint2.x, startPoint2.z
     local d, e = eP1x-sP1x, eP1y-sP1y
-    local dist, t1, t2 = math.sqrt(d*d+e*e), nil, nil
+    local dist, t1, t2 = mathSqrt(d*d+e*e), nil, nil
     local S, K = dist~=0 and v1*d/dist or 0, dist~=0 and v1*e/dist or 0
     local function GetCollisionPoint(t) return t and {x = sP1x+S*t, y = sP1y+K*t} or nil end
     if delay and delay~=0 then sP1x, sP1y = sP1x+S*delay, sP1y+K*delay end
@@ -973,7 +989,7 @@ function __gsoTPred:VectorMovementCollision(startPoint1, endPoint1, v1, startPoi
             else --a*t*t+2*b*t+c=0
                 local sqr = b*b-a*c
                 if sqr>=0 then
-                    local nom = math.sqrt(sqr)
+                    local nom = mathSqrt(sqr)
                     local t = (-nom-b)/a
                     t1 = v2*t>=0 and t or nil
                     t = (nom-b)/a
@@ -1010,7 +1026,7 @@ function __gsoTPred:GetDistanceSqr(p1, p2)
 end
 
 function __gsoTPred:GetDistance(p1, p2)
-    return math.sqrt(self:GetDistanceSqr(p1, p2))
+    return mathSqrt(self:GetDistanceSqr(p1, p2))
 end
 
 function __gsoTPred:GetWaypointsLength(Waypoints)
@@ -1470,7 +1486,7 @@ end
 function __gsoOrb:_checkTeemoBlind()
     for i = 1, myHero.buffCount do
         local buff = myHero:GetBuff(i)
-        if buff.count > 0 and buff.name == "BlindingDart" then
+        if buff and buff.count > 0 and buff.name == "BlindingDart" then
             return true
         end
     end
@@ -1482,33 +1498,32 @@ end
 --------------------|---------------------------------------------------------|--------------------
 --------------------|-------------------------tick----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
-
 function __gsoOrb:_tick()
-    if _gso.TS.loadedChamps == false then
-        if Game.Timer() > 6 then
-            for i = 1, Game.HeroCount() do
-                local hero = Game.Hero(i)
-                if hero and hero.isEnemy then
-                    local eName = hero.charName
-                    if eName and #eName > 0 and not _gso.TS.menu.priority[eName] then
-                        local priority = _gso.TS.Priorities[eName] ~= nil and _gso.TS.Priorities[eName] or 5
-                        _gso.TS.menu.priority:MenuElement({ id = eName, name = eName, value = priority, min = 1, max = 5, step = 1 })
-                        if eName == "Teemo" then
-                            self.isTeemo = true
-                        elseif eName == "Kayle" then
-                            _gso.TS.isKayle = true
-                        elseif eName == "Taric" then
-                            _gso.TS.isTaric = true
-                        elseif eName == "Kindred" then
-                            _gso.TS.isKindred = true
-                        elseif eName == "Zilean" then
-                            _gso.TS.isZilean = true
-                        end
+    if _gso.TS.loadedChamps == false and Game.Timer() > 6 and os.clock() > _gso.Vars.loadedT + 6 then
+        for i = 1, Game.HeroCount() do
+            local hero = Game.Hero(i)
+            if hero.team ~= _gso.OB.meTeam then
+                local eName = hero.charName
+                if eName and #eName > 0 and not _gso.TS.menu.priority[eName] then
+                    local priority = _gso.TS.Priorities[eName] ~= nil and _gso.TS.Priorities[eName] or 5
+                    _gso.TS.menu.priority:MenuElement({ id = eName, name = eName, value = priority, min = 1, max = 5, step = 1 })
+                    if eName == "Teemo" then          self.isTeemo = true
+                    elseif eName == "Kayle" then      _gso.TS.undyingBuffs["JudicatorIntervention"] = true
+                    elseif eName == "Taric" then      _gso.TS.undyingBuffs["TaricR"] = true
+                    elseif eName == "Kindred" then    _gso.TS.undyingBuffs["kindredrnodeathbuff"] = true
+                    elseif eName == "Zilean" then     _gso.TS.undyingBuffs["ChronoShift"] = true; _gso.TS.undyingBuffs["chronorevive"] = true
+                    elseif eName == "Tryndamere" then _gso.TS.undyingBuffs["UndyingRage"] = true
+                    elseif eName == "Jax" then        _gso.TS.undyingBuffs["JaxCounterStrike"] = true
+                    elseif eName == "Fiora" then      _gso.TS.undyingBuffs["FioraW"] = true
+                    elseif eName == "Aatrox" then     _gso.TS.undyingBuffs["aatroxpassivedeath"] = true
+                    elseif eName == "Vladimir" then   _gso.TS.undyingBuffs["VladimirSanguinePool"] = true
+                    elseif eName == "KogMaw" then     _gso.TS.undyingBuffs["KogMawIcathianSurprise"] = true
+                    elseif eName == "Karthus" then    _gso.TS.undyingBuffs["KarthusDeathDefiedBuff"] = true
                     end
                 end
             end
-            _gso.TS.loadedChamps = true
         end
+        _gso.TS.loadedChamps = true
     end
     
     if self.isTeemo == true then
@@ -2477,15 +2492,16 @@ function __gsoDraven:_menu()
         self.menu.aacancel:MenuElement({name = "Anim Delay - attack", id = "anim", value = 25, min = 0, max = 100, step = 5 })
     self.menu:MenuElement({name = "AXE settings", id = "aset", type = MENU })
         self.menu.aset:MenuElement({id = "catch", name = "Catch axes", value = true})
-        self.menu.aset:MenuElement({id = "catcht", name = "stop catch axe under turret", value = true})
+        self.menu.aset:MenuElement({id = "catcht", name = "stop under turret", value = true})
+        self.menu.aset:MenuElement({id = "catcho", name = "[combo] stop if no enemy in range", value = true})
         self.menu.aset:MenuElement({name = "Distance", id = "dist", type = MENU })
             self.menu.aset.dist:MenuElement({id = "mode", name = "Axe Mode", value = 1, drop = self.qModes })
-            self.menu.aset.dist:MenuElement({id = "duration", name = "extra axe duration time", value = -250, min = -300, max = 0, step = 10 })
-            self.menu.aset.dist:MenuElement({id = "stopmove", name = "axePos in distance < X | Hold radius", value = 75, min = 75, max = 125, step = 5 })
-            self.menu.aset.dist:MenuElement({id = "cdist", name = "max distance from axePos to cursorPos", value = 1000, min = 500, max = 1500, step = 50 })
+            self.menu.aset.dist:MenuElement({id = "duration", name = "extra axe duration time", value = -300, min = -300, max = 0, step = 10 })
+            self.menu.aset.dist:MenuElement({id = "stopmove", name = "axePos in distance < X | Hold radius", value = 100, min = 75, max = 125, step = 5 })
+            self.menu.aset.dist:MenuElement({id = "cdist", name = "max distance from axePos to cursorPos", value = 750, min = 500, max = 1500, step = 50 })
             self.menu.aset.dist:MenuElement({id = "hdist", name = "max distance from axePos to heroPos", value = 500, min = 250, max = 750, step = 50 })
-            self.menu.aset.dist:MenuElement({id = "enemyq", name = "stop catch if axe is near enemy - X dist", value = 0, min = 0, max = 250, step = 5 })
-            self.menu.aset.dist:MenuElement({id = "enemyhero", name = "stop catch if hero is near enemy - X dist", value = 0, min = 0, max = 500, step = 5 })
+            self.menu.aset.dist:MenuElement({id = "enemyq", name = "stop if axe is near enemy - X dist", value = 125, min = 0, max = 250, step = 5 })
+            self.menu.aset.dist:MenuElement({id = "enemyhero", name = "stop if hero is near enemy - X dist", value = 250, min = 0, max = 500, step = 5 })
         self.menu.aset:MenuElement({name = "Draw", id = "draw", type = MENU })
             self.menu.aset.draw:MenuElement({name = "Enable",  id = "enable", value = true})
             self.menu.aset.draw:MenuElement({name = "Good", id = "good", type = MENU })
@@ -2684,14 +2700,17 @@ function __gsoDraven:_tick()
         _gso.Orb.canAA = true
     end
     
+    local mePos = myHero.pos
     for i = 1, Game.ParticleCount() do
         local particle = Game.Particle(i)
-        local particlePos = particle.pos
-        if _gso.OB:_getDistance(myHero.pos, particlePos) < 500 and particle.name == "Draven_Base_Q_reticle" then
-            local particleID = particle.handle
-            if not self.qParticles[particleID] then
-                self.qParticles[particleID] = { pos = particlePos, tick = GetTickCount(), success = false, active = false }
-                _gso.Orb.lMove = 0
+        if particle then
+            local particlePos = particle.pos
+            if _gso.OB:_getDistance(mePos, particlePos) < 500 and particle.name == "Draven_Base_Q_reticle" then
+                local particleID = particle.handle
+                if not self.qParticles[particleID] then
+                    self.qParticles[particleID] = { pos = particlePos, tick = GetTickCount(), success = false, active = false }
+                    _gso.Orb.lMove = 0
+                end
             end
         end
     end
@@ -2723,6 +2742,7 @@ function __gsoDraven:_setMousePos()
     local qPos = nil
     local canCatch    = self.menu.aset.catch:Value()
     local stopCatchT  = self.menu.aset.catcht:Value()
+    local stopCatchO  = self.menu.aset.catcho:Value()
     local stopmove    = self.menu.aset.dist.stopmove:Value()
     local kID         = nil
     if canCatch then
@@ -2749,20 +2769,27 @@ function __gsoDraven:_setMousePos()
                             end
                         end
                     end
-                    if eQMenu > 0 or eHeroMenu > 0 then
-                        local cEH = #_gso.OB.enemyHeroes
-                        for i = 1, cEH do
-                            local hero = _gso.OB.enemyHeroes[i]
-                            local heroPos = hero.pos
-                            if _gso.OB:_getDistance(v.pos, heroPos) < eQMenu then
-                                canContinue = false
-                                break
-                            end
-                            if _gso.OB:_getDistance(mePos, heroPos) < eHeroMenu then
-                                canContinue = false
-                                break
-                            end
+                    local countInRange = 0
+                    local cEH = #_gso.OB.enemyHeroes
+                    local isCombo = _gso.Orb.menu.keys.combo:Value()
+                    for i = 1, cEH do
+                        local hero = _gso.OB.enemyHeroes[i]
+                        local heroPos = hero.pos
+                        if eQMenu > 0 and _gso.OB:_getDistance(v.pos, heroPos) < eQMenu then
+                            canContinue = false
+                            break
                         end
+                        local distToHero = _gso.OB:_getDistance(mePos, heroPos)
+                        if eHeroMenu > 0 and distToHero < eHeroMenu then
+                            canContinue = false
+                            break
+                        end
+                        if isCombo and stopCatchO and distToHero < myHero.range + myHero.boundingRadius then
+                            countInRange = countInRange + 1
+                        end
+                    end
+                    if isCombo and stopCatchO and countInRange == 0 then
+                        canContinue = false
                     end
                     if canContinue then
                         self.qParticles[k].active = true
