@@ -1374,7 +1374,7 @@ function __gsoOrb:_lastHitT()
             result = minion
         end
     end
-    if result ~- nil then
+    if result ~= nil then
         local checkT = Game.Timer()
         local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*1.5) - 0.05 + self.extraWindUpT
         local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and canMove and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5) + self.extraAnimT
