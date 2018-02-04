@@ -38,7 +38,7 @@ class "__gsoVars"
 
 function __gsoVars:__init()
     
-    self.version = "0.48"
+    self.version = "0.49"
     
     self.hName = myHero.charName
     
@@ -1446,11 +1446,13 @@ function __gsoOrb:_orb(unit)
     
     if self.dActionsC == 0 then
         if isTarget and canAA then
+            if ExtLibEvade and ExtLibEvade.Evading then return end
             _gso.Vars._beforeAA()
             self.lAttack = checkT
             self.lMove = 0
             local cPos = cursorPos
             Control.SetCursorPos(unit.pos)
+            if ExtLibEvade and ExtLibEvade.Evading then return end
             Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
             Control.mouse_event(MOUSEEVENTF_RIGHTUP)
             self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
@@ -1458,15 +1460,18 @@ function __gsoOrb:_orb(unit)
         elseif canMove then
             if checkT > self.lMove + mHum and self.dActionsC == 0 then
                 local mPos = _gso.Vars._mousePos()
+                if ExtLibEvade and ExtLibEvade.Evading then return end
                 if mPos ~= nil then
                     local cPos = cursorPos
                     Control.SetCursorPos(mPos)
+                    if ExtLibEvade and ExtLibEvade.Evading then return end
                     Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
                     Control.mouse_event(MOUSEEVENTF_RIGHTUP)
                     self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
                     self.dActionsC = self.dActionsC + 1
                     self.lMove = checkT
                 else
+                    if ExtLibEvade and ExtLibEvade.Evading then return end
                     Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
                     Control.mouse_event(MOUSEEVENTF_RIGHTUP)
                     self.lMove = checkT
@@ -1499,6 +1504,7 @@ end
 --------------------|-------------------------tick----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoOrb:_tick()
+    if ExtLibEvade and ExtLibEvade.Evading then return end
     if _gso.TS.loadedChamps == false and Game.Timer() > 6 and os.clock() > _gso.Vars.loadedT + 6 then
         for i = 1, Game.HeroCount() do
             local hero = Game.Hero(i)
@@ -1571,7 +1577,13 @@ function __gsoOrb:_tick()
         elseif lck then
             AAtarget = self:_laneClearT()
         end
-        self:_orb(AAtarget)
+        if ExtLibEvade then
+            if not ExtLibEvade.Evading then
+                self:_orb(AAtarget)
+            end
+        else
+            self:_orb(AAtarget)
+        end
     end
 end
 
@@ -1853,7 +1865,7 @@ function __gsoAshe:_tick()
     if myHero:GetSpellData(_Q).level > 0 then
         for i = 1, myHero.buffCount do
             local buff = myHero:GetBuff(i)
-            if buff.count > 0 and buff.name:lower() == "asheqattack" and buff.duration < 0.3 then
+            if buff and buff.count > 0 and buff.duration < 0.3 and buff.name:lower() == "asheqattack" then
                 self.qBuffEndT = checkT
                 break
             end
@@ -1894,7 +1906,7 @@ function __gsoAshe:_dmgUnit(unit)
     local crit = 0.1 + myHero.critChance
     for i = 1, unit.buffCount do
         local buff = unit:GetBuff(i)
-        if buff.count > 0 and buff.name:lower() == "ashepassiveslow" then
+        if buff and buff.count > 0 and buff.name:lower() == "ashepassiveslow" then
             local aacompleteT = myHero.attackData.windUpTime + (_gso.OB:_getDistance(myHero.pos, unit.pos) / myHero.attackData.projectileSpeed)
             if aacompleteT + 0.1 < buff.duration then
                 return dmg * crit
@@ -2208,6 +2220,7 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoKogMaw:_menu()
+    self.menu:MenuElement({id = "onlast", name = "[combo] use spells on last attacked enemy", value = true})
     self.menu:MenuElement({name = "AA Cancel Settings", id = "aacancel", type = MENU})
         self.menu.aacancel:MenuElement({name = "WindUp Delay - move", id = "windup", value = 50, min = 0, max = 150, step = 5 })
         self.menu.aacancel:MenuElement({name = "Anim Delay - attack", id = "anim", value = 25, min = 0, max = 100, step = 5 })
@@ -2236,7 +2249,7 @@ function __gsoKogMaw:_getBuffCount()
     local result = 0
     for i = 1, myHero.buffCount do
         local buff = myHero:GetBuff(i)
-        if buff.count > 0 and buff.name:lower() == "kogmawlivingartillerycost" then
+        if buff and buff.count > 0 and buff.name:lower() == "kogmawlivingartillerycost" then
             return buff.count
         end
     end
@@ -2247,7 +2260,7 @@ function __gsoKogMaw:_hasBuff()
     local result = false
     for i = 1, myHero.buffCount do
         local buff = myHero:GetBuff(i)
-        if buff.count > 0 and buff.name:lower() == "kogmawbioarcanebarrage" then
+        if buff and buff.count > 0 and buff.name:lower() == "kogmawbioarcanebarrage" then
             return true
         end
     end
@@ -2334,7 +2347,13 @@ function __gsoKogMaw:_castSpellsAA()
     local sR = { delay = 1.2, range = 0, width = 225, speed = math.maxinteger, sType = "circular", col = false }
     
     if (isComboQ or isHarassQ) and qMinus > 2000 and eMinus > 400 and rMinus > 400 and Game.CanUseSpell(_Q) == 0 then
-        local target = _gso.TS:_getTarget(1175, false, false)
+        local aaTarget = _gso.Orb.lastTarget
+        local target = nil
+        if self.menu.onlast:Value() and aaTarget ~= nil then
+            target = aaTarget
+        else
+            target = _gso.TS:_getTarget(1175, false, false)
+        end
         if target ~= nil then
             local mePos = myHero.pos
             local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
@@ -2352,7 +2371,13 @@ function __gsoKogMaw:_castSpellsAA()
         end
     end
     if (isComboE or isHarassE) and eMinus > 2000 and qMinus > 400 and rMinus > 400 and Game.CanUseSpell(_E) == 0 then
-        local target = _gso.TS:_getTarget(1280, false, false)
+        local aaTarget = _gso.Orb.lastTarget
+        local target = nil
+        if self.menu.onlast:Value() and aaTarget ~= nil then
+            target = aaTarget
+        else
+            target = _gso.TS:_getTarget(1280, false, false)
+        end
         if target ~= nil then
             local mePos = myHero.pos
             local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sE.delay, sE.width*0.5, sE.range, sE.speed, mePos, sE.col, sE.sType)
@@ -2371,7 +2396,13 @@ function __gsoKogMaw:_castSpellsAA()
     end
     if (isComboR or isHarassR) and rMinus > 700 and qMinus > 400 and eMinus > 400 and Game.CanUseSpell(_R) == 0 and self:_getBuffCount() < self.menu.rset.stack:Value() then
         sR.range = 900 + ( 300 * myHero:GetSpellData(_R).level )
-        local target = _gso.TS:_getTarget(sR.range + (sR.width*0.5), false, false)
+        local aaTarget = _gso.Orb.lastTarget
+        local target = nil
+        if self.menu.onlast:Value() and aaTarget ~= nil then
+            target = aaTarget
+        else
+            target = _gso.TS:_getTarget(sR.range + (sR.width*0.5), false, false)
+        end
         if target ~= nil then
             local mePos = myHero.pos
             local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sR.delay, sR.width*0.5, sR.range, sR.speed, mePos, sR.col, sR.sType)
