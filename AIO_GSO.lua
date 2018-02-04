@@ -38,7 +38,7 @@ class "__gsoVars"
 
 function __gsoVars:__init()
     
-    self.version = "0.49"
+    self.version = "0.495"
     
     self.hName = myHero.charName
     
@@ -770,34 +770,31 @@ function __gsoFarm:_setEnemyMinions()
     local mLH = _gso.Orb.menu.delays.lhDelay:Value()*0.001
     for i = 1, #_gso.OB.enemyMinions do
         local eMinion = _gso.OB.enemyMinions[i]
-        local distance = _gso.OB:_getDistance(myHero.pos, eMinion.pos)
-        if distance < myHero.range + myHero.boundingRadius + eMinion.boundingRadius - 30 then
-            local eMinion_handle	= eMinion.handle
-            local eMinion_health	= eMinion.health
-            local myHero_aaData		= myHero.attackData
-            local myHero_pFlyTime	= myHero_aaData.windUpTime + (distance / myHero_aaData.projectileSpeed) + self.latency + 0.05 + mLH
-            for k1,v1 in pairs(self.aAttacks) do
-                for k2,v2 in pairs(self.aAttacks[k1]) do
-                    if v2.canceled == false and eMinion_handle == v2.to.handle then
-                        local checkT	= Game.Timer()
-                        local pEndTime	= v2.startTime + v2.pTime
-                        if pEndTime > checkT and  pEndTime - checkT < myHero_pFlyTime - mLH then
-                            eMinion_health = eMinion_health - v2.dmg
-                        end
+        local eMinion_handle	= eMinion.handle
+        local eMinion_health	= eMinion.health
+        local myHero_aaData		= myHero.attackData
+        local myHero_pFlyTime	= myHero_aaData.windUpTime + (_gso.OB:_getDistance(myHero.pos, eMinion.pos) / myHero_aaData.projectileSpeed) + self.latency + 0.05 + mLH
+        for k1,v1 in pairs(self.aAttacks) do
+            for k2,v2 in pairs(self.aAttacks[k1]) do
+                if v2.canceled == false and eMinion_handle == v2.to.handle then
+                    local checkT	= Game.Timer()
+                    local pEndTime	= v2.startTime + v2.pTime
+                    if pEndTime > checkT and  pEndTime - checkT < myHero_pFlyTime - mLH then
+                        eMinion_health = eMinion_health - v2.dmg
                     end
                 end
             end
-            local myHero_dmg = self.aaDmg + _gso.Vars._bonusDmgUnit(eMinion)
-            if eMinion_health - myHero_dmg < 0 then
-                self.lastHit[#self.lastHit+1] = { eMinion, eMinion_health }
+        end
+        local myHero_dmg = self.aaDmg + _gso.Vars._bonusDmgUnit(eMinion)
+        if eMinion_health - myHero_dmg < 0 then
+            self.lastHit[#self.lastHit+1] = { eMinion, eMinion_health }
+        else
+            if eMinion.health - self:_possibleDmg(eMinion, myHero.attackData.animationTime*3) - myHero_dmg < 0 then
+                self.shouldWait = true
+                self.shouldWaitT = Game.Timer()
+                self.almostLH[#self.almostLH+1] = eMinion
             else
-                if eMinion.health - self:_possibleDmg(eMinion, myHero.attackData.animationTime*3) - myHero_dmg < 0 then
-                    self.shouldWait = true
-                    self.shouldWaitT = Game.Timer()
-                    self.almostLH[#self.almostLH+1] = eMinion
-                else
-                    self.laneClear[#self.laneClear+1] = eMinion
-                end
+                self.laneClear[#self.laneClear+1] = eMinion
             end
         end
     end
@@ -1295,6 +1292,9 @@ function __gsoOrb:__init()
     self.lAttack      = 0
     self.lMove        = 0
     
+    self.lastLHObj    = nil
+    self.lastLHT      = 0
+    
     self.isTeemo      = false
     self.isBlinded    = false
     self.lastTarget   = nil
@@ -1365,14 +1365,21 @@ end
 function __gsoOrb:_lastHitT()
     local result  = nil
     local min     = 10000000
-    local cLH     = #_gso.Farm.lastHit
-    for i = 1, cLH do
+    for i = 1, #_gso.Farm.lastHit do
         local eMinionLH = _gso.Farm.lastHit[i]
         local minion	= eMinionLH[1]
         local hp		= eMinionLH[2]
-        if hp < min then
+        if _gso.OB:_getDistance(myHero.pos, minion.pos) < myHero.range + myHero.boundingRadius + minion.boundingRadius - 30 and hp < min then
             min = hp
             result = minion
+        end
+    end
+    if result ~- nil then
+        local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*1.5) - 0.05 + self.extraWindUpT
+        local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and canMove and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5) + self.extraAnimT
+        if canAA then
+            self.lastLHObj    = result
+            self.lastLHT      = Game.Timer()
         end
     end
     return result
@@ -1404,7 +1411,7 @@ function __gsoOrb:_laneClearT()
                 for i = 1, cLC do
                     local minion = _gso.Farm.laneClear[i]
                     local hp     = minion.health
-                    if hp < min then
+                    if _gso.OB:_getDistance(myHero.pos, minion.pos) < myHero.range + myHero.boundingRadius + minion.boundingRadius - 30 and hp < min then
                         min = hp
                         result = minion
                     end
@@ -2939,6 +2946,9 @@ function __gsoEzreal:__init()
     self.lastE    = 0
     self.delayedE = nil
     
+    self.shouldWaitT    = 0
+    self.shouldWait     = false
+    
     _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
     _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
     
@@ -2963,6 +2973,8 @@ function __gsoEzreal:_menu()
         self.menu.qset:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
         self.menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
         self.menu.qset:MenuElement({id = "harass", name = "Harass", value = false})
+        self.menu.qset:MenuElement({id = "laneclear", name = "LaneClear", value = true})
+        self.menu.qset:MenuElement({id = "lasthit", name = "LastHit", value = true})
     self.menu:MenuElement({name = "W settings", id = "wset", type = MENU })
         self.menu.wset:MenuElement({id = "hitchance", name = "Hitchance", value = 2, drop = { "normal", "high" } })
         self.menu.wset:MenuElement({id = "combo", name = "Combo", value = true})
@@ -3011,10 +3023,10 @@ function __gsoEzreal:_castSpellsAA()
     if (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
         local target = _gso.TS:_getTarget(1150, true, false)
         if target ~= nil then
-            local sW = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
+            local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
             local mePos = myHero.pos
-            local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sW.delay, sW.width*0.5, sW.range, sW.speed, mePos, sW.col, sW.sType)
-            if HitChance > self.menu.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sW.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+            local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
+            if HitChance > self.menu.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
                 local cPos = cursorPos
                 Control.SetCursorPos(castpos)
                 Control.KeyDown(HK_Q)
@@ -3050,7 +3062,22 @@ function __gsoEzreal:_castSpellsAA()
     
 end
 
-
+function __gsoEzreal:_castQ(t, tPos, mePos)
+    local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
+    local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(t, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
+    if HitChance > self.menu.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(tPos, castpos) < 500 then
+        local cPos = cursorPos
+        Control.SetCursorPos(castpos)
+        Control.KeyDown(HK_Q)
+        Control.KeyUp(HK_Q)
+        self.lastQ = GetTickCount()
+        _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+        _gso.Orb.canAA = false
+        _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
+        return true
+    end
+    return false
+end
 
 --------------------|---------------------------------------------------------|--------------------
 --------------------|-------------------------tick----------------------------|--------------------
@@ -3088,6 +3115,114 @@ function __gsoEzreal:_tick()
                     _gso.TS.delayedSpell[k] = nil
                 end
                 break
+            end
+        end
+    end
+    if qMinus > 1000 and _gso.Orb.dActionsC == 0 and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.15 and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
+        local isLH = self.menu.qset.lasthit:Value() and (_gso.Orb.menu.keys.lastHit:Value() or _gso.Orb.menu.keys.harass:Value())
+        local isLC = self.menu.qset.laneclear:Value() and _gso.Orb.menu.keys.laneClear:Value()
+        if isLH or isLC then
+          
+            if self.shouldWait == true and Game.Timer() > self.shouldWaitT + 0.5 then
+                self.shouldWait = false
+            end
+          
+            local almostLH = false
+            local laneClearT = {}
+            local lastHitT = {}
+            
+            -- [[ set enemy minions ]]
+            local mLH = _gso.Orb.menu.delays.lhDelay:Value()*0.001
+            for i = 1, #_gso.OB.enemyMinions do
+                local eMinion = _gso.OB.enemyMinions[i]
+                local eMinion_handle	= eMinion.handle
+                local eMinion_health	= eMinion.health
+                local myHero_aaData		= myHero.attackData
+                local myHero_pFlyTime	= 0.25 + (_gso.OB:_getDistance(myHero.pos, eMinion.pos) / 2000) + _gso.Farm.latency + 0.05 + mLH
+                for k1,v1 in pairs(_gso.Farm.aAttacks) do
+                    for k2,v2 in pairs(_gso.Farm.aAttacks[k1]) do
+                        if v2.canceled == false and eMinion_handle == v2.to.handle then
+                            local checkT	= Game.Timer()
+                            local pEndTime	= v2.startTime + v2.pTime
+                            if pEndTime > checkT and  pEndTime - checkT < myHero_pFlyTime - mLH then
+                                eMinion_health = eMinion_health - v2.dmg
+                            end
+                        end
+                    end
+                end
+                local myHero_dmg = ((25 * myHero:GetSpellData(_Q).level) - 10) + (1.1 * myHero.totalDamage) + (0.4 * myHero.ap)
+                if eMinion_health - myHero_dmg < 0 then
+                    lastHitT[#lastHitT+1] = eMinion
+                else
+                    if eMinion.health - _gso.Farm:_possibleDmg(eMinion, myHero.attackData.animationTime*3) - myHero_dmg < 0 then
+                        almostLH = true
+                        self.shouldWait = true
+                        self.shouldWaitT = Game.Timer()
+                    else
+                        laneClearT[#laneClearT+1] = eMinion
+                    end
+                end
+            end
+
+            -- [[ lasthit ]]
+            if isLH then
+                for i = 1, #lastHitT do
+                    local minion = lastHitT[i]
+                    local minionPos = minion.pos
+                    local mePos = myHero.pos
+                    local distance = _gso.OB:_getDistance(mePos, minionPos)
+                    if distance < 1150 then
+                        local canContinue = true
+                        if Game.Timer() < _gso.Orb.lastLHT + 0.25 and minion.handle == _gso.Orb.lastLHObj.handle then
+                            canContinue = false
+                        end
+                        if canContinue and self:_castQ(minion, minionPos, mePos) then
+                            return
+                        end
+                    end
+                end
+            
+            -- [[ laneclear ]]
+            elseif isLC then
+                for i = 1, #lastHitT do
+                    local minion = lastHitT[i]
+                    local minionPos = minion.pos
+                    local mePos = myHero.pos
+                    local distance = _gso.OB:_getDistance(mePos, minionPos)
+                    if distance < 1150 then
+                        local canContinue = true
+                        if Game.Timer() < _gso.Orb.lastLHT + 0.25 and minion.handle == _gso.Orb.lastLHObj.handle then
+                            canContinue = false
+                        end
+                        if canContinue and self:_castQ(minion, minionPos, mePos) then
+                            return
+                        end
+                    end
+                end
+                if not almostLH and not self.shouldWait then
+                    for i = 1, #_gso.OB.enemyHeroes do
+                        local unit = _gso.OB.enemyHeroes[i]
+                        local unitPos = unit.pos
+                        local mePos = myHero.pos
+                        local distance = _gso.OB:_getDistance(mePos, unitPos)
+                        if _gso.TS:_valid(unit, true) and distance < 1150 then
+                            if self:_castQ(unit, unitPos, mePos) then
+                                return
+                            end
+                        end
+                    end
+                    for i = 1, #laneClearT do
+                        local minion = laneClearT[i]
+                        local minionPos = minion.pos
+                        local mePos = myHero.pos
+                        local distance = _gso.OB:_getDistance(myHero.pos, minionPos)
+                        if distance < 1150 then
+                            if self:_castQ(minion, minionPos, mePos) then
+                                return
+                            end
+                        end
+                    end
+                end
             end
         end
     end
