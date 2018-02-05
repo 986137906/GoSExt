@@ -38,7 +38,7 @@ class "__gsoVars"
 
 function __gsoVars:__init()
     
-    self.version = "0.495"
+    self.version = "0.496"
     
     self.hName = myHero.charName
     
@@ -173,8 +173,7 @@ function __gsoOB:_getDistance(a, b)
 end
 
 function __gsoOB:_tick()
-    
-    if os.clock() > self.lastM + 2 then
+    if os.clock() > self.lastM + 0.1 then
         for i=1, #self.allyM2 do self.allyM2[i]=nil end
         for i=1, #self.enemyM2 do self.enemyM2[i]=nil end
         for i = 1, Game.MinionCount() do
@@ -1292,12 +1291,11 @@ function __gsoOrb:__init()
     self.lAttack      = 0
     self.lMove        = 0
     
-    self.lastLHObj    = nil
-    self.lastLHT      = 0
-    
     self.isTeemo      = false
     self.isBlinded    = false
     self.lastTarget   = nil
+    
+    self.LHTimers     = { [0] = 0, [1] = 0, [2] = 0, [3] = 0, [4] = 0 }
     
     self.extraWindUpT = 0
     self.extraAnimT   = 0
@@ -1363,6 +1361,7 @@ function __gsoOrb:_comboT()
 end
 
 function __gsoOrb:_lastHitT()
+    if Game.Timer() < self.LHTimers[0] then return nil end
     local result  = nil
     local min     = 10000000
     for i = 1, #_gso.Farm.lastHit do
@@ -1374,15 +1373,7 @@ function __gsoOrb:_lastHitT()
             result = minion
         end
     end
-    if result ~= nil then
-        local checkT = Game.Timer()
-        local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*1.5) - 0.05 + self.extraWindUpT
-        local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and canMove and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5) + self.extraAnimT
-        if canAA then
-            self.lastLHObj    = result
-            self.lastLHT      = Game.Timer()
-        end
-    end
+    if result then self.LHTimers[4] = Game.Timer() + 0.75 end
     return result
 end
 
@@ -2940,6 +2931,9 @@ function __gsoEzreal:__init()
     print("gamsteronAIO ".._gso.Vars.version.." | ezreal loaded!")
     
     self.menu = MenuElement({name = "Gamsteron Ezreal", id = "gsoMenuEzreal", type = MENU, leftIcon = "https://i.imgur.com/OURoL03.png"})
+    self.res    = Game.Resolution()
+    self.resX   = self.res.x
+    self.resY   = self.res.y
     self:_menu()
     
     self.lastQ    = 0
@@ -2957,6 +2951,11 @@ function __gsoEzreal:__init()
     _gso.Vars:_setCastSpellsAA(function() self:_castSpellsAA() end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setBonusDmg(function() return self:_dmg() end)
+    _gso.Vars:_setOnDraw(function() self:_draw() end)
+    
+    Callback.Add('WndMsg', function(msg, wParam)
+        self:_onWndMsg(msg, wParam)
+    end)
     
 end
 
@@ -2970,14 +2969,26 @@ function __gsoEzreal:_menu()
     self.menu:MenuElement({name = "AA Cancel Settings", id = "aacancel", type = MENU})
         self.menu.aacancel:MenuElement({name = "WindUp Delay - move", id = "windup", value = 50, min = 0, max = 150, step = 5 })
         self.menu.aacancel:MenuElement({name = "Anim Delay - attack", id = "anim", value = 25, min = 0, max = 100, step = 5 })
+    self.menu:MenuElement({name = "Auto Q", id = "autoq", type = MENU })
+        self.menu.autoq:MenuElement({id = "enable", name = "Enable", value = true, key = string.byte("T"), toggle = true})
+        self.menu.autoq:MenuElement({id = "mana", name = "Q Auto min. mana percent", value = 50, min = 0, max = 100, step = 1 })
+        self.menu.autoq:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
+        self.menu.autoq:MenuElement({id = "draw", name = "Draw Text", value = true})
+        self.menu.autoq:MenuElement({name = "Text Settings", id = "textset", type = MENU })
+            self.menu.autoq.textset:MenuElement({id = "size", name = "Text Size", value = 25, min = 1, max = 64, step = 1 })
+            self.menu.autoq.textset:MenuElement({id = "custom", name = "Custom Position", value = false})
+            self.menu.autoq.textset:MenuElement({id = "posX", name = "Text Position Width", value = self.resX * 0.5 - 150, min = 1, max = self.resX, step = 1 })
+            self.menu.autoq.textset:MenuElement({id = "posY", name = "Text Position Height", value = self.resY * 0.5, min = 1, max = self.resY, step = 1 })
     self.menu:MenuElement({name = "Q settings", id = "qset", type = MENU })
         self.menu.qset:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
         self.menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
         self.menu.qset:MenuElement({id = "harass", name = "Harass", value = false})
-        self.menu.qset:MenuElement({id = "laneclear", name = "LaneClear", value = true})
+        self.menu.qset:MenuElement({id = "laneclear", name = "LaneClear", value = false})
         self.menu.qset:MenuElement({id = "lasthit", name = "LastHit", value = true})
+        self.menu.qset:MenuElement({id = "qlh", name = "Q LastHit min. mana percent", value = 10, min = 0, max = 100, step = 1 })
+        self.menu.qset:MenuElement({id = "qlc", name = "Q LaneClear min. mana percent", value = 50, min = 0, max = 100, step = 1 })
     self.menu:MenuElement({name = "W settings", id = "wset", type = MENU })
-        self.menu.wset:MenuElement({id = "hitchance", name = "Hitchance", value = 2, drop = { "normal", "high" } })
+        self.menu.wset:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
         self.menu.wset:MenuElement({id = "combo", name = "Combo", value = true})
         self.menu.wset:MenuElement({id = "harass", name = "Harass", value = false})
 end
@@ -3120,10 +3131,44 @@ function __gsoEzreal:_tick()
         end
     end
     if qMinus > 1000 and _gso.Orb.dActionsC == 0 and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.15 and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
+      
+        local manaPercent = 100 * myHero.mana / myHero.maxMana
+      
+        local isAutoQ = self.menu.autoq.enable:Value() and manaPercent > self.menu.autoq.mana:Value()
+        
+        if isAutoQ then
+            for i = 1, #_gso.OB.enemyHeroes do
+                local unit = _gso.OB.enemyHeroes[i]
+                local unitPos = unit.pos
+                local mePos = myHero.pos
+                local distance = _gso.OB:_getDistance(mePos, unitPos)
+                if _gso.TS:_valid(unit, true) and distance < 1150 then
+                    local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
+                    local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(unit, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
+                    if HitChance > self.menu.autoq.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(unitPos, castpos) < 500 then
+                        local cPos = cursorPos
+                        Control.SetCursorPos(castpos)
+                        Control.KeyDown(HK_Q)
+                        Control.KeyUp(HK_Q)
+                        self.lastQ = GetTickCount()
+                        _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                        _gso.Orb.canAA = false
+                        _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
+                        return
+                    end
+                end
+            end
+        end
+        
         local isLH = self.menu.qset.lasthit:Value() and (_gso.Orb.menu.keys.lastHit:Value() or _gso.Orb.menu.keys.harass:Value())
         local isLC = self.menu.qset.laneclear:Value() and _gso.Orb.menu.keys.laneClear:Value()
-        if isLH or isLC then
+        if Game.Timer() > _gso.Orb.LHTimers[4] and (isLH or isLC) then
           
+            local canLH = manaPercent > self.menu.qset.qlh:Value()
+            local canLC = manaPercent > self.menu.qset.qlc:Value()
+            
+            if not canLH and not canLC then return end
+            
             if self.shouldWait == true and Game.Timer() > self.shouldWaitT + 0.5 then
                 self.shouldWait = false
             end
@@ -3139,7 +3184,7 @@ function __gsoEzreal:_tick()
                 local eMinion_handle	= eMinion.handle
                 local eMinion_health	= eMinion.health
                 local myHero_aaData		= myHero.attackData
-                local myHero_pFlyTime	= 0.25 + (_gso.OB:_getDistance(myHero.pos, eMinion.pos) / 2000) + _gso.Farm.latency + 0.05 + mLH
+                local myHero_pFlyTime	= _gso.OB:_getDistance(myHero.pos, eMinion.pos) / 2000
                 for k1,v1 in pairs(_gso.Farm.aAttacks) do
                     for k2,v2 in pairs(_gso.Farm.aAttacks[k1]) do
                         if v2.canceled == false and eMinion_handle == v2.to.handle then
@@ -3155,7 +3200,7 @@ function __gsoEzreal:_tick()
                 if eMinion_health - myHero_dmg < 0 then
                     lastHitT[#lastHitT+1] = eMinion
                 else
-                    if eMinion.health - _gso.Farm:_possibleDmg(eMinion, myHero.attackData.animationTime*3) - myHero_dmg < 0 then
+                    if eMinion.health - _gso.Farm:_possibleDmg(eMinion, 2.5) - myHero_dmg < 0 then
                         almostLH = true
                         self.shouldWait = true
                         self.shouldWaitT = Game.Timer()
@@ -3166,38 +3211,29 @@ function __gsoEzreal:_tick()
             end
 
             -- [[ lasthit ]]
-            if isLH then
+            if isLH and canLH then
                 for i = 1, #lastHitT do
                     local minion = lastHitT[i]
                     local minionPos = minion.pos
                     local mePos = myHero.pos
                     local distance = _gso.OB:_getDistance(mePos, minionPos)
-                    if distance < 1150 then
-                        local canContinue = true
-                        if Game.Timer() < _gso.Orb.lastLHT + 0.25 and minion.handle == _gso.Orb.lastLHObj.handle then
-                            canContinue = false
-                        end
-                        if canContinue and self:_castQ(minion, minionPos, mePos) then
-                            return
-                        end
+                    if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
+                        _gso.Orb.LHTimers[0] = Game.Timer() + 1
+                        return
                     end
                 end
-            
+
             -- [[ laneclear ]]
-            elseif isLC then
+            elseif isLC and canLC then
+
                 for i = 1, #lastHitT do
                     local minion = lastHitT[i]
                     local minionPos = minion.pos
                     local mePos = myHero.pos
                     local distance = _gso.OB:_getDistance(mePos, minionPos)
-                    if distance < 1150 then
-                        local canContinue = true
-                        if Game.Timer() < _gso.Orb.lastLHT + 0.25 and minion.handle == _gso.Orb.lastLHObj.handle then
-                            canContinue = false
-                        end
-                        if canContinue and self:_castQ(minion, minionPos, mePos) then
-                            return
-                        end
+                    if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
+                        _gso.Orb.LHTimers[0] = Game.Timer() + 0.75
+                        return
                     end
                 end
                 if not almostLH and not self.shouldWait then
@@ -3206,25 +3242,39 @@ function __gsoEzreal:_tick()
                         local unitPos = unit.pos
                         local mePos = myHero.pos
                         local distance = _gso.OB:_getDistance(mePos, unitPos)
-                        if _gso.TS:_valid(unit, true) and distance < 1150 then
-                            if self:_castQ(unit, unitPos, mePos) then
-                                return
-                            end
-                        end
+                        if _gso.TS:_valid(unit, true) and distance < 1150 and self:_castQ(unit, unitPos, mePos) then return end
                     end
                     for i = 1, #laneClearT do
                         local minion = laneClearT[i]
                         local minionPos = minion.pos
                         local mePos = myHero.pos
                         local distance = _gso.OB:_getDistance(myHero.pos, minionPos)
-                        if distance < 1150 then
-                            if self:_castQ(minion, minionPos, mePos) then
-                                return
-                            end
-                        end
+                        if distance < 1150 and self:_castQ(minion, minionPos, mePos) then return end
                     end
                 end
             end
+        end
+    end
+    
+end
+
+
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------------draw-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+
+function __gsoEzreal:_draw()
+    
+    if self.menu.autoq.draw:Value() then
+        local mePos = myHero.pos:To2D()
+        local isCustom = self.menu.autoq.textset.custom:Value()
+        local posX = isCustom and self.menu.autoq.textset.posX:Value() or mePos.x - 50
+        local posY = isCustom and self.menu.autoq.textset.posY:Value() or mePos.y
+        if self.menu.autoq.enable:Value() then
+            Draw.Text("Auto Q Enabled", self.menu.autoq.textset.size:Value(), posX, posY, Draw.Color(255, 000, 255, 000)) 
+        else
+            Draw.Text("Auto Q Disabled", self.menu.autoq.textset.size:Value(), posX, posY, Draw.Color(255, 255, 000, 000)) 
         end
     end
     
@@ -3240,6 +3290,24 @@ function __gsoEzreal:_dmg()
     return 3
 end
 
+function __gsoEzreal:_onWndMsg(msg, wParam)
+    local getTick = GetTickCount()
+    if msg == WM_LBUTTONDOWN and self.menu.autoq.draw:Value() then
+      --[[
+                    local distance = _gso.OB:_getDistance(, cursorPos)
+                    if distance < 150 and distance < num then
+                        enemy = hero
+                        num = distance
+                    end
+            if enemy ~= nil then
+                self.selectedTarget = enemy
+            else
+                self.selectedTarget = nil
+            end
+            self.lastSelTick = GetTickCount()
+        end]]
+    end
+end
 
 
 
