@@ -1317,7 +1317,7 @@ end
 
 function __gsoOrb:_menu()
   self.menu:MenuElement({name = "Delays", id = "delays", type = MENU})
-      self.menu.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 75, min = 0, max = 150, step = 5 })
+      self.menu.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 0, min = 0, max = 50, step = 5 })
       self.menu.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 5 })
       self.menu.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
   self.menu:MenuElement({name = "Keys", id = "keys", type = MENU})
@@ -1438,7 +1438,7 @@ function __gsoOrb:_orb(unit)
         self.endTime = endTime
     end
     
-    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*1.5) - 0.05 + self.menu.delays.windup:Value()*0.001
+    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + _gso.Farm.latency + 0.025 + self.menu.delays.windup:Value()*0.001
     local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and canMove and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5)
     local isTarget = unit ~= nil
     
