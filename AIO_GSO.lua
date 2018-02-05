@@ -38,7 +38,7 @@ class "__gsoVars"
 
 function __gsoVars:__init()
     
-    self.version = "0.496"
+    self.version = "0.497"
     
     self.hName = myHero.charName
     
@@ -1295,7 +1295,7 @@ function __gsoOrb:__init()
     self.isBlinded    = false
     self.lastTarget   = nil
     
-    self.LHTimers     = { [0] = 0, [1] = 0, [2] = 0, [3] = 0, [4] = 0 }
+    self.LHTimers     = { [0] = { tick = 0, id = 0 }, [1] = { tick = 0, id = 0 }, [2] = { tick = 0, id = 0 }, [3] = { tick = 0, id = 0 }, [4] = { tick = 0, id = 0 } }
     
     self.windUpT      = myHero.attackData.windUpTime
     self.animT        = myHero.attackData.animationTime
@@ -1317,7 +1317,7 @@ end
 
 function __gsoOrb:_menu()
   self.menu:MenuElement({name = "Delays", id = "delays", type = MENU})
-      self.menu.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 0, min = 0, max = 70, step = 5 })
+      self.menu.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 0, min = 0, max = 100, step = 5 })
       self.menu.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 5 })
       self.menu.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
   self.menu:MenuElement({name = "Keys", id = "keys", type = MENU})
@@ -1360,19 +1360,23 @@ function __gsoOrb:_comboT()
 end
 
 function __gsoOrb:_lastHitT()
-    if Game.Timer() < self.LHTimers[0] then return nil end
     local result  = nil
     local min     = 10000000
     for i = 1, #_gso.Farm.lastHit do
         local eMinionLH = _gso.Farm.lastHit[i]
         local minion	= eMinionLH[1]
         local hp		= eMinionLH[2]
-        if _gso.OB:_getDistance(myHero.pos, minion.pos) < myHero.range + myHero.boundingRadius + minion.boundingRadius - 30 and hp < min then
-            min = hp
-            result = minion
+        local checkT = Game.Timer() < self.LHTimers[0].tick
+        local mHandle = minion.handle
+        if not checkT or (checkT and self.LHTimers[0].id ~= mHandle) then
+            if _gso.OB:_getDistance(myHero.pos, minion.pos) < myHero.range + myHero.boundingRadius + minion.boundingRadius - 30 and hp < min then
+                min = hp
+                result = minion
+                self.LHTimers[4].tick = Game.Timer() + 0.75
+                self.LHTimers[4].id = mHandle
+            end
         end
     end
-    if result then self.LHTimers[4] = Game.Timer() + 0.75 end
     return result
 end
 
@@ -3087,26 +3091,39 @@ function __gsoEzreal:_tick()
         local isAutoQ = self.menu.autoq.enable:Value() and manaPercent > self.menu.autoq.mana:Value()
         local isCombo = _gso.Orb.menu.keys.combo:Value()
         local isHarass = _gso.Orb.menu.keys.harass:Value()
+        local meRange = myHero.range + myHero.boundingRadius
         
         if isAutoQ and not isCombo and not isHarass then
+            local canCheckT = false
             for i = 1, #_gso.OB.enemyHeroes do
                 local unit = _gso.OB.enemyHeroes[i]
                 local unitPos = unit.pos
                 local mePos = myHero.pos
-                local distance = _gso.OB:_getDistance(mePos, unitPos)
-                if _gso.TS:_valid(unit, true) and distance < 1150 then
-                    local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
-                    local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(unit, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-                    if HitChance > self.menu.autoq.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(unitPos, castpos) < 500 then
-                        local cPos = cursorPos
-                        Control.SetCursorPos(castpos)
-                        Control.KeyDown(HK_Q)
-                        Control.KeyUp(HK_Q)
-                        self.lastQ = GetTickCount()
-                        _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                        _gso.Orb.canAA = false
-                        _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
-                        return
+                if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                    canCheckT = true
+                    break
+                end
+            end
+            if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+                for i = 1, #_gso.OB.enemyHeroes do
+                    local unit = _gso.OB.enemyHeroes[i]
+                    local unitPos = unit.pos
+                    local mePos = myHero.pos
+                    local distance = _gso.OB:_getDistance(mePos, unitPos)
+                    if _gso.TS:_valid(unit, true) and distance < 1150 then
+                        local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
+                        local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(unit, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
+                        if HitChance > self.menu.autoq.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(unitPos, castpos) < 500 then
+                            local cPos = cursorPos
+                            Control.SetCursorPos(castpos)
+                            Control.KeyDown(HK_Q)
+                            Control.KeyUp(HK_Q)
+                            self.lastQ = GetTickCount()
+                            _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                            _gso.Orb.canAA = false
+                            _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
+                            return
+                        end
                     end
                 end
             end
@@ -3114,7 +3131,7 @@ function __gsoEzreal:_tick()
         
         local isLH = self.menu.qset.lasthit:Value() and (_gso.Orb.menu.keys.lastHit:Value() or _gso.Orb.menu.keys.harass:Value())
         local isLC = self.menu.qset.laneclear:Value() and _gso.Orb.menu.keys.laneClear:Value()
-        if Game.Timer() > _gso.Orb.LHTimers[4] and (isLH or isLC) then
+        if isLH or isLC then
           
             local canLH = manaPercent > self.menu.qset.qlh:Value()
             local canLC = manaPercent > self.menu.qset.qlc:Value()
@@ -3164,44 +3181,110 @@ function __gsoEzreal:_tick()
 
             -- [[ lasthit ]]
             if isLH and canLH then
+                local canCheckT = false
                 for i = 1, #lastHitT do
-                    local minion = lastHitT[i]
-                    local minionPos = minion.pos
+                    local unit = lastHitT[i]
+                    local unitPos = unit.pos
                     local mePos = myHero.pos
-                    local distance = _gso.OB:_getDistance(mePos, minionPos)
-                    if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
-                        _gso.Orb.LHTimers[0] = Game.Timer() + 1
-                        return
+                    local checkT = Game.Timer() < _gso.Orb.LHTimers[4].tick
+                    local mHandle = unit.handle
+                    if not checkT or (checkT and _gso.Orb.LHTimers[4].id ~= mHandle) then
+                        if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                            canCheckT = true
+                            break
+                        end
+                    end
+                end
+                if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+                    for i = 1, #lastHitT do
+                        local minion = lastHitT[i]
+                        local minionPos = minion.pos
+                        local mePos = myHero.pos
+                        local checkT = Game.Timer() < _gso.Orb.LHTimers[4].tick
+                        local mHandle = minion.handle
+                        if not checkT or (checkT and _gso.Orb.LHTimers[4].id ~= mHandle) then
+                            local distance = _gso.OB:_getDistance(mePos, minionPos)
+                            if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
+                                _gso.Orb.LHTimers[0].tick = Game.Timer() + 0.75
+                                _gso.Orb.LHTimers[0].id = mHandle
+                                return
+                            end
+                        end
                     end
                 end
 
             -- [[ laneclear ]]
             elseif isLC and canLC then
 
+                local canCheckT = false
                 for i = 1, #lastHitT do
-                    local minion = lastHitT[i]
-                    local minionPos = minion.pos
+                    local unit = lastHitT[i]
+                    local unitPos = unit.pos
                     local mePos = myHero.pos
-                    local distance = _gso.OB:_getDistance(mePos, minionPos)
-                    if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
-                        _gso.Orb.LHTimers[0] = Game.Timer() + 0.75
-                        return
+                    local checkT = Game.Timer() < _gso.Orb.LHTimers[4].tick
+                    local mHandle = unit.handle
+                    if not checkT or (checkT and _gso.Orb.LHTimers[4].id ~= mHandle) then
+                        if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                            canCheckT = true
+                            break
+                        end
+                    end
+                end
+                if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+                    for i = 1, #lastHitT do
+                        local minion = lastHitT[i]
+                        local minionPos = minion.pos
+                        local mePos = myHero.pos
+                        local checkT = Game.Timer() < _gso.Orb.LHTimers[4].tick
+                        local mHandle = minion.handle
+                        if not checkT or (checkT and _gso.Orb.LHTimers[4].id ~= mHandle) then
+                            local distance = _gso.OB:_getDistance(mePos, minionPos)
+                            if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
+                                _gso.Orb.LHTimers[0].tick = Game.Timer() + 0.75
+                                _gso.Orb.LHTimers[0].id = mHandle
+                                return
+                            end
+                        end
                     end
                 end
                 if not almostLH and not self.shouldWait then
+                    canCheckT = false
                     for i = 1, #_gso.OB.enemyHeroes do
                         local unit = _gso.OB.enemyHeroes[i]
                         local unitPos = unit.pos
                         local mePos = myHero.pos
-                        local distance = _gso.OB:_getDistance(mePos, unitPos)
-                        if _gso.TS:_valid(unit, true) and distance < 1150 and self:_castQ(unit, unitPos, mePos) then return end
+                        if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                            canCheckT = true
+                            break
+                        end
                     end
+                    if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+                        for i = 1, #_gso.OB.enemyHeroes do
+                            local unit = _gso.OB.enemyHeroes[i]
+                            local unitPos = unit.pos
+                            local mePos = myHero.pos
+                            local distance = _gso.OB:_getDistance(mePos, unitPos)
+                            if _gso.TS:_valid(unit, true) and distance < 1150 and self:_castQ(unit, unitPos, mePos) then return end
+                        end
+                    end
+                    canCheckT = false
                     for i = 1, #laneClearT do
-                        local minion = laneClearT[i]
-                        local minionPos = minion.pos
+                        local unit = laneClearT[i]
+                        local unitPos = unit.pos
                         local mePos = myHero.pos
-                        local distance = _gso.OB:_getDistance(myHero.pos, minionPos)
-                        if distance < 1150 and self:_castQ(minion, minionPos, mePos) then return end
+                        if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                            canCheckT = true
+                            break
+                        end
+                    end
+                    if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+                        for i = 1, #laneClearT do
+                            local minion = laneClearT[i]
+                            local minionPos = minion.pos
+                            local mePos = myHero.pos
+                            local distance = _gso.OB:_getDistance(myHero.pos, minionPos)
+                            if distance < 1150 and self:_castQ(minion, minionPos, mePos) then return end
+                        end
                     end
                 end
             end
