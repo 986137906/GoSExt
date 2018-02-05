@@ -1878,7 +1878,7 @@ function __gsoAshe:_setCanMove()
     local result = true
     local checkT = Game.Timer()
     if checkT < self.qBuffEndT + _gso.Orb.windUpT + _gso.Orb.animT then
-        result = checkT > _gso.Orb.endTime - (_gso.Orb.animT - _gso.Orb.windUpT) - 0.075 + (self.menu.aacancel.windup:Value()*0.001)
+        result = checkT > _gso.Orb.endTime - (_gso.Orb.animT - _gso.Orb.windUpT)
     end
     return result
     
