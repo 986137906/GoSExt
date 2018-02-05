@@ -1557,7 +1557,7 @@ function __gsoOrb:_tick()
         end
     end
     self.dActionsC = cDActions
-    if self.dActionsC == 0 and checkT > self.lAttack + self.windUpT + 0.15 then
+    if self.dActionsC == 0 and Game.Timer() > self.lAttack + self.windUpT + 0.15 + _gso.Farm.latency then
         _gso.Vars._castSpells()
         if self.dActionsC == 0 and checkT < self.lAttack + self.animT then
             _gso.Vars._castSpellsAA()
@@ -3080,7 +3080,7 @@ function __gsoEzreal:_tick()
             end
         end
     end
-    if qMinus > 1000 and _gso.Orb.dActionsC == 0 and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.15 and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
+    if qMinus > 1000 and _gso.Orb.dActionsC == 0 and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.15 + _gso.Farm.latency and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
       
         local manaPercent = 100 * myHero.mana / myHero.maxMana
       
