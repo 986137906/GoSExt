@@ -6,7 +6,7 @@ local Control = Control
 local mathSqrt = math.sqrt
 local Vector = Vector
 local Draw = Draw
-
+local gso_menu
 local _gso = {
   Vars = nil,
   OB = nil,
@@ -16,9 +16,6 @@ local _gso = {
   Orb = nil
 }
 
-
-
---------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
@@ -26,25 +23,11 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-
 class "__gsoVars"
-
-
-
---------------------|---------------------------------------------------------|--------------------
---------------------|--------------------------init---------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-
 function __gsoVars:__init()
-    
-    self.version = "0.497"
-    
+    self.version = "0.498"
     self.hName = myHero.charName
-    
     self.loaded = true
-    self.loadedT = os.clock()
-    
     self.supportedChampions = {
       ["Ashe"] = true,
       ["KogMaw"] = true,
@@ -52,13 +35,12 @@ function __gsoVars:__init()
       ["Draven"] = true,
       ["Ezreal"] = true
     }
-    
     if not self.supportedChampions[self.hName] == true then
         self.loaded = false
         print("gamsteronAIO "..self.version.." | hero not supported !")
     end
-    
     self._onDraw        = {}
+    self._champMenu     = function() return 0 end
     self._bonusDmg      = function() return 0 end
     self._bonusDmgUnit  = function() return 0 end
     self._onTick        = function() return 0 end
@@ -68,66 +50,23 @@ function __gsoVars:__init()
     self._mousePos      = function() return nil end
     self._canMove       = function() return true end
     self._canAttack     = function() return true end
-    
 end
-
-function __gsoVars:_setOnDraw(func)
-    self._onDraw[#self._onDraw+1] = func
-end
-
-function __gsoVars:_setBonusDmg(func)
-    self._bonusDmg = func
-end
-
-function __gsoVars:_setBonusDmgUnit(func)
-    self._bonusDmgUnit = func
-end
-
-function __gsoVars:_setOnTick(func)
-    self._onTick = func
-end
-
-function __gsoVars:_setCastSpells(func)
-    self._castSpells = func
-end
-
-function __gsoVars:_setCastSpellsAA(func)
-    self._castSpellsAA = func
-end
-
-function __gsoVars:_setBeforeAA(func)
-    self._beforeAA = func
-end
-
-function __gsoVars:_setMousePos(func)
-    self._mousePos = func
-end
-
-function __gsoVars:_setCanMove(func)
-    self._canMove = func
-end
-
-function __gsoVars:_setCanAttack(func)
-    self._canAttack = func
-end
-
---------------------|---------------------------------------------------------|--------------------
---------------------|----------------------execute----------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
+function __gsoVars:_setOnDraw(func) self._onDraw[#self._onDraw+1] = func end
+function __gsoVars:_setChampMenu(func) self._champMenu = func end
+function __gsoVars:_setBonusDmg(func) self._bonusDmg = func end
+function __gsoVars:_setBonusDmgUnit(func) self._bonusDmgUnit = func end
+function __gsoVars:_setOnTick(func) self._onTick = func end
+function __gsoVars:_setCastSpells(func) self._castSpells = func end
+function __gsoVars:_setCastSpellsAA(func) self._castSpellsAA = func end
+function __gsoVars:_setBeforeAA(func) self._beforeAA = func end
+function __gsoVars:_setMousePos(func) self._mousePos = func end
+function __gsoVars:_setCanMove(func) self._canMove = func end
+function __gsoVars:_setCanAttack(func) self._canAttack = func end
 
 _gso.Vars = __gsoVars()
 if _gso.Vars.loaded == false then
     return
 end
-
-
-
-
-
-
-
-
-
 
 
 
@@ -246,15 +185,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
@@ -274,17 +204,9 @@ class "__gsoTS"
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoTS:__init()
-  
-    self.menu = MenuElement({name = "Gamsteron TS", id = "gsoMenuTS", type = MENU, leftIcon = "https://i.imgur.com/vzoiheQ.png"})
-    
-    self.Modes = {
-        "Auto",
-        "Closest",
-        "Least Health",
-        "Least Priority"
-    }
     
     self.loadedChamps = false
+    self.lastFound = -10000000
     
     self.undyingBuffs = { ["zhonyasringshield"] = true }
     
@@ -444,28 +366,6 @@ function __gsoTS:__init()
     Callback.Add('WndMsg', function(msg, wParam)
         self:_onWndMsg(msg, wParam)
     end)
-    Callback.Add('Load', function()
-        self:_menu()
-    end)
-end
-
-
-
---------------------|---------------------------------------------------------|--------------------
---------------------|--------------------------menu---------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-
-function __gsoTS:_menu()
-    self.menu:MenuElement({ id = "Mode", name = "Mode", value = 1, drop = self.Modes })
-		self.menu:MenuElement({ id = "priority", name = "Priorities", type = MENU })
-    self.menu:MenuElement({ id = "selected", name = "Selected Target", type = MENU })
-        self.menu.selected:MenuElement({ id = "enable", name = "Enable", value = true })
-        self.menu.selected:MenuElement({ id = "only", name = "Only Selected Target", value = false })
-        self.menu.selected:MenuElement({name = "Draw",  id = "draw", type = MENU})
-            self.menu.selected.draw:MenuElement({name = "Enable",  id = "enable", value = true})
-            self.menu.selected.draw:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 204, 0, 0)})
-            self.menu.selected.draw:MenuElement({name = "Width",  id = "width", value = 3, min = 1, max = 10})
-            self.menu.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
 end
 
 function __gsoTS:_isImmortal(unit, orb)
@@ -508,8 +408,8 @@ function __gsoTS:_isImmobile(unit)
 end
 
 function __gsoTS:_draw()
-    if self.menu.selected.draw.enable:Value() == true and self.selectedTarget ~= nil then
-        Draw.Circle(self.selectedTarget.pos, self.menu.selected.draw.radius:Value(), self.menu.selected.draw.width:Value(), self.menu.selected.draw.color:Value())
+    if gso_menu.ts.selected.draw.enable:Value() == true and self.selectedTarget ~= nil then
+        Draw.Circle(self.selectedTarget.pos, gso_menu.ts.selected.draw.radius:Value(), gso_menu.ts.selected.draw.width:Value(), gso_menu.ts.selected.draw.color:Value())
     end
 end
 
@@ -524,7 +424,7 @@ end
 
 function __gsoTS:_onWndMsg(msg, wParam)
     local getTick = GetTickCount()
-    local isKey = _gso.Orb.menu.keys.combo:Value() or _gso.Orb.menu.keys.harass:Value() or _gso.Orb.menu.keys.laneClear:Value() or _gso.Orb.menu.keys.lastHit:Value()
+    local isKey = gso_menu.orb.keys.combo:Value() or gso_menu.orb.keys.harass:Value() or gso_menu.orb.keys.laneClear:Value() or gso_menu.orb.keys.lastHit:Value()
     if wParam == HK_Q and getTick > self.lastQ + 500 then
         self.lastQ = getTick
         if isKey and not self.delayedSpell[0] then
@@ -545,7 +445,7 @@ function __gsoTS:_onWndMsg(msg, wParam)
         if isKey and not self.delayedSpell[3] then
             self.delayedSpell[3] = { function() self:_castAgain(wParam) end, getTick }
         end
-    elseif msg == WM_LBUTTONDOWN and self.menu.selected.enable:Value() == true then
+    elseif msg == WM_LBUTTONDOWN and gso_menu.ts.selected.enable:Value() == true then
         if getTick > self.lastSelTick + 100 and getTick > self.lastQ + 250 and getTick > self.lastW + 250 and getTick > self.lastE + 250 and getTick > self.lastR + 250 then 
             local num = 10000000
             local enemy = nil
@@ -571,25 +471,25 @@ function __gsoTS:_onWndMsg(msg, wParam)
 end
 
 function __gsoTS:_getTarget(_range, orb, changeRange)
-    if self.menu.selected.only:Value() == true and self.selectedTarget ~= nil then
+    if gso_menu.ts.selected.only:Value() == true and self.selectedTarget ~= nil then
         return self.selectedTarget
     end
     local result  = nil
     local num     = 10000000
-    local mode    = self.menu.Mode:Value()
+    local mode    = gso_menu.ts.Mode:Value()
     local prioT  = { 10000000, 10000000 }
     for i = 1, #_gso.OB.enemyHeroes do
         local unit = _gso.OB.enemyHeroes[i]
         local range = changeRange == true and _range + myHero.boundingRadius + unit.boundingRadius - 30 or _range
         local distance = _gso.OB:_getDistance(myHero.pos, unit.pos)
         if self:_valid(unit, orb) and distance < range then
-            if self.menu.selected.enable:Value() == true and self.selectedTarget ~= nil and unit.networkID == self.selectedTarget.networkID then
+            if gso_menu.ts.selected.enable:Value() == true and self.selectedTarget ~= nil and unit.networkID == self.selectedTarget.networkID then
                 return self.selectedTarget
             elseif mode == 1 then
                 local unitName = unit.charName
                 local priority = 6
                 if unitName ~= nil then
-                    priority = self.menu.priority[unitName] and self.menu.priority[unitName]:Value() or priority
+                    priority = gso_menu.ts.priority[unitName] and gso_menu.ts.priority[unitName]:Value() or priority
                 end
                 local calcNum = 1
                 if priority == 1 then
@@ -634,7 +534,7 @@ function __gsoTS:_getTarget(_range, orb, changeRange)
                 local hpE = unit.health - (unit.totalDamage*unit.attackSpeed*2) - unit.ap
                 local priority = 6
                 if unitName ~= nil then
-                    priority = self.menu.priority[unitName] and self.menu.priority[unitName]:Value() or priority
+                    priority = gso_menu.ts.priority[unitName] and gso_menu.ts.priority[unitName]:Value() or priority
                 end
                 if priority == prioT[1] and hpE < prioT[2] then
                     prioT[2] = hpE
@@ -766,7 +666,7 @@ function __gsoFarm:_setEnemyMinions()
     local cLC = #self.laneClear
     for i=1, cLC do self.laneClear[i]=nil end
     
-    local mLH = _gso.Orb.menu.delays.lhDelay:Value()*0.001
+    local mLH = gso_menu.orb.delays.lhDelay:Value()*0.001
     for i = 1, #_gso.OB.enemyMinions do
         local eMinion = _gso.OB.enemyMinions[i]
         local eMinion_handle	= eMinion.handle
@@ -1252,17 +1152,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
@@ -1282,10 +1171,6 @@ class "__gsoOrb"
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoOrb:__init()
-  
-    print("gamsteronAIO ".._gso.Vars.version.." | orbwalker loaded!")
-    self.menu = MenuElement({name = "Gamsteron Orbwalker", id = "gsoMenuOrb", type = MENU, leftIcon = "https://i.imgur.com/nahe4Ua.png"})
-    self:_menu()
     
     self.canAA        = true
     self.lAttack      = 0
@@ -1307,39 +1192,6 @@ function __gsoOrb:__init()
     Callback.Add('Tick', function() self:_tick() end)
     Callback.Add('Draw', function() self:_draw() end)
     
-end
-
-
-
---------------------|---------------------------------------------------------|--------------------
---------------------|--------------------------menu---------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-
-function __gsoOrb:_menu()
-  self.menu:MenuElement({name = "Delays", id = "delays", type = MENU})
-      self.menu.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 0, min = 0, max = 100, step = 5 })
-      self.menu.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 5 })
-      self.menu.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
-  self.menu:MenuElement({name = "Keys", id = "keys", type = MENU})
-      self.menu.keys:MenuElement({name = "Combo Key", id = "combo", key = string.byte(" ")})
-      self.menu.keys:MenuElement({name = "Harass Key", id = "harass", key = string.byte("C")})
-      self.menu.keys:MenuElement({name = "LastHit Key", id = "lastHit", key = string.byte("X")})
-      self.menu.keys:MenuElement({name = "LaneClear Key", id = "laneClear", key = string.byte("V")})
-  self.menu:MenuElement({name = "Drawings", id = "draw", type = MENU})
-      self.menu.draw:MenuElement({name = "Enable", id = "enable", value = true})
-      self.menu.draw:MenuElement({name = "MyHero attack range", id = "me", type = MENU})
-          self.menu.draw.me:MenuElement({name = "Enable",  id = "enable", value = true})
-          self.menu.draw.me:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 49, 210, 0)})
-          self.menu.draw.me:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
-      self.menu.draw:MenuElement({name = "Enemy attack range", id = "he", type = MENU})
-          self.menu.draw.he:MenuElement({name = "Enable",  id = "enable", value = true})
-          self.menu.draw.he:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 255, 0, 0)})
-          self.menu.draw.he:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
-      self.menu.draw:MenuElement({name = "Cursor Posistion",  id = "cpos", type = MENU})
-          self.menu.draw.cpos:MenuElement({name = "Enable",  id = "enable", value = true})
-          self.menu.draw.cpos:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 153, 0, 76)})
-          self.menu.draw.cpos:MenuElement({name = "Width",  id = "width", value = 5, min = 1, max = 10})
-          self.menu.draw.cpos:MenuElement({name = "Radius",  id = "radius", value = 250, min = 1, max = 300})
 end
 
 
@@ -1431,7 +1283,7 @@ end
 function __gsoOrb:_orb(unit)
     
     local checkT = Game.Timer()
-    local mHum    = self.menu.delays.humanizer:Value()*0.001
+    local mHum    = gso_menu.orb.delays.humanizer:Value()*0.001
     
     local aaData = myHero.attackData
     local endTime = aaData.endTime
@@ -1442,7 +1294,7 @@ function __gsoOrb:_orb(unit)
         self.endTime = endTime
     end
     
-    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*0.5) + 0.025 + self.menu.delays.windup:Value()*0.001
+    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001
     local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and canMove and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5)
     local isTarget = unit ~= nil
     
@@ -1507,14 +1359,15 @@ end
 --------------------|---------------------------------------------------------|--------------------
 function __gsoOrb:_tick()
     if ExtLibEvade and ExtLibEvade.Evading then return end
-    if _gso.TS.loadedChamps == false and Game.Timer() > 6 and os.clock() > _gso.Vars.loadedT + 6 then
+    if _gso.TS.loadedChamps == false then
         for i = 1, Game.HeroCount() do
             local hero = Game.Hero(i)
             if hero.team ~= _gso.OB.meTeam then
                 local eName = hero.charName
-                if eName and #eName > 0 and not _gso.TS.menu.priority[eName] then
+                if eName and #eName > 0 and not gso_menu.ts.priority[eName] then
+                    _gso.TS.lastFound = Game.Timer()
                     local priority = _gso.TS.Priorities[eName] ~= nil and _gso.TS.Priorities[eName] or 5
-                    _gso.TS.menu.priority:MenuElement({ id = eName, name = eName, value = priority, min = 1, max = 5, step = 1 })
+                    gso_menu.ts.priority:MenuElement({ id = eName, name = eName, value = priority, min = 1, max = 5, step = 1 })
                     if eName == "Teemo" then          self.isTeemo = true
                     elseif eName == "Kayle" then      _gso.TS.undyingBuffs["JudicatorIntervention"] = true
                     elseif eName == "Taric" then      _gso.TS.undyingBuffs["TaricR"] = true
@@ -1531,7 +1384,9 @@ function __gsoOrb:_tick()
                 end
             end
         end
-        _gso.TS.loadedChamps = true
+        if Game.Timer() > _gso.TS.lastFound + 5 and Game.Timer() < _gso.TS.lastFound + 10 then
+            _gso.TS.loadedChamps = true
+        end
     end
     
     if self.isTeemo == true then
@@ -1542,10 +1397,10 @@ function __gsoOrb:_tick()
     _gso.Farm:_tick()
     
     local checkT  = Game.Timer()
-    local ck      = self.menu.keys.combo:Value()
-    local hk      = self.menu.keys.harass:Value()
-    local lhk     = self.menu.keys.lastHit:Value()
-    local lck     = self.menu.keys.laneClear:Value()
+    local ck      = gso_menu.orb.keys.combo:Value()
+    local hk      = gso_menu.orb.keys.harass:Value()
+    local lhk     = gso_menu.orb.keys.lastHit:Value()
+    local lck     = gso_menu.orb.keys.laneClear:Value()
     
     _gso.Vars._onTick()
     
@@ -1561,7 +1416,7 @@ function __gsoOrb:_tick()
         end
     end
     self.dActionsC = cDActions
-    if self.dActionsC == 0 and Game.Timer() > self.lAttack + self.windUpT + 0.15 + _gso.Farm.latency + self.menu.delays.windup:Value()*0.001 then
+    if self.dActionsC == 0 and Game.Timer() > self.lAttack + self.windUpT + 0.15 + _gso.Farm.latency + gso_menu.orb.delays.windup:Value()*0.001 then
         _gso.Vars._castSpells()
         if self.dActionsC == 0 and checkT < self.lAttack + self.animT then
             _gso.Vars._castSpellsAA()
@@ -1599,23 +1454,23 @@ function __gsoOrb:_draw()
     for i = 1, #_gso.Vars._onDraw do
         _gso.Vars._onDraw[i]()
     end
-    if not self.menu.draw.enable:Value() then return end
+    if not gso_menu.orb.draw.enable:Value() then return end
     local mePos = myHero.pos
-    if self.menu.draw.me.enable:Value() and not myHero.dead and mePos:ToScreen().onScreen then
-        Draw.Circle(mePos, myHero.range + myHero.boundingRadius + 35, self.menu.draw.me.width:Value(), self.menu.draw.me.color:Value())
+    if gso_menu.orb.draw.me.enable:Value() and not myHero.dead and mePos:ToScreen().onScreen then
+        Draw.Circle(mePos, myHero.range + myHero.boundingRadius + 35, gso_menu.orb.draw.me.width:Value(), gso_menu.orb.draw.me.color:Value())
     end
-    if self.menu.draw.he.enable:Value() then
+    if gso_menu.orb.draw.he.enable:Value() then
         local countEH = #_gso.OB.enemyHeroes
         for i = 1, countEH do
             local hero = _gso.OB.enemyHeroes[i]
             local heroPos = hero.pos
             if _gso.OB:_getDistance(mePos, heroPos) < 2000 and heroPos:ToScreen().onScreen then
-                Draw.Circle(heroPos, hero.range + hero.boundingRadius + 35, self.menu.draw.he.width:Value(), self.menu.draw.he.color:Value())
+                Draw.Circle(heroPos, hero.range + hero.boundingRadius + 35, gso_menu.orb.draw.he.width:Value(), gso_menu.orb.draw.he.color:Value())
             end
         end
     end
-    if self.menu.draw.cpos.enable:Value() then
-        Draw.Circle(mousePos, self.menu.draw.cpos.radius:Value(), self.menu.draw.cpos.width:Value(), self.menu.draw.cpos.color:Value())
+    if gso_menu.orb.draw.cpos.enable:Value() then
+        Draw.Circle(mousePos, gso_menu.orb.draw.cpos.radius:Value(), gso_menu.orb.draw.cpos.width:Value(), gso_menu.orb.draw.cpos.color:Value())
     end
 end
 
@@ -1648,11 +1503,6 @@ class "__gsoAshe"
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoAshe:__init()
-  
-    print("gamsteronAIO ".._gso.Vars.version.." | ashe loaded!")
-    
-    self.menu = MenuElement({name = "Gamsteron Ashe", id = "gsoMenuAshe", type = MENU, leftIcon = "https://i.imgur.com/WohLMsm.png"})
-    self:_menu()
     
     self.lastQ = 0
     self.lastW = 0
@@ -1666,6 +1516,7 @@ function __gsoAshe:__init()
     _gso.Vars:_setBonusDmg(function() return self:_dmg() end)
     _gso.Vars:_setBonusDmgUnit(function(unit) return self:_dmgUnit(unit) end)
     _gso.Vars:_setCanMove(function() return self:_setCanMove() end)
+    _gso.Vars:_setChampMenu(function() return self:_menu() end)
 end
 
 
@@ -1675,17 +1526,18 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoAshe:_menu()
-    self.menu:MenuElement({id = "rdist", name = "use R if enemy distance < X", value = 500, min = 250, max = 1000, step = 50})
-    self.menu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-        self.menu.combo:MenuElement({id = "qc", name = "UseQ", value = true})
-        self.menu.combo:MenuElement({id = "wc", name = "UseW", value = true})
-        self.menu.combo:MenuElement({id = "rcd", name = "UseR [enemy distance < X", value = true})
-        self.menu.combo:MenuElement({id = "rci", name = "UseR [enemy IsImmobile]", value = true})
-    self.menu:MenuElement({type = MENU, id = "harass", name = "Harass"})
-        self.menu.harass:MenuElement({id = "qh", name = "UseQ", value = true})
-        self.menu.harass:MenuElement({id = "wh", name = "UseW", value = true})
-        self.menu.harass:MenuElement({id = "rhd", name = "UseR [enemy distance < X]", value = false})
-        self.menu.harass:MenuElement({id = "rhi", name = "UseR [enemy IsImmobile]", value = false})
+    gso_menu:MenuElement({id = "gsoashe", name = "Ashe", type = MENU, leftIcon = "https://i.imgur.com/WohLMsm.png"})
+        gso_menu.gsoashe:MenuElement({id = "rdist", name = "use R if enemy distance < X", value = 500, min = 250, max = 1000, step = 50})
+        gso_menu.gsoashe:MenuElement({id = "combo", name = "Combo", type = MENU})
+            gso_menu.gsoashe.combo:MenuElement({id = "qc", name = "UseQ", value = true})
+            gso_menu.gsoashe.combo:MenuElement({id = "wc", name = "UseW", value = true})
+            gso_menu.gsoashe.combo:MenuElement({id = "rcd", name = "UseR [enemy distance < X", value = true})
+            gso_menu.gsoashe.combo:MenuElement({id = "rci", name = "UseR [enemy IsImmobile]", value = true})
+        gso_menu.gsoashe:MenuElement({id = "harass", name = "Harass", type = MENU})
+            gso_menu.gsoashe.harass:MenuElement({id = "qh", name = "UseQ", value = true})
+            gso_menu.gsoashe.harass:MenuElement({id = "wh", name = "UseW", value = true})
+            gso_menu.gsoashe.harass:MenuElement({id = "rhd", name = "UseR [enemy distance < X]", value = false})
+            gso_menu.gsoashe.harass:MenuElement({id = "rhi", name = "UseR [enemy IsImmobile]", value = false})
 end
 
 
@@ -1701,23 +1553,23 @@ function __gsoAshe:_castSpells()
     local wMinus = getTick - self.lastW
     local rMinus = getTick - self.lastR
     
-    local isCombo = _gso.Orb.menu.keys.combo:Value()
-    local isHarass = _gso.Orb.menu.keys.harass:Value()
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
     
-    local isComboW = isCombo and self.menu.combo.wc:Value()
-    local isHarassW = isHarass and self.menu.harass.wh:Value()
+    local isComboW = isCombo and gso_menu.gsoashe.combo.wc:Value()
+    local isHarassW = isHarass and gso_menu.gsoashe.harass.wh:Value()
     
-    local isComboRd = isCombo and self.menu.combo.rcd:Value()
-    local isHarassRd = isHarass and self.menu.harass.rhd:Value()
+    local isComboRd = isCombo and gso_menu.gsoashe.combo.rcd:Value()
+    local isHarassRd = isHarass and gso_menu.gsoashe.harass.rhd:Value()
     
-    local isComboRi = isCombo and self.menu.combo.rcd:Value()
-    local isHarassRi = isHarass and self.menu.harass.rhd:Value()
+    local isComboRi = isCombo and gso_menu.gsoashe.combo.rcd:Value()
+    local isHarassRi = isHarass and gso_menu.gsoashe.harass.rhd:Value()
 
     if rMinus > 2000 and wMinus > 350 and Game.CanUseSpell(_R) == 0 then
         local mePos = myHero.pos
         if isComboRd or isHarassRd then
             local t = nil
-            local menuDist = self.menu.rdist:Value()
+            local menuDist = gso_menu.gsoashe.rdist:Value()
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
                 local distance = _gso.OB:_getDistance(mePos, hero.pos)
@@ -1800,14 +1652,14 @@ function __gsoAshe:_castSpellsAA()
     local wMinus = getTick - self.lastW
     local rMinus = getTick - self.lastR
     
-    local isCombo = _gso.Orb.menu.keys.combo:Value()
-    local isHarass = _gso.Orb.menu.keys.harass:Value()
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
 
-    local isComboQ = isCombo and self.menu.combo.qc:Value()
-    local isHarassQ = isHarass and self.menu.harass.qh:Value()
+    local isComboQ = isCombo and gso_menu.gsoashe.combo.qc:Value()
+    local isHarassQ = isHarass and gso_menu.gsoashe.harass.qh:Value()
     
-    local isComboW = isCombo and self.menu.combo.wc:Value()
-    local isHarassW = isHarass and self.menu.harass.wh:Value()
+    local isComboW = isCombo and gso_menu.gsoashe.combo.wc:Value()
+    local isHarassW = isHarass and gso_menu.gsoashe.harass.wh:Value()
     
     if (isComboQ or isHarassQ) and qMinus > 2000 then
         if Game.CanUseSpell(_Q) == 0 then
@@ -1914,10 +1766,6 @@ end
 
 
 
-
-
-
-
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
@@ -1937,11 +1785,6 @@ class "__gsoTwitch"
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoTwitch:__init()
-  
-    print("gamsteronAIO ".._gso.Vars.version.." | twitch loaded!")
-    
-    self.menu = MenuElement({name = "Gamsteron Twitch", id = "gsoMenuTwitch", type = MENU, leftIcon = "https://i.imgur.com/tVpVF5L.png"})
-    self:_menu()
     
     self.lastW         = 0
     self.lastE         = 0
@@ -1951,7 +1794,7 @@ function __gsoTwitch:__init()
     _gso.Vars:_setCastSpellsAA(function() self:_castSpellsAA() end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setBonusDmg(function() return self:_dmg() end)
-    
+    _gso.Vars:_setChampMenu(function() return self:_menu() end)
 end
 
 
@@ -1961,14 +1804,15 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoTwitch:_menu()
-    self.menu:MenuElement({name = "W settings", id = "wset", type = MENU })
-        self.menu.wset:MenuElement({id = "combo", name = "Use W Combo", value = true})
-        self.menu.wset:MenuElement({id = "harass", name = "Use W Harass", value = false})
-    self.menu:MenuElement({name = "E settings", id = "eset", type = MENU })
-        self.menu.eset:MenuElement({id = "combo", name = "Use E Combo", value = true})
-        self.menu.eset:MenuElement({id = "harass", name = "Use E Harass", value = false})
-        self.menu.eset:MenuElement({id = "stacks", name = "X stacks", value = 6, min = 1, max = 6, step = 1 })
-        self.menu.eset:MenuElement({id = "enemies", name = "X enemies", value = 1, min = 1, max = 5, step = 1 })
+    gso_menu:MenuElement({name = "Twitch", id = "gsotwitch", type = MENU, leftIcon = "https://i.imgur.com/tVpVF5L.png"})
+        gso_menu.gsotwitch:MenuElement({name = "W settings", id = "wset", type = MENU })
+            gso_menu.gsotwitch.wset:MenuElement({id = "combo", name = "Use W Combo", value = true})
+            gso_menu.gsotwitch.wset:MenuElement({id = "harass", name = "Use W Harass", value = false})
+        gso_menu.gsotwitch:MenuElement({name = "E settings", id = "eset", type = MENU })
+            gso_menu.gsotwitch.eset:MenuElement({id = "combo", name = "Use E Combo", value = true})
+            gso_menu.gsotwitch.eset:MenuElement({id = "harass", name = "Use E Harass", value = false})
+            gso_menu.gsotwitch.eset:MenuElement({id = "stacks", name = "X stacks", value = 6, min = 1, max = 6, step = 1 })
+            gso_menu.gsotwitch.eset:MenuElement({id = "enemies", name = "X enemies", value = 1, min = 1, max = 5, step = 1 })
 end
 
 
@@ -2001,14 +1845,14 @@ function __gsoTwitch:_castSpellsAA()
     local wMinus = getTick - self.lastW
     local eMinus = getTick - self.lastE
     
-    local isCombo = _gso.Orb.menu.keys.combo:Value()
-    local isHarass = _gso.Orb.menu.keys.harass:Value()
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
     
-    local isComboW = isCombo and self.menu.wset.combo:Value()
-    local isHarassW = isHarass and self.menu.wset.harass:Value()
+    local isComboW = isCombo and gso_menu.gsotwitch.wset.combo:Value()
+    local isHarassW = isHarass and gso_menu.gsotwitch.wset.harass:Value()
     
-    local isComboE = isCombo and self.menu.eset.combo:Value()
-    local isHarassE = isHarass and self.menu.eset.harass:Value()
+    local isComboE = isCombo and gso_menu.gsotwitch.eset.combo:Value()
+    local isHarassE = isHarass and gso_menu.gsotwitch.eset.harass:Value()
     
     if eMinus > 1000 and wMinus > 350 and Game.CanUseSpell(_E) == 0 then
       
@@ -2041,8 +1885,8 @@ function __gsoTwitch:_castSpellsAA()
         
         --[[ COMBO/HARASS ]]
         if isComboE or isHarassE then 
-            local xStacks   = self.menu.eset.stacks:Value()
-            local xEnemies  = self.menu.eset.enemies:Value()
+            local xStacks   = gso_menu.gsotwitch.eset.stacks:Value()
+            local xEnemies  = gso_menu.gsotwitch.eset.enemies:Value()
             local countE    = 0
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
@@ -2150,15 +1994,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
@@ -2177,11 +2012,7 @@ class "__gsoKogMaw"
 --------------------|-------------------------init----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoKogMaw:__init()
-  
-    print("gamsteronAIO ".._gso.Vars.version.." | kog'maw loaded!")
-    self.menu = MenuElement({name = "Gamsteron Kog'Maw", id = "gsoMenuKogMaw", type = MENU, leftIcon = "https://i.imgur.com/PR2suYf.png"})
-    self:_menu()
-    
+
     _gso.TS.apDmg = true
     
     self.lastQ = 0
@@ -2193,6 +2024,7 @@ function __gsoKogMaw:__init()
     _gso.Vars:_setCastSpellsAA(function() self:_castSpellsAA() end)
     _gso.Vars:_setBonusDmg(function() return self:_dmg() end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
+    _gso.Vars:_setChampMenu(function() return self:_menu() end)
 end
 
 
@@ -2201,20 +2033,21 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoKogMaw:_menu()
-    self.menu:MenuElement({id = "onlast", name = "[combo] use spells on last attacked enemy", value = true})
-    self.menu:MenuElement({name = "Q settings", id = "qset", type = MENU })
-        self.menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.qset:MenuElement({id = "harass", name = "Harass", value = false})
-    self.menu:MenuElement({name = "W settings", id = "wset", type = MENU })
-        self.menu.wset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.wset:MenuElement({id = "harass", name = "Harass", value = false})
-    self.menu:MenuElement({name = "E settings", id = "eset", type = MENU })
-        self.menu.eset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.eset:MenuElement({id = "harass", name = "Harass", value = false})
-    self.menu:MenuElement({name = "R settings", id = "rset", type = MENU })
-        self.menu.rset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.rset:MenuElement({id = "harass", name = "Harass", value = false})
-        self.menu.rset:MenuElement({id = "stack", name = "Stop at x stacks", value = 3, min = 1, max = 9, step = 1 })
+    gso_menu:MenuElement({name = "Kog'Maw", id = "gsokog", type = MENU, leftIcon = "https://i.imgur.com/PR2suYf.png"})
+        gso_menu.gsokog:MenuElement({id = "onlast", name = "[combo] use spells on last attacked enemy", value = true})
+        gso_menu.gsokog:MenuElement({name = "Q settings", id = "qset", type = MENU })
+            gso_menu.gsokog.qset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsokog.qset:MenuElement({id = "harass", name = "Harass", value = false})
+        gso_menu.gsokog:MenuElement({name = "W settings", id = "wset", type = MENU })
+            gso_menu.gsokog.wset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsokog.wset:MenuElement({id = "harass", name = "Harass", value = false})
+        gso_menu.gsokog:MenuElement({name = "E settings", id = "eset", type = MENU })
+            gso_menu.gsokog.eset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsokog.eset:MenuElement({id = "harass", name = "Harass", value = false})
+        gso_menu.gsokog:MenuElement({name = "R settings", id = "rset", type = MENU })
+            gso_menu.gsokog.rset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsokog.rset:MenuElement({id = "harass", name = "Harass", value = false})
+            gso_menu.gsokog.rset:MenuElement({id = "stack", name = "Stop at x stacks", value = 3, min = 1, max = 9, step = 1 })
 end
 
 
@@ -2257,11 +2090,11 @@ function __gsoKogMaw:_castSpells()
     
     local wMinus = getTick - self.lastW
     
-    local isCombo   = _gso.Orb.menu.keys.combo:Value()
-    local isHarass  = _gso.Orb.menu.keys.harass:Value()
+    local isCombo   = gso_menu.orb.keys.combo:Value()
+    local isHarass  = gso_menu.orb.keys.harass:Value()
     
-    local isComboW   = isCombo and self.menu.wset.combo:Value()
-    local isHarassW  = isHarass and self.menu.wset.harass:Value()
+    local isComboW   = isCombo and gso_menu.gsokog.wset.combo:Value()
+    local isHarassW  = isHarass and gso_menu.gsokog.wset.harass:Value()
     
     if (isComboW or isHarassW) and wMinus > 1000 and Game.CanUseSpell(_W) == 0 then
         local isTarget = false
@@ -2308,17 +2141,17 @@ function __gsoKogMaw:_castSpellsAA()
     local eMinus = getTick - self.lastE
     local rMinus = getTick - self.lastR
     
-    local isCombo = _gso.Orb.menu.keys.combo:Value()
-    local isHarass = _gso.Orb.menu.keys.harass:Value()
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
     
-    local isComboQ = isCombo and self.menu.qset.combo:Value()
-    local isHarassQ = isHarass and self.menu.qset.harass:Value()
+    local isComboQ = isCombo and gso_menu.gsokog.qset.combo:Value()
+    local isHarassQ = isHarass and gso_menu.gsokog.qset.harass:Value()
     
-    local isComboE = isCombo and self.menu.eset.combo:Value()
-    local isHarassE = isHarass and self.menu.eset.harass:Value()
+    local isComboE = isCombo and gso_menu.gsokog.eset.combo:Value()
+    local isHarassE = isHarass and gso_menu.gsokog.eset.harass:Value()
     
-    local isComboR = isCombo and self.menu.rset.combo:Value()
-    local isHarassR = isHarass and self.menu.rset.harass:Value()
+    local isComboR = isCombo and gso_menu.gsokog.rset.combo:Value()
+    local isHarassR = isHarass and gso_menu.gsokog.rset.harass:Value()
     
     local sQ = { delay = 0.25, range = 1175, width = 70, speed = 1650, sType = "line", col = true }
     local sE = { delay = 0.25, range = 1280, width = 120, speed = 1350, sType = "line", col = false }
@@ -2327,7 +2160,7 @@ function __gsoKogMaw:_castSpellsAA()
     if (isComboQ or isHarassQ) and qMinus > 2000 and eMinus > 400 and rMinus > 400 and Game.CanUseSpell(_Q) == 0 then
         local aaTarget = _gso.Orb.lastTarget
         local target = nil
-        if self.menu.onlast:Value() and aaTarget ~= nil then
+        if gso_menu.gsokog.onlast:Value() and aaTarget ~= nil then
             target = aaTarget
         else
             target = _gso.TS:_getTarget(1175, false, false)
@@ -2351,7 +2184,7 @@ function __gsoKogMaw:_castSpellsAA()
     if (isComboE or isHarassE) and eMinus > 2000 and qMinus > 400 and rMinus > 400 and Game.CanUseSpell(_E) == 0 then
         local aaTarget = _gso.Orb.lastTarget
         local target = nil
-        if self.menu.onlast:Value() and aaTarget ~= nil then
+        if gso_menu.gsokog.onlast:Value() and aaTarget ~= nil then
             target = aaTarget
         else
             target = _gso.TS:_getTarget(1280, false, false)
@@ -2372,11 +2205,11 @@ function __gsoKogMaw:_castSpellsAA()
             end
         end
     end
-    if (isComboR or isHarassR) and rMinus > 700 and qMinus > 400 and eMinus > 400 and Game.CanUseSpell(_R) == 0 and self:_getBuffCount() < self.menu.rset.stack:Value() then
+    if (isComboR or isHarassR) and rMinus > 700 and qMinus > 400 and eMinus > 400 and Game.CanUseSpell(_R) == 0 and self:_getBuffCount() < gso_menu.gsokog.rset.stack:Value() then
         sR.range = 900 + ( 300 * myHero:GetSpellData(_R).level )
         local aaTarget = _gso.Orb.lastTarget
         local target = nil
-        if self.menu.onlast:Value() and aaTarget ~= nil then
+        if gso_menu.gsokog.onlast:Value() and aaTarget ~= nil then
             target = aaTarget
         else
             target = _gso.TS:_getTarget(sR.range + (sR.width*0.5), false, false)
@@ -2459,13 +2292,6 @@ class "__gsoDraven"
 --------------------|-------------------------init----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoDraven:__init()
-  
-    print("gamsteronAIO ".._gso.Vars.version.." | draven loaded!")
-    
-    self.qModes = { "closest to mousePos", "closest to heroPos" }
-    
-    self.menu = MenuElement({name = "Gamsteron Draven", id = "gsoMenuDraven", type = MENU, leftIcon = "https://i.imgur.com/U13x6xb.png"})
-    self:_menu()
     
     self.qParticles = {}
     
@@ -2482,6 +2308,7 @@ function __gsoDraven:__init()
     _gso.Vars:_setMousePos(function() return self:_setMousePos() end)
     _gso.Vars:_setOnDraw(function() self:_draw() end)
     _gso.Vars:_setBeforeAA(function() self:_setBeforeAA() end)
+    _gso.Vars:_setChampMenu(function() return self:_menu() end)
 end
 
 
@@ -2490,38 +2317,39 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoDraven:_menu()
-    self.menu:MenuElement({name = "AXE settings", id = "aset", type = MENU })
-        self.menu.aset:MenuElement({id = "catch", name = "Catch axes", value = true})
-        self.menu.aset:MenuElement({id = "catcht", name = "stop under turret", value = true})
-        self.menu.aset:MenuElement({id = "catcho", name = "[combo] stop if no enemy in range", value = true})
-        self.menu.aset:MenuElement({name = "Distance", id = "dist", type = MENU })
-            self.menu.aset.dist:MenuElement({id = "mode", name = "Axe Mode", value = 1, drop = self.qModes })
-            self.menu.aset.dist:MenuElement({id = "duration", name = "extra axe duration time", value = -300, min = -300, max = 0, step = 10 })
-            self.menu.aset.dist:MenuElement({id = "stopmove", name = "axePos in distance < X | Hold radius", value = 100, min = 75, max = 125, step = 5 })
-            self.menu.aset.dist:MenuElement({id = "cdist", name = "max distance from axePos to cursorPos", value = 750, min = 500, max = 1500, step = 50 })
-            self.menu.aset.dist:MenuElement({id = "hdist", name = "max distance from axePos to heroPos", value = 500, min = 250, max = 750, step = 50 })
-            self.menu.aset.dist:MenuElement({id = "enemyq", name = "stop if axe is near enemy - X dist", value = 125, min = 0, max = 250, step = 5 })
-            self.menu.aset.dist:MenuElement({id = "enemyhero", name = "stop if hero is near enemy - X dist", value = 250, min = 0, max = 500, step = 5 })
-        self.menu.aset:MenuElement({name = "Draw", id = "draw", type = MENU })
-            self.menu.aset.draw:MenuElement({name = "Enable",  id = "enable", value = true})
-            self.menu.aset.draw:MenuElement({name = "Good", id = "good", type = MENU })
-                self.menu.aset.draw.good:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 49, 210, 0)})
-                self.menu.aset.draw.good:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
-                self.menu.aset.draw.good:MenuElement({name = "Radius",  id = "radius", value = 170, min = 50, max = 300, step = 10})
-            self.menu.aset.draw:MenuElement({name = "Bad", id = "bad", type = MENU })
-                self.menu.aset.draw.bad:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 153, 0, 0)})
-                self.menu.aset.draw.bad:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
-                self.menu.aset.draw.bad:MenuElement({name = "Radius",  id = "radius", value = 170, min = 50, max = 300, step = 10})
-    self.menu:MenuElement({name = "Q settings", id = "qset", type = MENU })
-        self.menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.qset:MenuElement({id = "harass", name = "Harass", value = false})
-    self.menu:MenuElement({name = "W settings", id = "wset", type = MENU })
-        self.menu.wset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.wset:MenuElement({id = "harass", name = "Harass", value = false})
-        self.menu.wset:MenuElement({id = "hdist", name = "max enemy distance", value = 750, min = 500, max = 2000, step = 50 })
-    self.menu:MenuElement({name = "E settings", id = "eset", type = MENU })
-        self.menu.eset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.eset:MenuElement({id = "harass", name = "Harass", value = false})
+    gso_menu:MenuElement({name = "Draven", id = "gsodraven", type = MENU, leftIcon = "https://i.imgur.com/U13x6xb.png"})
+        gso_menu.gsodraven:MenuElement({name = "AXE settings", id = "aset", type = MENU })
+            gso_menu.gsodraven.aset:MenuElement({id = "catch", name = "Catch axes", value = true})
+            gso_menu.gsodraven.aset:MenuElement({id = "catcht", name = "stop under turret", value = true})
+            gso_menu.gsodraven.aset:MenuElement({id = "catcho", name = "[combo] stop if no enemy in range", value = true})
+            gso_menu.gsodraven.aset:MenuElement({name = "Distance", id = "dist", type = MENU })
+                gso_menu.gsodraven.aset.dist:MenuElement({id = "mode", name = "Axe Mode", value = 1, drop = {"closest to mousePos", "closest to heroPos"} })
+                gso_menu.gsodraven.aset.dist:MenuElement({id = "duration", name = "extra axe duration time", value = -300, min = -300, max = 0, step = 10 })
+                gso_menu.gsodraven.aset.dist:MenuElement({id = "stopmove", name = "axePos in distance < X | Hold radius", value = 100, min = 75, max = 125, step = 5 })
+                gso_menu.gsodraven.aset.dist:MenuElement({id = "cdist", name = "max distance from axePos to cursorPos", value = 750, min = 500, max = 1500, step = 50 })
+                gso_menu.gsodraven.aset.dist:MenuElement({id = "hdist", name = "max distance from axePos to heroPos", value = 500, min = 250, max = 750, step = 50 })
+                gso_menu.gsodraven.aset.dist:MenuElement({id = "enemyq", name = "stop if axe is near enemy - X dist", value = 125, min = 0, max = 250, step = 5 })
+                gso_menu.gsodraven.aset.dist:MenuElement({id = "enemyhero", name = "stop if hero is near enemy - X dist", value = 250, min = 0, max = 500, step = 5 })
+            gso_menu.gsodraven.aset:MenuElement({name = "Draw", id = "draw", type = MENU })
+                gso_menu.gsodraven.aset.draw:MenuElement({name = "Enable",  id = "enable", value = true})
+                gso_menu.gsodraven.aset.draw:MenuElement({name = "Good", id = "good", type = MENU })
+                    gso_menu.gsodraven.aset.draw.good:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 49, 210, 0)})
+                    gso_menu.gsodraven.aset.draw.good:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
+                    gso_menu.gsodraven.aset.draw.good:MenuElement({name = "Radius",  id = "radius", value = 170, min = 50, max = 300, step = 10})
+                gso_menu.gsodraven.aset.draw:MenuElement({name = "Bad", id = "bad", type = MENU })
+                    gso_menu.gsodraven.aset.draw.bad:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 153, 0, 0)})
+                    gso_menu.gsodraven.aset.draw.bad:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
+                    gso_menu.gsodraven.aset.draw.bad:MenuElement({name = "Radius",  id = "radius", value = 170, min = 50, max = 300, step = 10})
+        gso_menu.gsodraven:MenuElement({name = "Q settings", id = "qset", type = MENU })
+            gso_menu.gsodraven.qset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsodraven.qset:MenuElement({id = "harass", name = "Harass", value = false})
+        gso_menu.gsodraven:MenuElement({name = "W settings", id = "wset", type = MENU })
+            gso_menu.gsodraven.wset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsodraven.wset:MenuElement({id = "harass", name = "Harass", value = false})
+            gso_menu.gsodraven.wset:MenuElement({id = "hdist", name = "max enemy distance", value = 750, min = 500, max = 2000, step = 50 })
+        gso_menu.gsodraven:MenuElement({name = "E settings", id = "eset", type = MENU })
+            gso_menu.gsodraven.eset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsodraven.eset:MenuElement({id = "harass", name = "Harass", value = false})
 end
 
 
@@ -2539,14 +2367,14 @@ function __gsoDraven:_castSpells()
     local wMinus = getTick - self.lastW
     local eMinus = getTick - self.lastE
 
-    local isCombo = _gso.Orb.menu.keys.combo:Value()
-    local isHarass = _gso.Orb.menu.keys.harass:Value()
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
 
-    local isComboW = isCombo and self.menu.wset.combo:Value()
-    local isHarassW = isHarass and self.menu.wset.harass:Value()
+    local isComboW = isCombo and gso_menu.gsodraven.wset.combo:Value()
+    local isHarassW = isHarass and gso_menu.gsodraven.wset.harass:Value()
 
-    local isComboE = isCombo and self.menu.eset.combo:Value()
-    local isHarassE = isHarass and self.menu.eset.harass:Value()
+    local isComboE = isCombo and gso_menu.gsodraven.eset.combo:Value()
+    local isHarassE = isHarass and gso_menu.gsodraven.eset.harass:Value()
 
     local isWReady = (isComboW or isHarassW) and wMinus > 1000 and qMinus > 250 and eMinus > 250 and Game.CanUseSpell(_W) == 0
     local isEReady = (isComboE or isHarassE) and eMinus > 2000 and qMinus > 250 and eMinus > 250 and Game.CanUseSpell(_E) == 0
@@ -2555,7 +2383,7 @@ function __gsoDraven:_castSpells()
         local aaTarget = _gso.TS:_getTarget(myHero.range, true, true)
         if aaTarget == nil then
             if isWReady then
-                local wTarget = _gso.TS:_getTarget(self.menu.wset.hdist:Value(), false, false)
+                local wTarget = _gso.TS:_getTarget(gso_menu.gsodraven.wset.hdist:Value(), false, false)
                 if wTarget ~= nil then
                     Control.KeyDown(HK_W)
                     Control.KeyUp(HK_W)
@@ -2599,17 +2427,17 @@ function __gsoDraven:_castSpellsAA()
     local wMinus = getTick - self.lastW
     local eMinus = getTick - self.lastE
     
-    local isCombo = _gso.Orb.menu.keys.combo:Value()
-    local isHarass = _gso.Orb.menu.keys.harass:Value()
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
 
-    local isComboQ = isCombo and self.menu.qset.combo:Value()
-    local isHarassQ = isHarass and self.menu.qset.harass:Value()
+    local isComboQ = isCombo and gso_menu.gsodraven.qset.combo:Value()
+    local isHarassQ = isHarass and gso_menu.gsodraven.qset.harass:Value()
     
-    local isComboW = isCombo and self.menu.wset.combo:Value()
-    local isHarassW = isHarass and self.menu.wset.harass:Value()
+    local isComboW = isCombo and gso_menu.gsodraven.wset.combo:Value()
+    local isHarassW = isHarass and gso_menu.gsodraven.wset.harass:Value()
     
-    local isComboE = isCombo and self.menu.eset.combo:Value()
-    local isHarassE = isHarass and self.menu.eset.harass:Value()
+    local isComboE = isCombo and gso_menu.gsodraven.eset.combo:Value()
+    local isHarassE = isHarass and gso_menu.gsodraven.eset.harass:Value()
     
     if (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 250 and eMinus > 250 and Game.CanUseSpell(_Q) == 0 then
         Control.KeyDown(HK_Q)
@@ -2658,14 +2486,14 @@ function __gsoDraven:_setBeforeAA()
     local wMinus = getTick - self.lastW
     local eMinus = getTick - self.lastE
     
-    local isCombo = _gso.Orb.menu.keys.combo:Value()
-    local isHarass = _gso.Orb.menu.keys.harass:Value()
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
 
-    local isComboQ = isCombo and self.menu.qset.combo:Value()
-    local isHarassQ = isHarass and self.menu.qset.harass:Value()
+    local isComboQ = isCombo and gso_menu.gsodraven.qset.combo:Value()
+    local isHarassQ = isHarass and gso_menu.gsodraven.qset.harass:Value()
     
-    local isComboW = isCombo and self.menu.wset.combo:Value()
-    local isHarassW = isHarass and self.menu.wset.harass:Value()
+    local isComboW = isCombo and gso_menu.gsodraven.wset.combo:Value()
+    local isHarassW = isHarass and gso_menu.gsodraven.wset.harass:Value()
     
     if (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 250 and eMinus > 250 and Game.CanUseSpell(_Q) == 0 then
         Control.KeyDown(HK_Q)
@@ -2714,7 +2542,7 @@ function __gsoDraven:_tick()
     
     for k,v in pairs(self.qParticles) do
         local timerMinus = GetTickCount() - v.tick
-        local numMenu = 1200 + self.menu.aset.dist.duration:Value()
+        local numMenu = 1200 + gso_menu.gsodraven.aset.dist.duration:Value()
         if not v.success and timerMinus > numMenu then
             self.qParticles[k].success = true
             _gso.Orb.lMove = 0
@@ -2737,15 +2565,15 @@ end
 function __gsoDraven:_setMousePos()
     
     local qPos = nil
-    local canCatch    = self.menu.aset.catch:Value()
-    local stopCatchT  = self.menu.aset.catcht:Value()
-    local stopCatchO  = self.menu.aset.catcho:Value()
-    local stopmove    = self.menu.aset.dist.stopmove:Value()
+    local canCatch    = gso_menu.gsodraven.aset.catch:Value()
+    local stopCatchT  = gso_menu.gsodraven.aset.catcht:Value()
+    local stopCatchO  = gso_menu.gsodraven.aset.catcho:Value()
+    local stopmove    = gso_menu.gsodraven.aset.dist.stopmove:Value()
     local kID         = nil
     if canCatch then
-        local qMode = self.menu.aset.dist.mode:Value()
-        local hdist = self.menu.aset.dist.hdist:Value()
-        local cdist = self.menu.aset.dist.cdist:Value()
+        local qMode = gso_menu.gsodraven.aset.dist.mode:Value()
+        local hdist = gso_menu.gsodraven.aset.dist.hdist:Value()
+        local cdist = gso_menu.gsodraven.aset.dist.cdist:Value()
         local num = 1000000000
         for k,v in pairs(self.qParticles) do
             if not v.success then
@@ -2754,8 +2582,8 @@ function __gsoDraven:_setMousePos()
                 local distanceToMouse = v.pos:DistanceTo(mousePos)
                 if distanceToHero < hdist and distanceToMouse < cdist then
                     local canContinue = true
-                    local eQMenu = self.menu.aset.dist.enemyq:Value()
-                    local eHeroMenu = self.menu.aset.dist.enemyhero:Value()
+                    local eQMenu = gso_menu.gsodraven.aset.dist.enemyq:Value()
+                    local eHeroMenu = gso_menu.gsodraven.aset.dist.enemyhero:Value()
                     if eQMenu > 0 then
                         local cEM = #_gso.OB.enemyMinions
                         for i = 1, cEM do
@@ -2768,7 +2596,7 @@ function __gsoDraven:_setMousePos()
                     end
                     local countInRange = 0
                     local cEH = #_gso.OB.enemyHeroes
-                    local isCombo = _gso.Orb.menu.keys.combo:Value()
+                    local isCombo = gso_menu.orb.keys.combo:Value()
                     for i = 1, cEH do
                         local hero = _gso.OB.enemyHeroes[i]
                         local heroPos = hero.pos
@@ -2836,13 +2664,13 @@ end
 
 function __gsoDraven:_draw()
     
-    if self.menu.aset.catch:Value() and self.menu.aset.draw.enable:Value() then
+    if gso_menu.gsodraven.aset.catch:Value() and gso_menu.gsodraven.aset.draw.enable:Value() then
         for k,v in pairs(self.qParticles) do
             if not v.success then
                 if v.active then
-                    Draw.Circle(v.pos, self.menu.aset.draw.good.radius:Value(), self.menu.aset.draw.good.width:Value(), self.menu.aset.draw.good.color:Value())
+                    Draw.Circle(v.pos, gso_menu.gsodraven.aset.draw.good.radius:Value(), gso_menu.gsodraven.aset.draw.good.width:Value(), gso_menu.gsodraven.aset.draw.good.color:Value())
                 else
-                    Draw.Circle(v.pos, self.menu.aset.draw.bad.radius:Value(), self.menu.aset.draw.bad.width:Value(), self.menu.aset.draw.bad.color:Value())
+                    Draw.Circle(v.pos, gso_menu.gsodraven.aset.draw.bad.radius:Value(), gso_menu.gsodraven.aset.draw.bad.width:Value(), gso_menu.gsodraven.aset.draw.bad.color:Value())
                 end
             end
         end
@@ -2894,14 +2722,10 @@ class "__gsoEzreal"
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoEzreal:__init()
-  
-    print("gamsteronAIO ".._gso.Vars.version.." | ezreal loaded!")
     
-    self.menu = MenuElement({name = "Gamsteron Ezreal", id = "gsoMenuEzreal", type = MENU, leftIcon = "https://i.imgur.com/OURoL03.png"})
     self.res    = Game.Resolution()
     self.resX   = self.res.x
     self.resY   = self.res.y
-    self:_menu()
     
     self.lastQ    = 0
     self.lastW    = 0
@@ -2916,6 +2740,7 @@ function __gsoEzreal:__init()
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setBonusDmg(function() return self:_dmg() end)
     _gso.Vars:_setOnDraw(function() self:_draw() end)
+    _gso.Vars:_setChampMenu(function() return self:_menu() end)
     
 end
 
@@ -2926,28 +2751,29 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoEzreal:_menu()
-    self.menu:MenuElement({name = "Auto Q", id = "autoq", type = MENU })
-        self.menu.autoq:MenuElement({id = "enable", name = "Enable", value = true, key = string.byte("T"), toggle = true})
-        self.menu.autoq:MenuElement({id = "mana", name = "Q Auto min. mana percent", value = 50, min = 0, max = 100, step = 1 })
-        self.menu.autoq:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
-        self.menu.autoq:MenuElement({id = "draw", name = "Draw Text", value = true})
-        self.menu.autoq:MenuElement({name = "Text Settings", id = "textset", type = MENU })
-            self.menu.autoq.textset:MenuElement({id = "size", name = "Text Size", value = 25, min = 1, max = 64, step = 1 })
-            self.menu.autoq.textset:MenuElement({id = "custom", name = "Custom Position", value = false})
-            self.menu.autoq.textset:MenuElement({id = "posX", name = "Text Position Width", value = self.resX * 0.5 - 150, min = 1, max = self.resX, step = 1 })
-            self.menu.autoq.textset:MenuElement({id = "posY", name = "Text Position Height", value = self.resY * 0.5, min = 1, max = self.resY, step = 1 })
-    self.menu:MenuElement({name = "Q settings", id = "qset", type = MENU })
-        self.menu.qset:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
-        self.menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.qset:MenuElement({id = "harass", name = "Harass", value = false})
-        self.menu.qset:MenuElement({id = "laneclear", name = "LaneClear", value = false})
-        self.menu.qset:MenuElement({id = "lasthit", name = "LastHit", value = true})
-        self.menu.qset:MenuElement({id = "qlh", name = "Q LastHit min. mana percent", value = 10, min = 0, max = 100, step = 1 })
-        self.menu.qset:MenuElement({id = "qlc", name = "Q LaneClear min. mana percent", value = 50, min = 0, max = 100, step = 1 })
-    self.menu:MenuElement({name = "W settings", id = "wset", type = MENU })
-        self.menu.wset:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
-        self.menu.wset:MenuElement({id = "combo", name = "Combo", value = true})
-        self.menu.wset:MenuElement({id = "harass", name = "Harass", value = false})
+    gso_menu:MenuElement({name = "Ezreal", id = "gsoezreal", type = MENU, leftIcon = "https://i.imgur.com/OURoL03.png"})
+        gso_menu.gsoezreal:MenuElement({name = "Auto Q", id = "autoq", type = MENU })
+            gso_menu.gsoezreal.autoq:MenuElement({id = "enable", name = "Enable", value = true, key = string.byte("T"), toggle = true})
+            gso_menu.gsoezreal.autoq:MenuElement({id = "mana", name = "Q Auto min. mana percent", value = 50, min = 0, max = 100, step = 1 })
+            gso_menu.gsoezreal.autoq:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
+            gso_menu.gsoezreal.autoq:MenuElement({id = "draw", name = "Draw Text", value = true})
+            gso_menu.gsoezreal.autoq:MenuElement({name = "Text Settings", id = "textset", type = MENU })
+                gso_menu.gsoezreal.autoq.textset:MenuElement({id = "size", name = "Text Size", value = 25, min = 1, max = 64, step = 1 })
+                gso_menu.gsoezreal.autoq.textset:MenuElement({id = "custom", name = "Custom Position", value = false})
+                gso_menu.gsoezreal.autoq.textset:MenuElement({id = "posX", name = "Text Position Width", value = self.resX * 0.5 - 150, min = 1, max = self.resX, step = 1 })
+                gso_menu.gsoezreal.autoq.textset:MenuElement({id = "posY", name = "Text Position Height", value = self.resY * 0.5, min = 1, max = self.resY, step = 1 })
+        gso_menu.gsoezreal:MenuElement({name = "Q settings", id = "qset", type = MENU })
+            gso_menu.gsoezreal.qset:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
+            gso_menu.gsoezreal.qset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsoezreal.qset:MenuElement({id = "harass", name = "Harass", value = false})
+            gso_menu.gsoezreal.qset:MenuElement({id = "laneclear", name = "LaneClear", value = false})
+            gso_menu.gsoezreal.qset:MenuElement({id = "lasthit", name = "LastHit", value = true})
+            gso_menu.gsoezreal.qset:MenuElement({id = "qlh", name = "Q LastHit min. mana percent", value = 10, min = 0, max = 100, step = 1 })
+            gso_menu.gsoezreal.qset:MenuElement({id = "qlc", name = "Q LaneClear min. mana percent", value = 50, min = 0, max = 100, step = 1 })
+        gso_menu.gsoezreal:MenuElement({name = "W settings", id = "wset", type = MENU })
+            gso_menu.gsoezreal.wset:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
+            gso_menu.gsoezreal.wset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsoezreal.wset:MenuElement({id = "harass", name = "Harass", value = false})
 end
 
 
@@ -2980,14 +2806,14 @@ function __gsoEzreal:_castSpellsAA()
     local qMinus = getTick - self.lastQ
     local wMinus = getTick - self.lastW
     
-    local isCombo = _gso.Orb.menu.keys.combo:Value()
-    local isHarass = _gso.Orb.menu.keys.harass:Value()
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
     
-    local isComboQ = isCombo and self.menu.qset.combo:Value()
-    local isHarassQ = isHarass and self.menu.qset.harass:Value()
+    local isComboQ = isCombo and gso_menu.gsoezreal.qset.combo:Value()
+    local isHarassQ = isHarass and gso_menu.gsoezreal.qset.harass:Value()
     
-    local isComboW = isCombo and self.menu.wset.combo:Value()
-    local isHarassW = isHarass and self.menu.wset.harass:Value()
+    local isComboW = isCombo and gso_menu.gsoezreal.wset.combo:Value()
+    local isHarassW = isHarass and gso_menu.gsoezreal.wset.harass:Value()
     
     if (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
         local target = _gso.TS:_getTarget(1150, true, false)
@@ -2995,7 +2821,7 @@ function __gsoEzreal:_castSpellsAA()
             local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
             local mePos = myHero.pos
             local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-            if HitChance > self.menu.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+            if HitChance > gso_menu.gsoezreal.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
                 local cPos = cursorPos
                 Control.SetCursorPos(castpos)
                 Control.KeyDown(HK_Q)
@@ -3015,7 +2841,7 @@ function __gsoEzreal:_castSpellsAA()
             local mePos = myHero.pos
             local sW = { delay = 0.25, range = 1150, width = 80, speed = 1550, sType = "line", col = false }
             local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sW.delay, sW.width*0.5, sW.range, sW.speed, mePos, sW.col, sW.sType)
-            if HitChance > self.menu.wset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sW.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+            if HitChance > gso_menu.gsoezreal.wset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sW.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
                 local cPos = cursorPos
                 Control.SetCursorPos(castpos)
                 Control.KeyDown(HK_W)
@@ -3034,7 +2860,7 @@ end
 function __gsoEzreal:_castQ(t, tPos, mePos)
     local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
     local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(t, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-    if HitChance > self.menu.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(tPos, castpos) < 500 then
+    if HitChance > gso_menu.gsoezreal.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(tPos, castpos) < 500 then
         local cPos = cursorPos
         Control.SetCursorPos(castpos)
         Control.KeyDown(HK_Q)
@@ -3084,13 +2910,13 @@ function __gsoEzreal:_tick()
             end
         end
     end
-    if qMinus > 1000 and _gso.Orb.dActionsC == 0 and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.15 + _gso.Farm.latency + _gso.Orb.menu.delays.windup:Value()*0.001 and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
+    if qMinus > 1000 and _gso.Orb.dActionsC == 0 and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.15 + _gso.Farm.latency + gso_menu.orb.delays.windup:Value()*0.001 and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
       
         local manaPercent = 100 * myHero.mana / myHero.maxMana
       
-        local isAutoQ = self.menu.autoq.enable:Value() and manaPercent > self.menu.autoq.mana:Value()
-        local isCombo = _gso.Orb.menu.keys.combo:Value()
-        local isHarass = _gso.Orb.menu.keys.harass:Value()
+        local isAutoQ = gso_menu.gsoezreal.autoq.enable:Value() and manaPercent > gso_menu.gsoezreal.autoq.mana:Value()
+        local isCombo = gso_menu.orb.keys.combo:Value()
+        local isHarass = gso_menu.orb.keys.harass:Value()
         local meRange = myHero.range + myHero.boundingRadius
         
         if isAutoQ and not isCombo and not isHarass then
@@ -3113,7 +2939,7 @@ function __gsoEzreal:_tick()
                     if _gso.TS:_valid(unit, true) and distance < 1150 then
                         local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
                         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(unit, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-                        if HitChance > self.menu.autoq.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(unitPos, castpos) < 500 then
+                        if HitChance > gso_menu.gsoezreal.autoq.hitchance:Value()-1 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(unitPos, castpos) < 500 then
                             local cPos = cursorPos
                             Control.SetCursorPos(castpos)
                             Control.KeyDown(HK_Q)
@@ -3129,12 +2955,12 @@ function __gsoEzreal:_tick()
             end
         end
         
-        local isLH = self.menu.qset.lasthit:Value() and (_gso.Orb.menu.keys.lastHit:Value() or _gso.Orb.menu.keys.harass:Value())
-        local isLC = self.menu.qset.laneclear:Value() and _gso.Orb.menu.keys.laneClear:Value()
+        local isLH = gso_menu.gsoezreal.qset.lasthit:Value() and (gso_menu.orb.keys.lastHit:Value() or gso_menu.orb.keys.harass:Value())
+        local isLC = gso_menu.gsoezreal.qset.laneclear:Value() and gso_menu.orb.keys.laneClear:Value()
         if isLH or isLC then
           
-            local canLH = manaPercent > self.menu.qset.qlh:Value()
-            local canLC = manaPercent > self.menu.qset.qlc:Value()
+            local canLH = manaPercent > gso_menu.gsoezreal.qset.qlh:Value()
+            local canLC = manaPercent > gso_menu.gsoezreal.qset.qlc:Value()
             
             if not canLH and not canLC then return end
             
@@ -3147,7 +2973,7 @@ function __gsoEzreal:_tick()
             local lastHitT = {}
             
             -- [[ set enemy minions ]]
-            local mLH = _gso.Orb.menu.delays.lhDelay:Value()*0.001
+            local mLH = gso_menu.orb.delays.lhDelay:Value()*0.001
             for i = 1, #_gso.OB.enemyMinions do
                 local eMinion = _gso.OB.enemyMinions[i]
                 local eMinion_handle	= eMinion.handle
@@ -3301,15 +3127,15 @@ end
 
 function __gsoEzreal:_draw()
     
-    if self.menu.autoq.draw:Value() then
+    if gso_menu.gsoezreal.autoq.draw:Value() then
         local mePos = myHero.pos:To2D()
-        local isCustom = self.menu.autoq.textset.custom:Value()
-        local posX = isCustom and self.menu.autoq.textset.posX:Value() or mePos.x - 50
-        local posY = isCustom and self.menu.autoq.textset.posY:Value() or mePos.y
-        if self.menu.autoq.enable:Value() then
-            Draw.Text("Auto Q Enabled", self.menu.autoq.textset.size:Value(), posX, posY, Draw.Color(255, 000, 255, 000)) 
+        local isCustom = gso_menu.gsoezreal.autoq.textset.custom:Value()
+        local posX = isCustom and gso_menu.gsoezreal.autoq.textset.posX:Value() or mePos.x - 50
+        local posY = isCustom and gso_menu.gsoezreal.autoq.textset.posY:Value() or mePos.y
+        if gso_menu.gsoezreal.autoq.enable:Value() then
+            Draw.Text("Auto Q Enabled", gso_menu.gsoezreal.autoq.textset.size:Value(), posX, posY, Draw.Color(255, 000, 255, 000)) 
         else
-            Draw.Text("Auto Q Disabled", self.menu.autoq.textset.size:Value(), posX, posY, Draw.Color(255, 255, 000, 000)) 
+            Draw.Text("Auto Q Disabled", gso_menu.gsoezreal.autoq.textset.size:Value(), posX, posY, Draw.Color(255, 255, 000, 000)) 
         end
     end
     
@@ -3346,13 +3172,49 @@ end
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 
-_gso.OB = __gsoOB()
-_gso.TS = __gsoTS()
-_gso.Farm = __gsoFarm()
-_gso.TPred = __gsoTPred()
-_gso.Orb = __gsoOrb()
-
 function OnLoad()
+    gso_menu = MenuElement({name = "Gamsteron AIO", id = "gsoMenuAIO", type = MENU, leftIcon = "https://i.imgur.com/tm7UwiG.png"})
+        gso_menu:MenuElement({name = "Target Selector", id = "ts", type = MENU, leftIcon = "https://i.imgur.com/vzoiheQ.png"})
+            gso_menu.ts:MenuElement({ id = "Mode", name = "Mode", value = 1, drop = { "Auto", "Closest", "Least Health", "Least Priority" } })
+            gso_menu.ts:MenuElement({ id = "priority", name = "Priorities", type = MENU })
+            gso_menu.ts:MenuElement({ id = "selected", name = "Selected Target", type = MENU })
+                gso_menu.ts.selected:MenuElement({ id = "enable", name = "Enable", value = true })
+                gso_menu.ts.selected:MenuElement({ id = "only", name = "Only Selected Target", value = false })
+                gso_menu.ts.selected:MenuElement({name = "Draw",  id = "draw", type = MENU})
+                    gso_menu.ts.selected.draw:MenuElement({name = "Enable",  id = "enable", value = true})
+                    gso_menu.ts.selected.draw:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 204, 0, 0)})
+                    gso_menu.ts.selected.draw:MenuElement({name = "Width",  id = "width", value = 3, min = 1, max = 10})
+                    gso_menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
+        gso_menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = "https://i.imgur.com/kPzTQDw.png"})
+            gso_menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
+                gso_menu.orb.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 0, min = 0, max = 100, step = 5 })
+                gso_menu.orb.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 5 })
+                gso_menu.orb.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
+            gso_menu.orb:MenuElement({name = "Keys", id = "keys", type = MENU})
+                gso_menu.orb.keys:MenuElement({name = "Combo Key", id = "combo", key = string.byte(" ")})
+                gso_menu.orb.keys:MenuElement({name = "Harass Key", id = "harass", key = string.byte("C")})
+                gso_menu.orb.keys:MenuElement({name = "LastHit Key", id = "lastHit", key = string.byte("X")})
+                gso_menu.orb.keys:MenuElement({name = "LaneClear Key", id = "laneClear", key = string.byte("V")})
+            gso_menu.orb:MenuElement({name = "Drawings", id = "draw", type = MENU})
+                gso_menu.orb.draw:MenuElement({name = "Enable", id = "enable", value = true})
+                gso_menu.orb.draw:MenuElement({name = "MyHero attack range", id = "me", type = MENU})
+                    gso_menu.orb.draw.me:MenuElement({name = "Enable",  id = "enable", value = true})
+                    gso_menu.orb.draw.me:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 49, 210, 0)})
+                    gso_menu.orb.draw.me:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
+                gso_menu.orb.draw:MenuElement({name = "Enemy attack range", id = "he", type = MENU})
+                    gso_menu.orb.draw.he:MenuElement({name = "Enable",  id = "enable", value = true})
+                    gso_menu.orb.draw.he:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 255, 0, 0)})
+                    gso_menu.orb.draw.he:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
+                gso_menu.orb.draw:MenuElement({name = "Cursor Posistion",  id = "cpos", type = MENU})
+                    gso_menu.orb.draw.cpos:MenuElement({name = "Enable",  id = "enable", value = true})
+                    gso_menu.orb.draw.cpos:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 153, 0, 76)})
+                    gso_menu.orb.draw.cpos:MenuElement({name = "Width",  id = "width", value = 5, min = 1, max = 10})
+                    gso_menu.orb.draw.cpos:MenuElement({name = "Radius",  id = "radius", value = 250, min = 1, max = 300})
+    _gso.OB = __gsoOB()
+    _gso.TS = __gsoTS()
+    _gso.Farm = __gsoFarm()
+    _gso.TPred = __gsoTPred()
+    _gso.Orb = __gsoOrb()
     if _G.Orbwalker then
         GOS.BlockMovement = true
         GOS.BlockAttack = true
@@ -3378,4 +3240,6 @@ function OnLoad()
     elseif _gso.Vars.hName == "Ezreal" then
         __gsoEzreal()
     end
+    _gso.Vars._champMenu()
+    print("gamsteronAIO ".._gso.Vars.version.." | loaded!")
 end
