@@ -1297,8 +1297,6 @@ function __gsoOrb:__init()
     
     self.LHTimers     = { [0] = 0, [1] = 0, [2] = 0, [3] = 0, [4] = 0 }
     
-    self.extraWindUpT = 0
-    self.extraAnimT   = 0
     self.windUpT      = myHero.attackData.windUpTime
     self.animT        = myHero.attackData.animationTime
     self.endTime      = myHero.attackData.endTime
@@ -1319,6 +1317,7 @@ end
 
 function __gsoOrb:_menu()
   self.menu:MenuElement({name = "Delays", id = "delays", type = MENU})
+      self.menu.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 75, min = 0, max = 150, step = 5 })
       self.menu.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 5 })
       self.menu.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
   self.menu:MenuElement({name = "Keys", id = "keys", type = MENU})
@@ -1439,8 +1438,8 @@ function __gsoOrb:_orb(unit)
         self.endTime = endTime
     end
     
-    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*1.5) - 0.05 + self.extraWindUpT
-    local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and canMove and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5) + self.extraAnimT
+    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*1.5) - 0.05 + self.menu.delays.windup:Value()*0.001
+    local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and canMove and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5)
     local isTarget = unit ~= nil
     
     if self.dActionsC == 0 then
@@ -1657,9 +1656,6 @@ function __gsoAshe:__init()
     
     self.qBuffEndT = 0
     
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    
     _gso.Vars:_setCastSpells(function() self:_castSpells() end)
     _gso.Vars:_setCastSpellsAA(function() self:_castSpellsAA() end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
@@ -1675,9 +1671,6 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoAshe:_menu()
-    self.menu:MenuElement({name = "AA Cancel Settings", id = "aacancel", type = MENU})
-        self.menu.aacancel:MenuElement({name = "WindUp Delay - move", id = "windup", value = 50, min = 0, max = 150, step = 5 })
-        self.menu.aacancel:MenuElement({name = "Anim Delay - attack", id = "anim", value = 25, min = 0, max = 100, step = 5 })
     self.menu:MenuElement({id = "rdist", name = "use R if enemy distance < X", value = 500, min = 250, max = 1000, step = 50})
     self.menu:MenuElement({type = MENU, id = "combo", name = "Combo"})
         self.menu.combo:MenuElement({id = "qc", name = "UseQ", value = true})
@@ -1848,9 +1841,6 @@ end
 
 function __gsoAshe:_tick()
     
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    
     --[[ ENABLE AA AFTER SPELLS ]]
     local checkTick = GetTickCount()
     local wMinus = checkTick - self.lastW
@@ -1953,9 +1943,6 @@ function __gsoTwitch:__init()
     self.lastE         = 0
     self.eBuffs        = {}
     
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
-    
     _gso.Vars:_setCastSpells(function() self:_castSpells() end)
     _gso.Vars:_setCastSpellsAA(function() self:_castSpellsAA() end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
@@ -1970,9 +1957,6 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoTwitch:_menu()
-    self.menu:MenuElement({name = "AA Cancel Settings", id = "aacancel", type = MENU})
-        self.menu.aacancel:MenuElement({name = "WindUp Delay - move", id = "windup", value = 50, min = 0, max = 150, step = 5 })
-        self.menu.aacancel:MenuElement({name = "Anim Delay - attack", id = "anim", value = 25, min = 0, max = 100, step = 5 })
     self.menu:MenuElement({name = "W settings", id = "wset", type = MENU })
         self.menu.wset:MenuElement({id = "combo", name = "Use W Combo", value = true})
         self.menu.wset:MenuElement({id = "harass", name = "Use W Harass", value = false})
@@ -2104,9 +2088,6 @@ end
 
 function __gsoTwitch:_tick()
     
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
-    
     for i = 1, #_gso.OB.enemyHeroes do
         local hero  = _gso.OB.enemyHeroes[i]
         local nID   = hero.networkID
@@ -2204,9 +2185,6 @@ function __gsoKogMaw:__init()
     self.lastE = 0
     self.lastR = 0
     
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
-    
     _gso.Vars:_setCastSpells(function() self:_castSpells() end)
     _gso.Vars:_setCastSpellsAA(function() self:_castSpellsAA() end)
     _gso.Vars:_setBonusDmg(function() return self:_dmg() end)
@@ -2220,9 +2198,6 @@ end
 
 function __gsoKogMaw:_menu()
     self.menu:MenuElement({id = "onlast", name = "[combo] use spells on last attacked enemy", value = true})
-    self.menu:MenuElement({name = "AA Cancel Settings", id = "aacancel", type = MENU})
-        self.menu.aacancel:MenuElement({name = "WindUp Delay - move", id = "windup", value = 50, min = 0, max = 150, step = 5 })
-        self.menu.aacancel:MenuElement({name = "Anim Delay - attack", id = "anim", value = 25, min = 0, max = 100, step = 5 })
     self.menu:MenuElement({name = "Q settings", id = "qset", type = MENU })
         self.menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
         self.menu.qset:MenuElement({id = "harass", name = "Harass", value = false})
@@ -2427,9 +2402,6 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoKogMaw:_tick()
-  
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
     
     local checkT = GetTickCount()
     
@@ -2499,9 +2471,6 @@ function __gsoDraven:__init()
     
     self.lMove = 0
     
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
-    
     _gso.Vars:_setCastSpells(function() self:_castSpells() end)
     _gso.Vars:_setCastSpellsAA(function() self:_castSpellsAA() end)
     _gso.Vars:_setBonusDmg(function() return self:_dmg() end)
@@ -2517,9 +2486,6 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoDraven:_menu()
-    self.menu:MenuElement({name = "AA Cancel Settings", id = "aacancel", type = MENU})
-        self.menu.aacancel:MenuElement({name = "WindUp Delay - move", id = "windup", value = 75, min = 0, max = 150, step = 5 })
-        self.menu.aacancel:MenuElement({name = "Anim Delay - attack", id = "anim", value = 25, min = 0, max = 100, step = 5 })
     self.menu:MenuElement({name = "AXE settings", id = "aset", type = MENU })
         self.menu.aset:MenuElement({id = "catch", name = "Catch axes", value = true})
         self.menu.aset:MenuElement({id = "catcht", name = "stop under turret", value = true})
@@ -2718,9 +2684,6 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoDraven:_tick()
-  
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
   
     local checkT = GetTickCount()
     
@@ -2944,9 +2907,6 @@ function __gsoEzreal:__init()
     self.shouldWaitT    = 0
     self.shouldWait     = false
     
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
-    
     _gso.Vars:_setCastSpells(function() self:_castSpells() end)
     _gso.Vars:_setCastSpellsAA(function() self:_castSpellsAA() end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
@@ -2962,9 +2922,6 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoEzreal:_menu()
-    self.menu:MenuElement({name = "AA Cancel Settings", id = "aacancel", type = MENU})
-        self.menu.aacancel:MenuElement({name = "WindUp Delay - move", id = "windup", value = 50, min = 0, max = 150, step = 5 })
-        self.menu.aacancel:MenuElement({name = "Anim Delay - attack", id = "anim", value = 25, min = 0, max = 100, step = 5 })
     self.menu:MenuElement({name = "Auto Q", id = "autoq", type = MENU })
         self.menu.autoq:MenuElement({id = "enable", name = "Enable", value = true, key = string.byte("T"), toggle = true})
         self.menu.autoq:MenuElement({id = "mana", name = "Q Auto min. mana percent", value = 50, min = 0, max = 100, step = 1 })
@@ -3092,9 +3049,6 @@ end
 --------------------|---------------------------------------------------------|--------------------
 
 function __gsoEzreal:_tick()
-    
-    _gso.Orb.extraAnimT = self.menu.aacancel.anim:Value()*0.001
-    _gso.Orb.extraWindUpT = self.menu.aacancel.windup:Value()*0.001
     
     local checkTick = GetTickCount()
     
