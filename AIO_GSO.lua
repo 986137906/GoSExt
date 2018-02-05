@@ -1317,7 +1317,7 @@ end
 
 function __gsoOrb:_menu()
   self.menu:MenuElement({name = "Delays", id = "delays", type = MENU})
-      self.menu.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 0, min = 0, max = 50, step = 5 })
+      self.menu.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 0, min = 0, max = 70, step = 5 })
       self.menu.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 5 })
       self.menu.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
   self.menu:MenuElement({name = "Keys", id = "keys", type = MENU})
@@ -1557,7 +1557,7 @@ function __gsoOrb:_tick()
         end
     end
     self.dActionsC = cDActions
-    if self.dActionsC == 0 and Game.Timer() > self.lAttack + self.windUpT + 0.15 + _gso.Farm.latency then
+    if self.dActionsC == 0 and Game.Timer() > self.lAttack + self.windUpT + 0.15 + _gso.Farm.latency + self.menu.delays.windup:Value()*0.001 then
         _gso.Vars._castSpells()
         if self.dActionsC == 0 and checkT < self.lAttack + self.animT then
             _gso.Vars._castSpellsAA()
@@ -3080,7 +3080,7 @@ function __gsoEzreal:_tick()
             end
         end
     end
-    if qMinus > 1000 and _gso.Orb.dActionsC == 0 and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.15 + _gso.Farm.latency and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
+    if qMinus > 1000 and _gso.Orb.dActionsC == 0 and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.15 + _gso.Farm.latency + _gso.Orb.menu.delays.windup:Value()*0.001 and wMinus > 350 and Game.CanUseSpell(_Q) == 0 then
       
         local manaPercent = 100 * myHero.mana / myHero.maxMana
       
