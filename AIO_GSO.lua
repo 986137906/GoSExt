@@ -2953,10 +2953,6 @@ function __gsoEzreal:__init()
     _gso.Vars:_setBonusDmg(function() return self:_dmg() end)
     _gso.Vars:_setOnDraw(function() self:_draw() end)
     
-    Callback.Add('WndMsg', function(msg, wParam)
-        self:_onWndMsg(msg, wParam)
-    end)
-    
 end
 
 
@@ -3135,8 +3131,10 @@ function __gsoEzreal:_tick()
         local manaPercent = 100 * myHero.mana / myHero.maxMana
       
         local isAutoQ = self.menu.autoq.enable:Value() and manaPercent > self.menu.autoq.mana:Value()
+        local isCombo = _gso.Orb.menu.keys.combo:Value()
+        local isHarass = _gso.Orb.menu.keys.harass:Value()
         
-        if isAutoQ then
+        if isAutoQ and not isCombo and not isHarass then
             for i = 1, #_gso.OB.enemyHeroes do
                 local unit = _gso.OB.enemyHeroes[i]
                 local unitPos = unit.pos
@@ -3288,25 +3286,6 @@ end
 
 function __gsoEzreal:_dmg()
     return 3
-end
-
-function __gsoEzreal:_onWndMsg(msg, wParam)
-    local getTick = GetTickCount()
-    if msg == WM_LBUTTONDOWN and self.menu.autoq.draw:Value() then
-      --[[
-                    local distance = _gso.OB:_getDistance(, cursorPos)
-                    if distance < 150 and distance < num then
-                        enemy = hero
-                        num = distance
-                    end
-            if enemy ~= nil then
-                self.selectedTarget = enemy
-            else
-                self.selectedTarget = nil
-            end
-            self.lastSelTick = GetTickCount()
-        end]]
-    end
 end
 
 
