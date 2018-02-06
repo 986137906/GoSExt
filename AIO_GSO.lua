@@ -26,7 +26,7 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.4985"
+    self.version = "0.4986"
     self.hName = myHero.charName
     self.loaded = true
     self.supportedChampions = {
@@ -2292,7 +2292,7 @@ function __gsoKogMaw:_tick()
     local qMinus = checkT - self.lastQ
     local eMinus = checkT - self.lastE
     local rMinus = checkT - self.lastR
-    local botrkMinus = checkTick - _gso.Items.lastBotrk
+    local botrkMinus = checkT - _gso.Items.lastBotrk
     
     if _gso.Orb.canAA == false and qMinus > 350 and eMinus > 350 and rMinus > 350 and botrkMinus > 75 then
         _gso.Orb.canAA = true
@@ -2563,7 +2563,7 @@ function __gsoDraven:_tick()
     
     local wMinus = checkT - self.lastW
     local eMinus = checkT - self.lastE
-    local botrkMinus = checkTick - _gso.Items.lastBotrk
+    local botrkMinus = checkT - _gso.Items.lastBotrk
     
     if _gso.Orb.canAA == false and wMinus > 100 and eMinus > 350 and botrkMinus > 75 then
         _gso.Orb.canAA = true
