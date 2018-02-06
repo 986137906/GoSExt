@@ -1197,6 +1197,8 @@ function __gsoOrb:__init()
     self.isBlinded    = false
     self.lastTarget   = nil
     
+    self.lastKey      = 0
+    
     self.LHTimers     = { [0] = { tick = 0, id = 0 }, [1] = { tick = 0, id = 0 }, [2] = { tick = 0, id = 0 }, [3] = { tick = 0, id = 0 }, [4] = { tick = 0, id = 0 } }
     
     self.windUpT      = myHero.attackData.windUpTime
@@ -1334,6 +1336,8 @@ function __gsoOrb:_orb(unit)
                 local mPos = _gso.Vars._mousePos()
                 if ExtLibEvade and ExtLibEvade.Evading then return end
                 if mPos ~= nil then
+                    if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
+                    if ExtLibEvade and ExtLibEvade.Evading then return end
                     local cPos = cursorPos
                     Control.SetCursorPos(mPos)
                     if ExtLibEvade and ExtLibEvade.Evading then return end
@@ -1344,6 +1348,7 @@ function __gsoOrb:_orb(unit)
                     self.lMove = checkT
                 else
                     if ExtLibEvade and ExtLibEvade.Evading then return end
+                    if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
                     Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
                     Control.mouse_event(MOUSEEVENTF_RIGHTUP)
                     self.lMove = checkT
@@ -1456,7 +1461,6 @@ function __gsoOrb:_tick()
             _gso.Vars._castSpellsAA()
         end
     end
-    
     if Game.IsChatOpen() == false and (ck or hk or lhk or lck) then
         local AAtarget = nil
         if ck then
@@ -1475,6 +1479,10 @@ function __gsoOrb:_tick()
         else
             self:_orb(AAtarget)
         end
+    elseif self.dActionsC == 0 and GetTickCount() < self.lastKey + 1000 then
+        Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
+        print("ok")
+        self.lastKey = 0
     end
 end
 
