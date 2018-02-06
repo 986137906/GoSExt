@@ -26,7 +26,7 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.4986"
+    self.version = "0.4985"
     self.hName = myHero.charName
     self.loaded = true
     self.supportedChampions = {
@@ -1434,7 +1434,7 @@ function __gsoOrb:_tick()
         if not v[3] and GetTickCount() - k > v[2] then
             v[1]()
             v[3] = true
-        elseif v[3] and GetTickCount() - k > v[2] + 10 then
+        elseif v[3] and GetTickCount() - k > v[2] + 25 then
             self.dActions[k] = nil
         end
     end
