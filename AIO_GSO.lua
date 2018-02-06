@@ -95,13 +95,6 @@ function __gsoOB:__init()
     self.enemyMinions = {}
     self.enemyHeroes  = {}
     self.enemyTurrets = {}
-    self.allyM2       = {}
-    self.enemyM2      = {}
-    self.enemyH2      = {}
-    self.enemyT2      = {}
-    self.lastM        = 0
-    self.lastH        = 0
-    self.lastT        = 0
     self.meTeam       = myHero.team
 end
 
@@ -112,70 +105,30 @@ function __gsoOB:_getDistance(a, b)
 end
 
 function __gsoOB:_tick()
-    if os.clock() > self.lastM + 0.1 then
-        for i=1, #self.allyM2 do self.allyM2[i]=nil end
-        for i=1, #self.enemyM2 do self.enemyM2[i]=nil end
-        for i = 1, Game.MinionCount() do
-            local minion = Game.Minion(i)
-            if minion then
-                if minion.team ~= self.meTeam then
-                    self.enemyM2[#self.enemyM2+1] = minion
-                else
-                    self.allyM2[#self.allyM2+1] = minion
-                end
-            end
-        end
-        self.lastM = os.clock()
-    end
-    
-    if os.clock() > self.lastH + 2 then
-        for i=1, #self.enemyH2 do self.enemyH2[i]=nil end
-        for i = 1, Game.HeroCount() do
-            local hero = Game.Hero(i)
-            if hero and hero.team ~= self.meTeam then
-                self.enemyH2[#self.enemyH2+1] = hero
-            end
-        end
-        self.lastH = os.clock()
-    end
-    
-    if os.clock() > self.lastT + 5 then
-        for i=1, #self.enemyT2 do self.enemyT2[i]=nil end
-        for i = 1, Game.TurretCount() do
-            local turret = Game.Turret(i)
-            if turret and turret.team ~= self.meTeam then
-                self.enemyT2[#self.enemyT2+1] = turret
-            end
-        end
-        self.lastT = os.clock()
-    end
-    
     local mePos = myHero.pos
     for i=1, #self.allyMinions do self.allyMinions[i]=nil end
     for i=1, #self.enemyMinions do self.enemyMinions[i]=nil end
     for i=1, #self.enemyHeroes do self.enemyHeroes[i]=nil end
     for i=1, #self.enemyTurrets do self.enemyTurrets[i]=nil end
-    for i = 1, #self.allyM2 do
-        local minion = self.allyM2[i]
+    for i = 1, Game.MinionCount() do
+        local minion = Game.Minion(i)
         if minion and self:_getDistance(mePos, minion.pos) < 2000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid then
-            self.allyMinions[#self.allyMinions+1] = minion
+            if minion.team ~= self.meTeam then
+                self.enemyMinions[#self.enemyMinions+1] = minion
+            else
+                self.allyMinions[#self.allyMinions+1] = minion
+            end
         end
     end
-    for i = 1, #self.enemyM2 do
-        local minion = self.enemyM2[i]
-        if minion and self:_getDistance(mePos, minion.pos) < 2000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid then
-            self.enemyMinions[#self.enemyMinions+1] = minion
-        end
-    end
-    for i = 1, #self.enemyH2 do
-        local hero = self.enemyH2[i]
-        if hero and self:_getDistance(mePos, hero.pos) < 10000 and not hero.dead and hero.isTargetable and hero.visible and hero.valid then
+    for i = 1, Game.HeroCount() do
+        local hero = Game.Hero(i)
+        if hero and hero.team ~= self.meTeam and self:_getDistance(mePos, hero.pos) < 10000 and not hero.dead and hero.isTargetable and hero.visible and hero.valid then
             self.enemyHeroes[#self.enemyHeroes+1] = hero
         end
     end
-    for i = 1, #self.enemyT2 do
-        local turret = self.enemyT2[i]
-        if turret and self:_getDistance(mePos, turret.pos) < 2000 and not turret.dead and turret.isTargetable and turret.visible and turret.valid then
+    for i = 1, Game.TurretCount() do
+        local turret = Game.Turret(i)
+        if turret and turret.team ~= self.meTeam and self:_getDistance(mePos, turret.pos) < 2000 and not turret.dead and turret.isTargetable and turret.visible and turret.valid then
             self.enemyTurrets[#self.enemyTurrets+1] = turret
         end
     end
@@ -2298,6 +2251,7 @@ function __gsoDraven:__init()
     self.lastQ = 0
     self.lastW = 0
     self.lastE = 0
+    self.lastR = 0
     
     self.lMove = 0
     
@@ -2967,7 +2921,7 @@ function __gsoEzreal:_tick()
             if self.shouldWait == true and Game.Timer() > self.shouldWaitT + 0.5 then
                 self.shouldWait = false
             end
-          
+            
             local almostLH = false
             local laneClearT = {}
             local lastHitT = {}
