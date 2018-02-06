@@ -623,30 +623,33 @@ function __gsoFarm:_setEnemyMinions()
     for i = 1, #_gso.OB.enemyMinions do
         local eMinion = _gso.OB.enemyMinions[i]
         local eMinion_handle	= eMinion.handle
-        local eMinion_health	= eMinion.health
-        local myHero_aaData		= myHero.attackData
-        local myHero_pFlyTime	= myHero_aaData.windUpTime + (_gso.OB:_getDistance(myHero.pos, eMinion.pos) / myHero_aaData.projectileSpeed) + self.latency + 0.05 + mLH
-        for k1,v1 in pairs(self.aAttacks) do
-            for k2,v2 in pairs(self.aAttacks[k1]) do
-                if v2.canceled == false and eMinion_handle == v2.to.handle then
-                    local checkT	= Game.Timer()
-                    local pEndTime	= v2.startTime + v2.pTime
-                    if pEndTime > checkT and  pEndTime - checkT < myHero_pFlyTime - mLH then
-                        eMinion_health = eMinion_health - v2.dmg
+        local distance = _gso.OB:_getDistance(myHero.pos, eMinion.pos)
+        if distance < myHero.range + myHero.boundingRadius + eMinion.boundingRadius - 30 then
+            local eMinion_health	= eMinion.health
+            local myHero_aaData		= myHero.attackData
+            local myHero_pFlyTime	= myHero_aaData.windUpTime + (distance / myHero_aaData.projectileSpeed) + self.latency + 0.05 + mLH
+            for k1,v1 in pairs(self.aAttacks) do
+                for k2,v2 in pairs(self.aAttacks[k1]) do
+                    if v2.canceled == false and eMinion_handle == v2.to.handle then
+                        local checkT	= Game.Timer()
+                        local pEndTime	= v2.startTime + v2.pTime
+                        if pEndTime > checkT and  pEndTime - checkT < myHero_pFlyTime - mLH then
+                            eMinion_health = eMinion_health - v2.dmg
+                        end
                     end
                 end
             end
-        end
-        local myHero_dmg = self.aaDmg + _gso.Vars._bonusDmgUnit(eMinion)
-        if eMinion_health - myHero_dmg < 0 then
-            self.lastHit[#self.lastHit+1] = { eMinion, eMinion_health }
-        else
-            if eMinion.health - self:_possibleDmg(eMinion, myHero.attackData.animationTime*3) - myHero_dmg < 0 then
-                self.shouldWait = true
-                self.shouldWaitT = Game.Timer()
-                self.almostLH[#self.almostLH+1] = eMinion
+            local myHero_dmg = self.aaDmg + _gso.Vars._bonusDmgUnit(eMinion)
+            if eMinion_health - myHero_dmg < 0 then
+                self.lastHit[#self.lastHit+1] = { eMinion, eMinion_health }
             else
-                self.laneClear[#self.laneClear+1] = eMinion
+                if eMinion.health - self:_possibleDmg(eMinion, myHero.attackData.animationTime*3) - myHero_dmg < 0 then
+                    self.shouldWait = true
+                    self.shouldWaitT = Game.Timer()
+                    self.almostLH[#self.almostLH+1] = eMinion
+                else
+                    self.laneClear[#self.laneClear+1] = eMinion
+                end
             end
         end
     end
@@ -1174,7 +1177,7 @@ function __gsoOrb:_lastHitT()
         local checkT = Game.Timer() < self.LHTimers[0].tick
         local mHandle = minion.handle
         if not checkT or (checkT and self.LHTimers[0].id ~= mHandle) then
-            if _gso.OB:_getDistance(myHero.pos, minion.pos) < myHero.range + myHero.boundingRadius + minion.boundingRadius - 30 and hp < min then
+            if hp < min then
                 min = hp
                 result = minion
                 self.LHTimers[4].tick = Game.Timer() + 0.75
@@ -1211,7 +1214,7 @@ function __gsoOrb:_laneClearT()
                 for i = 1, cLC do
                     local minion = _gso.Farm.laneClear[i]
                     local hp     = minion.health
-                    if _gso.OB:_getDistance(myHero.pos, minion.pos) < myHero.range + myHero.boundingRadius + minion.boundingRadius - 30 and hp < min then
+                    if hp < min then
                         min = hp
                         result = minion
                     end
