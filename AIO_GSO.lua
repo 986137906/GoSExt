@@ -9,6 +9,7 @@ local Draw = Draw
 local gso_menu
 local _gso = {
   Vars = nil,
+  Items = nil,
   OB = nil,
   TS = nil,
   Farm = nil,
@@ -25,7 +26,7 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.498"
+    self.version = "0.4985"
     self.hName = myHero.charName
     self.loaded = true
     self.supportedChampions = {
@@ -66,6 +67,66 @@ function __gsoVars:_setCanAttack(func) self._canAttack = func end
 _gso.Vars = __gsoVars()
 if _gso.Vars.loaded == false then
     return
+end
+
+
+
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------ITEMS-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+class "__gsoItems"
+function __gsoItems:__init()
+    self.itemList = {
+        [3144] = { i = nil, hk = nil },
+        [3153] = { i = nil, hk = nil }
+    }
+    self.lastBotrk = 0
+    self.performance = 0
+    Callback.Add('Tick', function() self:_tick() end)
+end
+function __gsoItems:_botrk()
+    if GetTickCount() < self.lastBotrk + 1000 then return nil end
+    local itmSlot1 = self.itemList[3144].i
+    local itmSlot2 = self.itemList[3153].i
+    if itmSlot1 and myHero:GetSpellData(itmSlot1).currentCd == 0 then
+        return self.itemList[3144].hk
+    elseif itmSlot2 and myHero:GetSpellData(itmSlot2).currentCd == 0 then
+        return self.itemList[3153].hk
+    end
+    return nil
+end
+function __gsoItems:_tick()
+    local getTick = GetTickCount()
+    if getTick > self.performance + 500 then
+        self.performance = GetTickCount()
+        local t = { ITEM_1, ITEM_2, ITEM_3, ITEM_4, ITEM_5, ITEM_6 }
+        local t2 = { [3153] = 0, [3144] = 0 }
+        for i = 1, #t do
+            local item = t[i]
+            local itemID = myHero:GetItemData(item).itemID
+            local t2Item = t2[itemID]
+            if t2Item then
+                t2[itemID] = t2Item + 1
+            end
+            if self.itemList[itemID] then
+                self.itemList[itemID].i = item
+                local t3 = { HK_ITEM_1, HK_ITEM_2, HK_ITEM_3, HK_ITEM_4, HK_ITEM_5, HK_ITEM_6 }
+                self.itemList[itemID].hk = t3[i]
+            end
+        end
+        for k,v in pairs(self.itemList) do
+            local itm = self.itemList[k]
+            if t2[k] == 0 and (itm.i or itm.hk) then
+                self.itemList[k].i = nil
+                self.itemList[k].hk = nil
+            end
+        end
+    end
 end
 
 
@@ -1258,6 +1319,7 @@ function __gsoOrb:_orb(unit)
         if isTarget and canAA then
             if ExtLibEvade and ExtLibEvade.Evading then return end
             _gso.Vars._beforeAA()
+            if not self.canAA then return end
             self.lAttack = checkT
             self.lMove = 0
             local cPos = cursorPos
@@ -1367,12 +1429,28 @@ function __gsoOrb:_tick()
         if not v[3] and GetTickCount() - k > v[2] then
             v[1]()
             v[3] = true
-        elseif v[3] and GetTickCount() - k > v[2] + 25 then
+        elseif v[3] and GetTickCount() - k > v[2] + 10 then
             self.dActions[k] = nil
         end
     end
     self.dActionsC = cDActions
     if self.dActionsC == 0 and Game.Timer() > self.lAttack + self.windUpT + 0.15 + _gso.Farm.latency + gso_menu.orb.delays.windup:Value()*0.001 then
+        if ck and gso_menu.gsoitem.botrk:Value() and self.lastTarget then
+            local botrkHK = _gso.Items:_botrk()
+            if botrkHK then
+                local targetPos = self.lastTarget.pos
+                if _gso.OB:_getDistance(myHero.pos, targetPos) < 550 then
+                    local cPos = cursorPos
+                    Control.SetCursorPos(targetPos)
+                    Control.KeyDown(botrkHK)
+                    Control.KeyUp(botrkHK)
+                    _gso.Items.lastBotrk = GetTickCount()
+                    self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                    self.canAA = false
+                    self.dActionsC = self.dActionsC + 1
+                end
+            end
+        end
         _gso.Vars._castSpells()
         if self.dActionsC == 0 and checkT < self.lAttack + self.animT then
             _gso.Vars._castSpellsAA()
@@ -1657,7 +1735,8 @@ function __gsoAshe:_tick()
     local checkTick = GetTickCount()
     local wMinus = checkTick - self.lastW
     local rMinus = checkTick - self.lastR
-    if _gso.Orb.canAA == false and wMinus > 350 and rMinus > 350 then
+    local botrkMinus = checkTick - _gso.Items.lastBotrk
+    if _gso.Orb.canAA == false and wMinus > 350 and rMinus > 350 and botrkMinus > 75 then
         _gso.Orb.canAA = true
     end
     
@@ -1930,8 +2009,8 @@ function __gsoTwitch:_tick()
     
     local wMinus = checkTick - self.lastW
     local eMinus = checkTick - self.lastE
-    
-    if _gso.Orb.canAA == false and wMinus > 350 and eMinus > 350 then
+    local botrkMinus = checkTick - _gso.Items.lastBotrk
+    if _gso.Orb.canAA == false and wMinus > 350 and eMinus > 350 and botrkMinus > 75 then
         _gso.Orb.canAA = true
     end
     
@@ -2205,8 +2284,9 @@ function __gsoKogMaw:_tick()
     local qMinus = checkT - self.lastQ
     local eMinus = checkT - self.lastE
     local rMinus = checkT - self.lastR
+    local botrkMinus = checkTick - _gso.Items.lastBotrk
     
-    if _gso.Orb.canAA == false and qMinus > 350 and eMinus > 350 and rMinus > 350 then
+    if _gso.Orb.canAA == false and qMinus > 350 and eMinus > 350 and rMinus > 350 and botrkMinus > 75 then
         _gso.Orb.canAA = true
     end
     
@@ -2349,6 +2429,7 @@ function __gsoDraven:_castSpells()
                     Control.KeyDown(HK_W)
                     Control.KeyUp(HK_W)
                     self.lastW = GetTickCount()
+                    _gso.Orb.canAA = false
                     return
                 end
             end
@@ -2410,6 +2491,7 @@ function __gsoDraven:_castSpellsAA()
         Control.KeyDown(HK_W)
         Control.KeyUp(HK_W)
         self.lastW = GetTickCount()
+        _gso.Orb.canAA = false
     end
     
     if (isComboE or isHarassE) and eMinus > 2000 and qMinus > 250 and eMinus > 250 and Game.CanUseSpell(_E) == 0 then
@@ -2453,19 +2535,10 @@ function __gsoDraven:_setBeforeAA()
     local isComboQ = isCombo and gso_menu.gsodraven.qset.combo:Value()
     local isHarassQ = isHarass and gso_menu.gsodraven.qset.harass:Value()
     
-    local isComboW = isCombo and gso_menu.gsodraven.wset.combo:Value()
-    local isHarassW = isHarass and gso_menu.gsodraven.wset.harass:Value()
-    
     if (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 250 and eMinus > 250 and Game.CanUseSpell(_Q) == 0 then
         Control.KeyDown(HK_Q)
         Control.KeyUp(HK_Q)
         self.lastQ = GetTickCount()
-    end
-    
-    if (isComboW or isHarassW) and wMinus > 1000 and qMinus > 250 and eMinus > 250 and Game.CanUseSpell(_W) == 0 then
-        Control.KeyDown(HK_W)
-        Control.KeyUp(HK_W)
-        self.lastW = GetTickCount()
     end
     
 end
@@ -2480,9 +2553,11 @@ function __gsoDraven:_tick()
   
     local checkT = GetTickCount()
     
+    local wMinus = checkT - self.lastW
     local eMinus = checkT - self.lastE
+    local botrkMinus = checkTick - _gso.Items.lastBotrk
     
-    if _gso.Orb.canAA == false and eMinus > 350 then
+    if _gso.Orb.canAA == false and wMinus > 100 and eMinus > 350 and botrkMinus > 75 then
         _gso.Orb.canAA = true
     end
     
@@ -2846,8 +2921,9 @@ function __gsoEzreal:_tick()
     local qMinus = checkTick - self.lastQ
     local wMinus = checkTick - self.lastW
     local eMinus = checkTick - self.lastE
+    local botrkMinus = checkTick - _gso.Items.lastBotrk
     
-    if _gso.Orb.canAA == false and qMinus > 350 and wMinus > 350 and eMinus > 350 then
+    if _gso.Orb.canAA == false and qMinus > 350 and wMinus > 350 and eMinus > 350 and botrkMinus > 75 then
         _gso.Orb.canAA = true
     end
     
@@ -3171,6 +3247,10 @@ function OnLoad()
                     gso_menu.orb.draw.cpos:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 153, 0, 76)})
                     gso_menu.orb.draw.cpos:MenuElement({name = "Width",  id = "width", value = 5, min = 1, max = 10})
                     gso_menu.orb.draw.cpos:MenuElement({name = "Radius",  id = "radius", value = 250, min = 1, max = 300})
+        gso_menu:MenuElement({name = "Items", id = "gsoitem", type = MENU, leftIcon = "https://i.imgur.com/nMg6NAA.png"})
+            gso_menu.gsoitem:MenuElement({name = "", id = "botrk", leftIcon = "https://i.imgur.com/xSE3Kc0.png", value = true})
+
+    _gso.Items = __gsoItems()
     _gso.OB = __gsoOB()
     _gso.TS = __gsoTS()
     _gso.Farm = __gsoFarm()
