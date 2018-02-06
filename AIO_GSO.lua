@@ -1336,8 +1336,8 @@ function __gsoOrb:_orb(unit)
                 local mPos = _gso.Vars._mousePos()
                 if ExtLibEvade and ExtLibEvade.Evading then return end
                 if mPos ~= nil then
-                    if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
                     if ExtLibEvade and ExtLibEvade.Evading then return end
+                    if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
                     local cPos = cursorPos
                     Control.SetCursorPos(mPos)
                     if ExtLibEvade and ExtLibEvade.Evading then return end
@@ -1481,7 +1481,7 @@ function __gsoOrb:_tick()
         end
     elseif self.dActionsC == 0 and GetTickCount() < self.lastKey + 1000 then
         Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
-        print("ok")
+        --print("ok")
         self.lastKey = 0
     end
 end
