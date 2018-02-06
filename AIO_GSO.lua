@@ -26,7 +26,7 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.4985"
+    self.version = "0.4986"
     self.hName = myHero.charName
     self.loaded = true
     self.supportedChampions = {
