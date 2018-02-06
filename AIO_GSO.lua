@@ -1762,6 +1762,7 @@ end
 function __gsoTwitch:_menu()
     gso_menu:MenuElement({name = "Twitch", id = "gsotwitch", type = MENU, leftIcon = "https://i.imgur.com/tVpVF5L.png"})
         gso_menu.gsotwitch:MenuElement({name = "W settings", id = "wset", type = MENU })
+            gso_menu.gsotwitch.wset:MenuElement({id = "stopult", name = "Stop if R", value = true})
             gso_menu.gsotwitch.wset:MenuElement({id = "combo", name = "Use W Combo", value = true})
             gso_menu.gsotwitch.wset:MenuElement({id = "harass", name = "Use W Harass", value = false})
         gso_menu.gsotwitch:MenuElement({name = "E settings", id = "eset", type = MENU })
@@ -1864,6 +1865,9 @@ function __gsoTwitch:_castSpellsAA()
     end
     
     if (isComboW or isHarassW) and wMinus > 2000 and eMinus > 350 and Game.CanUseSpell(_W) == 0 then
+        if gso_menu.gsotwitch.wset.stopult:Value() and GetTickCount() < _gso.TS.lastR + 5500 then
+            return
+        end
         local target = _gso.TS:_getTarget(950, false, false)
         if target ~= nil then
             local mePos = myHero.pos
