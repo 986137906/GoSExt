@@ -1301,8 +1301,7 @@ end
 
 function __gsoOrb:_orb(unit)
     
-    local checkT = Game.Timer()
-    local mHum    = gso_menu.orb.delays.humanizer:Value()*0.001
+    local checkT  = Game.Timer()
     
     local aaData = myHero.attackData
     local endTime = aaData.endTime
@@ -1313,12 +1312,11 @@ function __gsoOrb:_orb(unit)
         self.endTime = endTime
     end
     
-    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001
-    local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and canMove and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5)
-    local isTarget = unit ~= nil
+    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001 and checkT > self.lMove + gso_menu.orb.delays.humanizer:Value()*0.001
+    local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and checkT > self.lAttack + 0.35 and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5) + gso_menu.orb.delays.anim:Value()*0.001 and unit ~= nil
     
     if self.dActionsC == 0 then
-        if isTarget and canAA then
+        if canAA then
             if ExtLibEvade and ExtLibEvade.Evading then return end
             _gso.Vars._beforeAA()
             if not self.canAA then return end
@@ -1331,28 +1329,26 @@ function __gsoOrb:_orb(unit)
             Control.mouse_event(MOUSEEVENTF_RIGHTUP)
             self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
             self.dActionsC = self.dActionsC + 1
-        elseif canMove then
-            if checkT > self.lMove + mHum and self.dActionsC == 0 then
-                local mPos = _gso.Vars._mousePos()
+        elseif canMove and self.dActionsC == 0 then
+            local mPos = _gso.Vars._mousePos()
+            if ExtLibEvade and ExtLibEvade.Evading then return end
+            if mPos ~= nil then
                 if ExtLibEvade and ExtLibEvade.Evading then return end
-                if mPos ~= nil then
-                    if ExtLibEvade and ExtLibEvade.Evading then return end
-                    if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
-                    local cPos = cursorPos
-                    Control.SetCursorPos(mPos)
-                    if ExtLibEvade and ExtLibEvade.Evading then return end
-                    Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
-                    Control.mouse_event(MOUSEEVENTF_RIGHTUP)
-                    self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                    self.dActionsC = self.dActionsC + 1
-                    self.lMove = checkT
-                else
-                    if ExtLibEvade and ExtLibEvade.Evading then return end
-                    if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
-                    Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
-                    Control.mouse_event(MOUSEEVENTF_RIGHTUP)
-                    self.lMove = checkT
-                end
+                if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
+                local cPos = cursorPos
+                Control.SetCursorPos(mPos)
+                if ExtLibEvade and ExtLibEvade.Evading then return end
+                Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
+                Control.mouse_event(MOUSEEVENTF_RIGHTUP)
+                self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                self.dActionsC = self.dActionsC + 1
+                self.lMove = checkT
+            else
+                if ExtLibEvade and ExtLibEvade.Evading then return end
+                if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
+                Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
+                Control.mouse_event(MOUSEEVENTF_RIGHTUP)
+                self.lMove = checkT
             end
         end
     end
@@ -3232,7 +3228,8 @@ function OnLoad()
                     gso_menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
         gso_menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = "https://i.imgur.com/kPzTQDw.png"})
             gso_menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
-                gso_menu.orb.delays:MenuElement({name = "WindUp Delay", id = "windup", value = 0, min = 0, max = 100, step = 5 })
+                gso_menu.orb.delays:MenuElement({name = "only if aa cancel -> higher value = less aa/dmg ", id = "anim", value = 0, min = 0, max = 50, step = 5 })
+                gso_menu.orb.delays:MenuElement({name = "only if aa cancel -> higher value = slower kite", id = "windup", value = 0, min = 0, max = 100, step = 5 })
                 gso_menu.orb.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 5 })
                 gso_menu.orb.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
             gso_menu.orb:MenuElement({name = "Keys", id = "keys", type = MENU})
