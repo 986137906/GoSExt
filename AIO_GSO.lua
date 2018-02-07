@@ -26,7 +26,7 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.4986"
+    self.version = "0.50"
     self.hName = myHero.charName
     self.loaded = true
     self.supportedChampions = {
@@ -34,7 +34,8 @@ function __gsoVars:__init()
       ["KogMaw"] = true,
       ["Twitch"] = true,
       ["Draven"] = true,
-      ["Ezreal"] = true
+      ["Ezreal"] = true,
+      ["Vayne"] = true
     }
     if not self.supportedChampions[self.hName] == true then
         self.loaded = false
@@ -1196,6 +1197,7 @@ function __gsoOrb:__init()
     self.isTeemo      = false
     self.isBlinded    = false
     self.lastTarget   = nil
+    self.aaReset      = false
     
     self.lastKey      = 0
     
@@ -1312,16 +1314,14 @@ function __gsoOrb:_orb(unit)
         self.endTime = endTime
     end
     
-    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001 and checkT > self.lMove + gso_menu.orb.delays.humanizer:Value()*0.001
-    local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and checkT > self.lAttack + 0.35 and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5) + gso_menu.orb.delays.anim:Value()*0.001 and unit ~= nil
+    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*1.5) + gso_menu.orb.delays.windup:Value()*0.001 and checkT > self.lMove + gso_menu.orb.delays.humanizer:Value()*0.001
+    local canAA = _gso.Vars._canAttack() and self.isBlinded == false and self.canAA and checkT > self.lAttack + 0.35 and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5) + gso_menu.orb.delays.anim:Value()*0.001
     
     if self.dActionsC == 0 then
-        if canAA then
+        if unit ~= nil and (canAA or self.aaReset) then
             if ExtLibEvade and ExtLibEvade.Evading then return end
             _gso.Vars._beforeAA()
             if not self.canAA then return end
-            self.lAttack = checkT
-            self.lMove = 0
             local cPos = cursorPos
             Control.SetCursorPos(unit.pos)
             if ExtLibEvade and ExtLibEvade.Evading then return end
@@ -1329,6 +1329,9 @@ function __gsoOrb:_orb(unit)
             Control.mouse_event(MOUSEEVENTF_RIGHTUP)
             self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
             self.dActionsC = self.dActionsC + 1
+            self.aaReset = false
+            self.lAttack = checkT
+            self.lMove = 0
         elseif canMove and self.dActionsC == 0 then
             local mPos = _gso.Vars._mousePos()
             if ExtLibEvade and ExtLibEvade.Evading then return end
@@ -3196,6 +3199,228 @@ end
 
 
 
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------VAYNE---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+class "__gsoVayne"
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------init----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoVayne:__init()
+    require "MapPositionGOS"
+    self.lastQ = 0
+    self.lastE = 0
+    self.lastReset = 0
+    _gso.Vars:_setBonusDmg(function() return 3 end)
+    _gso.Vars:_setOnTick(function() self:_tick() end)
+    _gso.Vars:_setChampMenu(function() return self:_menu() end)
+    _gso.Vars:_setOnDraw(function() self:_draw() end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------menu----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoVayne:_menu()
+    gso_menu:MenuElement({name = "Vayne", id = "gsovayne", type = MENU, leftIcon = "https://i.imgur.com/sRePtJC.png"})
+        gso_menu.gsovayne:MenuElement({name = "Q settings", id = "qset", type = MENU })
+            gso_menu.gsovayne.qset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsovayne.qset:MenuElement({id = "harass", name = "Harass", value = false})
+        gso_menu.gsovayne:MenuElement({name = "E settings", id = "eset", type = MENU })
+            gso_menu.gsovayne.eset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsovayne.eset:MenuElement({id = "harass", name = "Harass", value = false})
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------cast spells--------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoVayne:_castQ()
+    local mePos = myHero.pos
+    for i = 1, #_gso.OB.enemyHeroes do
+        local hero = _gso.OB.enemyHeroes[i]
+        if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < 1000 then
+            Control.KeyDown(HK_Q)
+            Control.KeyUp(HK_Q)
+            self.lastQ = GetTickCount()
+            _gso.Orb.canAA = false
+            return
+        end
+    end
+end
+function __gsoVayne:_castQE()
+end
+function __gsoVayne:_draw()
+    --[[local pos1 = myHero.pos
+    local pos2 = pos1 + (mousePos-pos1):Normalized() * 300
+    local pos3 = pos1 + (mousePos-pos1):Rotated(0, 60 * math.pi / 180, 0):Normalized() * 300
+    local pos4 = pos1 + (mousePos-pos1):Rotated(0, 120 * math.pi / 180, 0):Normalized() * 300
+    local pos5 = pos1 + (mousePos-pos1):Rotated(0, 180 * math.pi / 180, 0):Normalized() * 300
+    local pos6 = pos1 + (mousePos-pos1):Rotated(0, 240 * math.pi / 180, 0):Normalized() * 300
+    local pos7 = pos1 + (mousePos-pos1):Rotated(0, 300 * math.pi / 180, 0):Normalized() * 300
+    local pos1_2D = pos1:To2D()
+    local pos2_2D = pos2:To2D()
+    local pos3_2D = pos3:To2D()
+    local pos4_2D = pos4:To2D()
+    local pos5_2D = pos5:To2D()
+    local pos6_2D = pos6:To2D()
+    local pos7_2D = pos7:To2D()
+    Draw.Line(pos1_2D, pos2_2D)
+    Draw.Line(pos1_2D, pos3_2D)
+    Draw.Line(pos1_2D, pos4_2D)
+    Draw.Line(pos1_2D, pos5_2D)
+    Draw.Line(pos1_2D, pos6_2D)
+    Draw.Line(pos1_2D, pos7_2D)]]
+    
+    --[[
+    local mePos = myHero.pos
+    for i = 1, #_gso.OB.enemyHeroes do
+        local hero = _gso.OB.enemyHeroes[i]
+        local heroPos = hero.pos
+        if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, heroPos) < 650 then
+            local ePred = hero:GetPrediction(2000,0.15)
+            local distance = _gso.OB:_getDistance(ePred, heroPos)
+            local pos1 = ePred
+            local pos2 = pos1 + (ePred-mePos):Normalized() * 50
+            local pos3 = pos2 + (ePred-mePos):Normalized() * 425
+            local pos1_2D = pos1:To2D()
+            local pos2_2D = pos2:To2D()
+            local pos3_2D = pos3:To2D()
+            Draw.Line(pos2_2D, pos3_2D)
+        end
+    end]]
+end
+function __gsoVayne:_checkWall(from, to)
+    local pos1 = to + (to-from):Normalized() * 50
+    local pos2 = pos1 + (to-from):Normalized() * 425
+    local point1 = Point(pos1.x, pos1.z)
+    local point2 = Point(pos2.x, pos2.z)
+    if (MapPosition:inWall(point1) and MapPosition:inWall(point2)) or MapPosition:intersectsWall(LineSegment(point1, point2)) then
+        return true
+    end
+    return false
+end
+function __gsoVayne:_nearUnit(pos, id)
+    for i = 1, #_gso.OB.enemyHeroes do
+        local unit = _gso.OB.enemyHeroes[i]
+        if id ~= unit.networkID and _gso.OB:_getDistance(pos, unit.pos) < 125 then
+            return true
+        end
+    end
+    for i = 1, #_gso.OB.enemyMinions do
+        local unit = _gso.OB.enemyMinions[i]
+        if _gso.OB:_getDistance(pos, unit.pos) < 125 then
+            return true
+        end
+    end
+    for i = 1, #_gso.OB.enemyTurrets do
+        local unit = _gso.OB.enemyTurrets[i]
+        if _gso.OB:_getDistance(pos, unit.pos) < 125 then
+            return true
+        end
+    end
+    return false
+end
+function __gsoVayne:_castE()
+    local mePos = myHero.pos
+    for i = 1, #_gso.OB.enemyHeroes do
+        local hero = _gso.OB.enemyHeroes[i]
+        local heroPos = hero.pos
+        if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, heroPos) < 650 then
+            local ePred = hero:GetPrediction(2000,0.15)
+            local distance = _gso.OB:_getDistance(ePred, heroPos)
+            if ePred and distance < 500 and not self:_nearUnit(heroPos, hero.networkID) and self:_checkWall(mePos, ePred) and self:_checkWall(mePos, heroPos) then
+                Control.KeyDown(83)
+                Control.KeyUp(83)
+                local cPos = cursorPos
+                Control.SetCursorPos(heroPos)
+                Control.KeyDown(HK_E)
+                Control.KeyUp(HK_E)
+                self.lastE = GetTickCount()
+                _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                _gso.Orb.canAA = false
+                _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------------tick-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoVayne:_tick()
+    
+    --[[ enable aa ]]
+    local getTick = GetTickCount()
+    local qMinus = getTick - self.lastQ
+    local eMinus = getTick - self.lastE
+    local botrkMinus = getTick - _gso.Items.lastBotrk
+    if _gso.Orb.canAA == false and qMinus > 350 and eMinus > 350 and botrkMinus > 75 then
+        _gso.Orb.canAA = true
+    end
+    
+    --[[ reset aa - check q buff ]]
+    if os.clock() > self.lastReset + 1.2 then
+        for i = 1, myHero.buffCount do
+            local buff = myHero:GetBuff(i)
+            if buff and buff.count > 0 and buff.duration > 6.25 and buff.name == "vaynetumblebonus" then
+                _gso.Orb.aaReset = true
+                self.lastReset = os.clock()
+            end
+        end
+    end
+    
+    --[[ check if spells are ready ]]
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
+    local isComboQ = isCombo and gso_menu.gsovayne.qset.combo:Value()
+    local isHarassQ = isHarass and gso_menu.gsovayne.qset.harass:Value()
+    local isComboE = isCombo and gso_menu.gsovayne.eset.combo:Value()
+    local isHarassE = isHarass and gso_menu.gsovayne.eset.harass:Value()
+    local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and eMinus > 250 and Game.CanUseSpell(_Q) == 0
+    local isEReady = (isComboE or isHarassE) and qMinus > 250 and eMinus > 1000 and Game.CanUseSpell(_E) == 0
+    
+    if isQReady or isEReady then
+        
+        --[[ check enemies in aa range ]]
+        local mePos = myHero.pos
+        local meRange = myHero.range + myHero.boundingRadius - 30
+        local enemiesCount = 0
+        for i = 1, #_gso.OB.enemyHeroes do
+            local hero = _gso.OB.enemyHeroes[i]
+            if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+                enemiesCount = enemiesCount + 1
+            end
+        end
+        
+        --[[ spells after/before if enemy is in aa range ]]
+        local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001
+        local afterBefore = canMove and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.9
+        
+        --[[ spells if enemy is out of aa range ]]
+        local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+        
+        --[[ cast spells ]]
+        if isEReady and canMove and self:_castE() then
+            return
+        end
+        if isQReady and (afterBefore or outOfAARange) then
+            self:_castQ()
+        end
+    end
+end
+
+
+
+
+
 
 
 
@@ -3285,6 +3510,8 @@ function OnLoad()
         __gsoDraven()
     elseif _gso.Vars.hName == "Ezreal" then
         __gsoEzreal()
+    elseif _gso.Vars.hName == "Vayne" then
+        __gsoVayne()
     end
     _gso.Vars._champMenu()
     print("gamsteronAIO ".._gso.Vars.version.." | loaded!")
