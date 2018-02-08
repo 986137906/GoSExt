@@ -1533,6 +1533,7 @@ function __gsoAshe:_tick()
     
     --[[ ENABLE AA AFTER SPELLS ]]
     local checkTick = GetTickCount()
+    local qMinus = checkTick - self.lastQ
     local wMinus = checkTick - self.lastW
     local rMinus = checkTick - self.lastR
     local botrkMinus = checkTick - _gso.Items.lastBotrk
@@ -1559,12 +1560,14 @@ function __gsoAshe:_tick()
         --[[ check if spells are ready ]]
         local isCombo = gso_menu.orb.keys.combo:Value()
         local isHarass = gso_menu.orb.keys.harass:Value()
+        local isComboQ = isCombo and gso_menu.gsoashe.combo.qc:Value()
+        local isHarassQ = isHarass and gso_menu.gsoashe.harass.qh:Value()
         local isComboW = isCombo and gso_menu.gsoashe.combo.wc:Value()
         local isHarassW = isHarass and gso_menu.gsoashe.harass.wh:Value()
         local isComboRd = isCombo and gso_menu.gsoashe.combo.rcd:Value()
         local isHarassRd = isHarass and gso_menu.gsoashe.harass.rhd:Value()
-        local isComboRi = isCombo and gso_menu.gsoashe.combo.rcd:Value()
-        local isHarassRi = isHarass and gso_menu.gsoashe.harass.rhd:Value()
+        local isComboRi = isCombo and gso_menu.gsoashe.combo.rci:Value()
+        local isHarassRi = isHarass and gso_menu.gsoashe.harass.rhi:Value()
         local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 350 and rMinus > 350 and Game.CanUseSpell(_Q) == 0
         local isWReady = (isComboW or isHarassW) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 1000 and rMinus > 350 and Game.CanUseSpell(_W) == 0
         local isRdReady = (isComboRd or isHarassRd) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 350 and rMinus > 1000 and Game.CanUseSpell(_R) == 0
