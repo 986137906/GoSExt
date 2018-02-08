@@ -26,7 +26,7 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.53"
+    self.version = "0.54"
     self.hName = myHero.charName
     self.loaded = true
     self.supportedChampions = {
@@ -164,7 +164,7 @@ function __gsoOB:_tick()
     for i=1, #self.enemyTurrets do self.enemyTurrets[i]=nil end
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
-        if minion and self:_getDistance(mePos, minion.pos) < 2000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid then
+        if minion and self:_getDistance(mePos, minion.pos) < 2000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid and not minion.isImmortal then
             if minion.team ~= self.meTeam then
                 self.enemyMinions[#self.enemyMinions+1] = minion
             else
@@ -180,7 +180,7 @@ function __gsoOB:_tick()
     end
     for i = 1, Game.TurretCount() do
         local turret = Game.Turret(i)
-        if turret and turret.team ~= self.meTeam and self:_getDistance(mePos, turret.pos) < 2000 and not turret.dead and turret.isTargetable and turret.visible and turret.valid then
+        if turret and turret.team ~= self.meTeam and self:_getDistance(mePos, turret.pos) < 2000 and not turret.dead and turret.isTargetable and turret.visible and turret.valid and not turret.isImmortal then
             self.enemyTurrets[#self.enemyTurrets+1] = turret
         end
     end
