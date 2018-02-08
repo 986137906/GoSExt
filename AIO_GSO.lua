@@ -2149,13 +2149,26 @@ end
 --------------------|---------------------------------------------------------|--------------------
 --------------------|--------------------cast spells--------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
+function __gsoDraven:_pointOnLineSegment(x, z, ax, az, bx, bz)
+    local bxax = bx - ax
+    local bzaz = bz - az
+    local t = ((x - ax) * bxax + (z - az) * bzaz) / (bxax * bxax + bzaz * bzaz)
+    if t < 0 then return false
+    elseif t > 1 then return false
+    else return true
+    end
+end
 function __gsoDraven:_castE()
     local target = _gso.Orb.lastTarget and _gso.Orb.lastTarget or _gso.TS:_getTarget(1050, false, false)
     if target then
         local sE = { delay = 0.25, range = 1050, width = 150, speed = 1400, sType = "line", col = false }
         local mePos = myHero.pos
+        local targetPos = target.pos
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sE.delay, sE.width*0.5, sE.range, sE.speed, mePos, sE.col, sE.sType)
-        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sE.range and _gso.OB:_getDistance(target.pos, castpos) < 250 then
+        local distToPred = _gso.OB:_getDistance(mePos, castpos)
+        local distToTarget = _gso.OB:_getDistance(mePos, targetPos)
+        local isOnLine = self:_pointOnLineSegment(castpos.x, castpos.z, mePos.x, mePos.z, targetPos.x, targetPos.z)
+        if HitChance > 0 and castpos:ToScreen().onScreen and distToPred < sE.range and distToPred > 125 and distToTarget > 125 and _gso.OB:_getDistance(targetPos, castpos) < 250 and isOnLine then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_E)
@@ -2228,13 +2241,13 @@ function __gsoDraven:_tick()
         local isHarassW = isHarass and gso_menu.gsodraven.wset.harass:Value()
         local isComboE = isCombo and gso_menu.gsodraven.eset.combo:Value()
         local isHarassE = isHarass and gso_menu.gsodraven.eset.harass:Value()
-        local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 350 and eMinus > 350 and Game.CanUseSpell(_Q) == 0
-        local isWReady = (isComboW or isHarassW) and qMinus > 350 and wMinus > 1000 and eMinus > 350 and Game.CanUseSpell(_W) == 0
-        local isEReady = (isComboE or isHarassE) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 350 and eMinus > 1000 and Game.CanUseSpell(_E) == 0
+        local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 100 and eMinus > 350 and Game.CanUseSpell(_Q) == 0
+        local isWReady = (isComboW or isHarassW) and wMinus > 1000 and eMinus > 350 and Game.CanUseSpell(_W) == 0
+        local isEReady = (isComboE or isHarassE) and _gso.Orb.dActionsC == 0 and wMinus > 100 and eMinus > 1000 and Game.CanUseSpell(_E) == 0
         
         --[[ combo/harass ]]
         if isQReady or isWReady or isEReady then
-        
+            
             --[[ check enemies in aa range ]]
             local mePos = myHero.pos
             local meRange = myHero.range + myHero.boundingRadius
@@ -2252,14 +2265,15 @@ function __gsoDraven:_tick()
             --[[ spells if enemy is out of aa range ]]
             local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
             
+            if isQReady and not outOfAARange and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.animT*0.5 then
+                Control.KeyDown(HK_Q)
+                Control.KeyUp(HK_Q)
+                self.lastQ = GetTickCount()
+                return
+            end
+            
             --[[ cast spells ]]
             if afterBefore or outOfAARange then
-                if isQReady and not outOfAARange and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.animT*0.75 then
-                    Control.KeyDown(HK_Q)
-                    Control.KeyUp(HK_Q)
-                    self.lastQ = GetTickCount()
-                    return
-                end
                 if isWReady then
                     Control.KeyDown(HK_W)
                     Control.KeyUp(HK_W)
