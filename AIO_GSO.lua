@@ -2537,6 +2537,8 @@ end
 --------------------|-----------------------q farm----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoEzreal:_castQFarm()
+    local meRange = myHero.range + myHero.boundingRadius
+    local manaPercent = 100 * myHero.mana / myHero.maxMana
     local isLH = gso_menu.gsoezreal.qset.lasthit:Value() and (gso_menu.orb.keys.lastHit:Value() or gso_menu.orb.keys.harass:Value())
     local isLC = gso_menu.gsoezreal.qset.laneclear:Value() and gso_menu.orb.keys.laneClear:Value()
     if isLH or isLC then
@@ -2811,7 +2813,7 @@ function __gsoEzreal:_tick()
         end
         
         --[[ q farm ]]
-        self:_castQFarm()
+        if isQReady then self:_castQFarm() end
     end
 end
 
