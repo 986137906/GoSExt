@@ -2003,7 +2003,7 @@ function __gsoKogMaw:_tick()
     local wMinus = checkTick - self.lastW
     local eMinus = checkTick - self.lastE
     local rMinus = checkTick - self.lastR
-    local botrkMinus = checkT - _gso.Items.lastBotrk
+    local botrkMinus = checkTick - _gso.Items.lastBotrk
     if _gso.Orb.canAA == false and qMinus > 350 and eMinus > 350 and rMinus > 350 and botrkMinus > 75 then
         _gso.Orb.canAA = true
     end
