@@ -26,7 +26,7 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.54"
+    self.version = "0.55"
     self.hName = myHero.charName
     self.loaded = true
     self.supportedChampions = {
@@ -37,7 +37,11 @@ function __gsoVars:__init()
       ["Ezreal"] = true,
       ["Vayne"] = true,
       ["Teemo"] = true,
-      ["Sivir"] = true
+      ["Sivir"] = true,
+      ["Tristana"] = true,
+      ["MissFortune"] = true,
+      ["Lucian"] = true,
+      ["Kayle"] = true
     }
     if not self.supportedChampions[self.hName] == true then
         self.loaded = false
@@ -1988,8 +1992,10 @@ function __gsoKogMaw:_castR()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
             _gso.Orb.canAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
+            return true
         end
     end
+    return false
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -2024,7 +2030,7 @@ function __gsoKogMaw:_tick()
         local isComboR = isCombo and gso_menu.gsokog.rset.combo:Value()
         local isHarassR = isHarass and gso_menu.gsokog.rset.harass:Value()
         local isQReady = (isComboQ or isHarassQ) and _gso.Orb.dActionsC == 0 and qMinus > 1000 and wMinus > 350 and eMinus > 350 and rMinus > 350 and Game.CanUseSpell(_Q) == 0
-        local isWReady = (isComboW or isHarassW) and qMinus > 350 and wMinus > 1000 and eMinus > 350 and rMinus > 350 and Game.CanUseSpell(_W) == 0
+        local isWReady = (isComboW or isHarassW) and qMinus > 250 and wMinus > 1000 and eMinus > 250 and rMinus > 250 and Game.CanUseSpell(_W) == 0
         local isEReady = (isComboE or isHarassE) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 350 and eMinus > 1000 and rMinus > 350 and Game.CanUseSpell(_E) == 0
         local isRReady = (isComboR or isHarassR) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 350 and eMinus > 350 and rMinus > 1000 and Game.CanUseSpell(_R) == 0 and self:_getBuffCount() < gso_menu.gsokog.rset.stack:Value()
         
@@ -2057,17 +2063,20 @@ function __gsoKogMaw:_tick()
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT
+            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.75
             
             --[[ spells if enemy is out of aa range ]]
             local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
             
             --[[ cast spells ]]
             if afterBefore or outOfAARange then
-                if isWReady and self:_castW() then
+                if isQReady and self:_castQ() then
                     return
                 end
-                if isEReady and (isComboE or isHarassE) and self:_castE() then
+                if isEReady and self:_castE() then
+                    return
+                end
+                if isRReady and self:_castR() then
                     return
                 end
             end
@@ -3486,6 +3495,14 @@ function OnLoad()
         __gsoTeemo()
     elseif _gso.Vars.hName == "Sivir" then
         __gsoSivir()
+    elseif _gso.Vars.hName == "Tristana" then
+        --__gsoTristana()
+    elseif _gso.Vars.hName == "MissFortune" then
+        --__gsoMissFortune()
+    elseif _gso.Vars.hName == "Lucian" then
+        --__gsoLucian()
+    elseif _gso.Vars.hName == "Kayle" then
+        --__gsoKayle()
     end
     _gso.Vars._champMenu()
     print("gamsteronAIO ".._gso.Vars.version.." | loaded!")
