@@ -10,6 +10,8 @@ local gso_menu
 local _gso = {
   Vars = nil,
   Items = nil,
+  Spells = nil,
+  Utils = nil,
   OB = nil,
   TS = nil,
   Farm = nil,
@@ -26,28 +28,25 @@ local _gso = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.55"
+    self.version = "0.56"
     self.hName = myHero.charName
     self.loaded = true
     self.supportedChampions = {
       ["Ashe"] = true,
       ["KogMaw"] = true,
       ["Twitch"] = true,
-      ["Draven"] = true,
-      ["Ezreal"] = true,
-      ["Vayne"] = true,
-      ["Teemo"] = true,
-      ["Sivir"] = true,
-      ["Tristana"] = true,
-      ["MissFortune"] = true,
-      ["Lucian"] = true,
-      ["Kayle"] = true
+      --["Draven"] = true,
+      --["Ezreal"] = true,
+      ["Vayne"] = true
+      --["Teemo"] = true,
+      --["Sivir"] = true,
+      --["Tristana"] = true
     }
     if not self.supportedChampions[self.hName] == true then
         self.loaded = false
         print("gamsteronAIO "..self.version.." | hero not supported !")
     end
-    self._onDraw        = {}
+    self._aaSpeed       = function() return myHero.attackSpeed end
     self._champMenu     = function() return 0 end
     self._bonusDmg      = function() return 0 end
     self._bonusDmgUnit  = function() return 0 end
@@ -56,7 +55,7 @@ function __gsoVars:__init()
     self._canMove       = function() return true end
     self._canAttack     = function() return true end
 end
-function __gsoVars:_setOnDraw(func) self._onDraw[#self._onDraw+1] = func end
+function __gsoVars:_setAASpeed(func) self._aaSpeed = func end
 function __gsoVars:_setChampMenu(func) self._champMenu = func end
 function __gsoVars:_setBonusDmg(func) self._bonusDmg = func end
 function __gsoVars:_setBonusDmgUnit(func) self._bonusDmgUnit = func end
@@ -137,6 +136,248 @@ end
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
+--------------------|------------------------SPELLS---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+class "__gsoSpells"
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------init----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoSpells:__init()
+    self.lastQ    = 0
+    self.lastW    = 0
+    self.lastE    = 0
+    self.lastR    = 0
+    self.qLatency = 0
+    self.wLatency = 0
+    self.eLatency = 0
+    self.rLatency = 0
+    self.delayedSpell = {}
+    Callback.Add('WndMsg', function(msg, wParam) self:_onWndMsg(msg, wParam) end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------onwndmsg--------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoSpells:_onWndMsg(msg, wParam)
+    local getTick = GetTickCount()
+    local isKey = gso_menu.orb.keys.combo:Value() or gso_menu.orb.keys.harass:Value() or gso_menu.orb.keys.laneClear:Value() or gso_menu.orb.keys.lastHit:Value()
+    if Game.CanUseSpell(_Q) == 0 and wParam == HK_Q and getTick > self.lastQ + 1000 then
+        self.lastQ = getTick
+        self.qLatency = Game.Latency()*1.1
+        if isKey and not self.delayedSpell[0] then
+            self.delayedSpell[0] = { function() _gso.Utils:_castAgain(wParam) end, getTick }
+        end
+    elseif Game.CanUseSpell(_W) == 0 and wParam == HK_W and getTick > self.lastW + 1000 then
+        self.lastW = getTick
+        self.wLatency = Game.Latency()*1.1
+        if isKey and not self.delayedSpell[1] then
+            self.delayedSpell[1] = { function() _gso.Utils:_castAgain(wParam) end, getTick }
+        end
+    elseif Game.CanUseSpell(_E) == 0 and wParam == HK_E and getTick > self.lastE + 1000 then
+        self.lastE = getTick
+        self.eLatency = Game.Latency()*1.1
+        if isKey and not self.delayedSpell[2] then
+            self.delayedSpell[2] = { function() _gso.Utils:_castAgain(wParam) end, getTick }
+        end
+    elseif Game.CanUseSpell(_R) == 0 and wParam == HK_R and getTick > self.lastR + 1000 then
+        self.lastR = getTick
+        self.rLatency = Game.Latency()*1.1
+        if isKey and not self.delayedSpell[3] then
+            self.delayedSpell[3] = { function() _gso.Utils:_castAgain(wParam) end, getTick }
+        end
+    end
+end
+
+
+
+
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------------UTILS----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+class "__gsoUtils"
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------init----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:__init()
+    self.undyingBuffs = {
+        ["zhonyasringshield"] = true
+    }
+    self.Priorities = {
+        ["Aatrox"] = 3, ["Ahri"] = 2, ["Akali"] = 2, ["Alistar"] = 5, ["Amumu"] = 5, ["Anivia"] = 2, ["Annie"] = 2, ["Ashe"] = 1, ["AurelionSol"] = 2, ["Azir"] = 2,
+        ["Bard"] = 3, ["Blitzcrank"] = 5, ["Brand"] = 2, ["Braum"] = 5, ["Caitlyn"] = 1, ["Camille"] = 3, ["Cassiopeia"] = 2, ["Chogath"] = 5, ["Corki"] = 1,
+        ["Darius"] = 4, ["Diana"] = 2, ["DrMundo"] = 5, ["Draven"] = 1, ["Ekko"] = 2, ["Elise"] = 3, ["Evelynn"] = 2, ["Ezreal"] = 1, ["Fiddlesticks"] = 3, ["Fiora"] = 3,
+        ["Fizz"] = 2, ["Galio"] = 5, ["Gangplank"] = 2, ["Garen"] = 5, ["Gnar"] = 5, ["Gragas"] = 4, ["Graves"] = 2, ["Hecarim"] = 4, ["Heimerdinger"] = 3, ["Illaoi"] =  3,
+        ["Irelia"] = 3, ["Ivern"] = 5, ["Janna"] = 4, ["JarvanIV"] = 3, ["Jax"] = 3, ["Jayce"] = 2, ["Jhin"] = 1, ["Jinx"] = 1, ["Kalista"] = 1, ["Karma"] = 2, ["Karthus"] = 2,
+        ["Kassadin"] = 2, ["Katarina"] = 2, ["Kayle"] = 2, ["Kayn"] = 2, ["Kennen"] = 2, ["Khazix"] = 2, ["Kindred"] = 2, ["Kled"] = 4, ["KogMaw"] = 1, ["Leblanc"] = 2,
+        ["LeeSin"] = 3, ["Leona"] = 5, ["Lissandra"] = 2, ["Lucian"] = 1, ["Lulu"] = 3, ["Lux"] = 2, ["Malphite"] = 5, ["Malzahar"] = 3, ["Maokai"] = 4, ["MasterYi"] = 1,
+        ["MissFortune"] = 1, ["MonkeyKing"] = 3, ["Mordekaiser"] = 2, ["Morgana"] = 3, ["Nami"] = 3, ["Nasus"] = 4, ["Nautilus"] = 5, ["Nidalee"] = 2, ["Nocturne"] = 2,
+        ["Nunu"] = 4, ["Olaf"] = 4, ["Orianna"] = 2, ["Ornn"] = 4, ["Pantheon"] = 3, ["Poppy"] = 4, ["Quinn"] = 1, ["Rakan"] = 3, ["Rammus"] = 5, ["RekSai"] = 4,
+        ["Renekton"] = 4, ["Rengar"] = 2, ["Riven"] = 2, ["Rumble"] = 2, ["Ryze"] = 2, ["Sejuani"] = 4, ["Shaco"] = 2, ["Shen"] = 5, ["Shyvana"] = 4, ["Singed"] = 5,
+        ["Sion"] = 5, ["Sivir"] = 1, ["Skarner"] = 4, ["Sona"] = 3, ["Soraka"] = 3, ["Swain"] = 3, ["Syndra"] = 2, ["TahmKench"] = 5, ["Taliyah"] = 2, ["Talon"] = 2,
+        ["Taric"] = 5, ["Teemo"] = 2, ["Thresh"] = 5, ["Tristana"] = 1, ["Trundle"] = 4, ["Tryndamere"] = 2, ["TwistedFate"] = 2, ["Twitch"] = 1, ["Udyr"] = 4, ["Urgot"] = 4,
+        ["Varus"] = 1, ["Vayne"] = 1, ["Veigar"] = 2, ["Velkoz"] = 2, ["Vi"] = 4, ["Viktor"] = 2, ["Vladimir"] = 3, ["Volibear"] = 4, ["Warwick"] = 4, ["Xayah"] = 1,
+        ["Xerath"] = 2, ["XinZhao"] = 3, ["Yasuo"] = 2, ["Yorick"] = 4, ["Zac"] = 5, ["Zed"] = 2, ["Ziggs"] = 2, ["Zilean"] = 3, ["Zoe"] = 2, ["Zyra"] = 2
+    }
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------get distance-------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_getDistance(a, b)
+  local x = a.x - b.x
+  local z = a.z - b.z
+  return mathSqrt(x * x + z * z)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------point on line segment-------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_pointOnLineSegment(x, z, ax, az, bx, bz)
+    local bxax = bx - ax
+    local bzaz = bz - az
+    local t = ((x - ax) * bxax + (z - az) * bzaz) / (bxax * bxax + bzaz * bzaz)
+    if t < 0 then return false
+    elseif t > 1 then return false
+    else return true
+    end
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|----------------------immortal---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_isImmortal(unit, orb)
+    local unitHPPercent = 100 * unit.health / unit.maxHealth
+    if self.undyingBuffs["JaxCounterStrike"] ~= nil then    self.undyingBuffs["JaxCounterStrike"] = orb end
+    if self.undyingBuffs["kindredrnodeathbuff"] ~= nil then self.undyingBuffs["kindredrnodeathbuff"] = unitHPPercent < 10 end
+    if self.undyingBuffs["UndyingRage"] ~= nil then         self.undyingBuffs["UndyingRage"] = unitHPPercent < 15 end
+    if self.undyingBuffs["ChronoShift"] ~= nil then         self.undyingBuffs["ChronoShift"] = unitHPPercent < 15; self.undyingBuffs["chronorevive"] = unitHPPercent < 15 end
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.count > 0 then
+            local undyingBuff = self.undyingBuffs[buff.name]
+            if undyingBuff and undyingBuff == true then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------valid-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_valid(unit, orb)
+    if not unit or self:_isImmortal(unit, orb) then
+        return false
+    end
+    if not unit.dead and unit.isTargetable and unit.visible and unit.valid then
+        return true
+    end
+    return false
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|----------------------cast again-------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_castAgain(i)
+    Control.KeyDown(i)
+    Control.KeyUp(i)
+    Control.KeyDown(i)
+    Control.KeyUp(i)
+    Control.KeyDown(i)
+    Control.KeyUp(i)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------immobile----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_isImmobile(unit)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.count > 0 then
+            local bType = buff.type
+            if bType == 5 or bType == 11 or bType == 29 or bType == 24 or buff.name == "recall" then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|----------------------near unit--------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_nearUnit(pos, id)
+    for i = 1, #_gso.OB.enemyHeroes do
+        local unit = _gso.OB.enemyHeroes[i]
+        if id ~= unit.networkID and self:_getDistance(pos, unit.pos) < unit.boundingRadius then
+            return true
+        end
+    end
+    for i = 1, #_gso.OB.enemyMinions do
+        local unit = _gso.OB.enemyMinions[i]
+        if self:_getDistance(pos, unit.pos) < unit.boundingRadius then
+            return true
+        end
+    end
+    for i = 1, #_gso.OB.enemyTurrets do
+        local unit = _gso.OB.enemyTurrets[i]
+        if self:_getDistance(pos, unit.pos) < unit.boundingRadius then
+            return true
+        end
+    end
+    return false
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------get buff count-----------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_buffCount(unit, bName)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.count > 0 and buff.name:lower() == bName then
+            return buff.count
+        end
+    end
+    return 0
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------check if has buff----------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_hasBuff(unit, bName)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.count > 0 and buff.name:lower() == bName then
+            return true
+        end
+    end
+    return false
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------check if has buff----------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_isReady(spell)
+    return _gso.Orb.dActionsC == 0 and Game.CanUseSpell(spell) == 0
+end
+
+
+
+
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 --------------------|-------------------OBJECT MANAGER------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
@@ -155,11 +396,10 @@ function __gsoOB:__init()
     self.enemyTurrets = {}
     self.meTeam       = myHero.team
 end
-function __gsoOB:_getDistance(a, b)
-  local x = a.x - b.x
-  local z = a.z - b.z
-  return mathSqrt(x * x + z * z)
-end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------------tick---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
 function __gsoOB:_tick()
     local mePos = myHero.pos
     for i=1, #self.allyMinions do self.allyMinions[i]=nil end
@@ -168,7 +408,7 @@ function __gsoOB:_tick()
     for i=1, #self.enemyTurrets do self.enemyTurrets[i]=nil end
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
-        if minion and self:_getDistance(mePos, minion.pos) < 2000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid and not minion.isImmortal then
+        if minion and _gso.Utils:_getDistance(mePos, minion.pos) < 2000 and not minion.dead and minion.isTargetable and minion.visible and minion.valid and not minion.isImmortal then
             if minion.team ~= self.meTeam then
                 self.enemyMinions[#self.enemyMinions+1] = minion
             else
@@ -178,13 +418,13 @@ function __gsoOB:_tick()
     end
     for i = 1, Game.HeroCount() do
         local hero = Game.Hero(i)
-        if hero and hero.team ~= self.meTeam and self:_getDistance(mePos, hero.pos) < 10000 and not hero.dead and hero.isTargetable and hero.visible and hero.valid then
+        if hero and hero.team ~= self.meTeam and _gso.Utils:_getDistance(mePos, hero.pos) < 10000 and not hero.dead and hero.isTargetable and hero.visible and hero.valid then
             self.enemyHeroes[#self.enemyHeroes+1] = hero
         end
     end
     for i = 1, Game.TurretCount() do
         local turret = Game.Turret(i)
-        if turret and turret.team ~= self.meTeam and self:_getDistance(mePos, turret.pos) < 2000 and not turret.dead and turret.isTargetable and turret.visible and turret.valid and not turret.isImmortal then
+        if turret and turret.team ~= self.meTeam and _gso.Utils:_getDistance(mePos, turret.pos) < 2000 and not turret.dead and turret.isTargetable and turret.visible and turret.valid and not turret.isImmortal then
             self.enemyTurrets[#self.enemyTurrets+1] = turret
         end
     end
@@ -208,261 +448,30 @@ class "__gsoTS"
 --------------------|---------------------------------------------------------|--------------------
 --------------------|--------------------------init---------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
-
 function __gsoTS:__init()
-    self.loadedChamps = false
-    self.lastFound = -10000000
-    self.undyingBuffs = { ["zhonyasringshield"] = true }
-    self.Priorities = {
-        ["Aatrox"] = 3,
-        ["Ahri"] = 2,
-        ["Akali"] = 2,
-        ["Alistar"] = 5,
-        ["Amumu"] = 5,
-        ["Anivia"] = 2,
-        ["Annie"] = 2,
-        ["Ashe"] = 1,
-        ["AurelionSol"] = 2,
-        ["Azir"] = 2,
-        ["Bard"] = 3,
-        ["Blitzcrank"] = 5,
-        ["Brand"] = 2,
-        ["Braum"] = 5,
-        ["Caitlyn"] = 1,
-        ["Camille"] = 3,
-        ["Cassiopeia"] = 2,
-        ["Chogath"] = 5,
-        ["Corki"] = 1,
-        ["Darius"] = 4,
-        ["Diana"] = 2,
-        ["DrMundo"] = 5,
-        ["Draven"] = 1,
-        ["Ekko"] = 2,
-        ["Elise"] = 3,
-        ["Evelynn"] = 2,
-        ["Ezreal"] = 1,
-        ["Fiddlesticks"] = 3,
-        ["Fiora"] = 3,
-        ["Fizz"] = 2,
-        ["Galio"] = 5,
-        ["Gangplank"] = 2,
-        ["Garen"] = 5,
-        ["Gnar"] = 5,
-        ["Gragas"] = 4,
-        ["Graves"] = 2,
-        ["Hecarim"] = 4,
-        ["Heimerdinger"] = 3,
-        ["Illaoi"] =  3,
-        ["Irelia"] = 3,
-        ["Ivern"] = 5,
-        ["Janna"] = 4,
-        ["JarvanIV"] = 3,
-        ["Jax"] = 3,
-        ["Jayce"] = 2,
-        ["Jhin"] = 1,
-        ["Jinx"] = 1,
-        ["Kalista"] = 1,
-        ["Karma"] = 2,
-        ["Karthus"] = 2,
-        ["Kassadin"] = 2,
-        ["Katarina"] = 2,
-        ["Kayle"] = 2,
-        ["Kayn"] = 2,
-        ["Kennen"] = 2,
-        ["Khazix"] = 2,
-        ["Kindred"] = 2,
-        ["Kled"] = 4,
-        ["KogMaw"] = 1,
-        ["Leblanc"] = 2,
-        ["LeeSin"] = 3,
-        ["Leona"] = 5,
-        ["Lissandra"] = 2,
-        ["Lucian"] = 1,
-        ["Lulu"] = 3,
-        ["Lux"] = 2,
-        ["Malphite"] = 5,
-        ["Malzahar"] = 3,
-        ["Maokai"] = 4,
-        ["MasterYi"] = 1,
-        ["MissFortune"] = 1,
-        ["MonkeyKing"] = 3,
-        ["Mordekaiser"] = 2,
-        ["Morgana"] = 3,
-        ["Nami"] = 3,
-        ["Nasus"] = 4,
-        ["Nautilus"] = 5,
-        ["Nidalee"] = 2,
-        ["Nocturne"] = 2,
-        ["Nunu"] = 4,
-        ["Olaf"] = 4,
-        ["Orianna"] = 2,
-        ["Ornn"] = 4,
-        ["Pantheon"] = 3,
-        ["Poppy"] = 4,
-        ["Quinn"] = 1,
-        ["Rakan"] = 3,
-        ["Rammus"] = 5,
-        ["RekSai"] = 4,
-        ["Renekton"] = 4,
-        ["Rengar"] = 2,
-        ["Riven"] = 2,
-        ["Rumble"] = 2,
-        ["Ryze"] = 2,
-        ["Sejuani"] = 4,
-        ["Shaco"] = 2,
-        ["Shen"] = 5,
-        ["Shyvana"] = 4,
-        ["Singed"] = 5,
-        ["Sion"] = 5,
-        ["Sivir"] = 1,
-        ["Skarner"] = 4,
-        ["Sona"] = 3,
-        ["Soraka"] = 3,
-        ["Swain"] = 3,
-        ["Syndra"] = 2,
-        ["TahmKench"] = 5,
-        ["Taliyah"] = 2,
-        ["Talon"] = 2,
-        ["Taric"] = 5,
-        ["Teemo"] = 2,
-        ["Thresh"] = 5,
-        ["Tristana"] = 1,
-        ["Trundle"] = 4,
-        ["Tryndamere"] = 2,
-        ["TwistedFate"] = 2,
-        ["Twitch"] = 1,
-        ["Udyr"] = 4,
-        ["Urgot"] = 4,
-        ["Varus"] = 1,
-        ["Vayne"] = 1,
-        ["Veigar"] = 2,
-        ["Velkoz"] = 2,
-        ["Vi"] = 4,
-        ["Viktor"] = 2,
-        ["Vladimir"] = 3,
-        ["Volibear"] = 4,
-        ["Warwick"] = 4,
-        ["Xayah"] = 1,
-        ["Xerath"] = 2,
-        ["XinZhao"] = 3,
-        ["Yasuo"] = 2,
-        ["Yorick"] = 4,
-        ["Zac"] = 5,
-        ["Zed"] = 2,
-        ["Ziggs"] = 2,
-        ["Zilean"] = 3,
-        ["Zoe"] = 2,
-        ["Zyra"] = 2
-    }
-    self.lastQ    = 0
-    self.lastW    = 0
-    self.lastE    = 0
-    self.lastR    = 0
-    self.delayedSpell = {}
     self.apDmg = false
+    self.isTeemo = false
+    self.isBlinded = false
+    self.loadedChamps = false
+    self.lastTarget = nil
+    self.lastFound = -10000000
     self.selectedTarget = nil
     self.lastSelTick = 0
-    _gso.Vars:_setOnDraw(function() self:_draw() end)
-    Callback.Add('WndMsg', function(msg, wParam)
-        self:_onWndMsg(msg, wParam)
-    end)
+    self.LHTimers     = {
+        [0] = { tick = 0, id = 0 },
+        [1] = { tick = 0, id = 0 },
+        [2] = { tick = 0, id = 0 },
+        [3] = { tick = 0, id = 0 },
+        [4] = { tick = 0, id = 0 }
+    }
+    Callback.Add('Draw', function() self:_draw() end)
+    Callback.Add('WndMsg', function(msg, wParam) self:_onWndMsg(msg, wParam) end)
+    Callback.Add('Tick', function() self:_tick() end)
 end
-function __gsoTS:_isImmortal(unit, orb)
-    local unitHPPercent = 100 * unit.health / unit.maxHealth
-    if self.undyingBuffs["JaxCounterStrike"] ~= nil then    self.undyingBuffs["JaxCounterStrike"] = orb end
-    if self.undyingBuffs["kindredrnodeathbuff"] ~= nil then self.undyingBuffs["kindredrnodeathbuff"] = unitHPPercent < 10 end
-    if self.undyingBuffs["UndyingRage"] ~= nil then         self.undyingBuffs["UndyingRage"] = unitHPPercent < 15 end
-    if self.undyingBuffs["ChronoShift"] ~= nil then         self.undyingBuffs["ChronoShift"] = unitHPPercent < 15; self.undyingBuffs["chronorevive"] = unitHPPercent < 15 end
-    for i = 1, unit.buffCount do
-        local buff = unit:GetBuff(i)
-        if buff and buff.count > 0 then
-            local undyingBuff = self.undyingBuffs[buff.name]
-            if undyingBuff and undyingBuff == true then
-                return true
-            end
-        end
-    end
-    return false
-end
-function __gsoTS:_valid(unit, orb)
-    if not unit or self:_isImmortal(unit, orb) then
-        return false
-    end
-    if not unit.dead and unit.isTargetable and unit.visible and unit.valid then
-        return true
-    end
-    return false
-end
-function __gsoTS:_isImmobile(unit)
-    for i = 1, unit.buffCount do
-        local buff = unit:GetBuff(i)
-        local type = buff.type
-        if buff and buff.count > 0 and (type == 5 or type == 11 or type == 29 or type == 24 or buff.name == "recall") then
-            return true
-        end
-    end
-    return false
-end
-function __gsoTS:_draw()
-    if gso_menu.ts.selected.draw.enable:Value() == true and self.selectedTarget ~= nil then
-        Draw.Circle(self.selectedTarget.pos, gso_menu.ts.selected.draw.radius:Value(), gso_menu.ts.selected.draw.width:Value(), gso_menu.ts.selected.draw.color:Value())
-    end
-end
-function __gsoTS:_castAgain(i)
-    Control.KeyDown(i)
-    Control.KeyUp(i)
-    Control.KeyDown(i)
-    Control.KeyUp(i)
-    Control.KeyDown(i)
-    Control.KeyUp(i)
-end
-function __gsoTS:_onWndMsg(msg, wParam)
-    local getTick = GetTickCount()
-    local isKey = gso_menu.orb.keys.combo:Value() or gso_menu.orb.keys.harass:Value() or gso_menu.orb.keys.laneClear:Value() or gso_menu.orb.keys.lastHit:Value()
-    if wParam == HK_Q and getTick > self.lastQ + 500 then
-        self.lastQ = getTick
-        if isKey and not self.delayedSpell[0] then
-            self.delayedSpell[0] = { function() self:_castAgain(wParam) end, getTick }
-        end
-    elseif wParam == HK_W and getTick > self.lastW + 500 then
-        self.lastW = getTick
-        if isKey and not self.delayedSpell[1] then
-            self.delayedSpell[1] = { function() self:_castAgain(wParam) end, getTick }
-        end
-    elseif wParam == HK_E and getTick > self.lastE + 500 then
-        self.lastE = getTick
-        if isKey and not self.delayedSpell[2] then
-            self.delayedSpell[2] = { function() self:_castAgain(wParam) end, getTick }
-        end
-    elseif wParam == HK_R and getTick > self.lastR + 500 then
-        self.lastR = getTick
-        if isKey and not self.delayedSpell[3] then
-            self.delayedSpell[3] = { function() self:_castAgain(wParam) end, getTick }
-        end
-    elseif msg == WM_LBUTTONDOWN and gso_menu.ts.selected.enable:Value() == true then
-        if getTick > self.lastSelTick + 100 and getTick > self.lastQ + 250 and getTick > self.lastW + 250 and getTick > self.lastE + 250 and getTick > self.lastR + 250 then 
-            local num = 10000000
-            local enemy = nil
-            for i = 1, #_gso.OB.enemyHeroes do
-                local hero = _gso.OB.enemyHeroes[i]
-                local heroPos = hero.pos
-                if self:_valid(hero, true) and _gso.OB:_getDistance(myHero.pos, heroPos) < 10000 then
-                    local distance = _gso.OB:_getDistance(heroPos, mousePos)
-                    if distance < 150 and distance < num then
-                        enemy = hero
-                        num = distance
-                    end
-                end
-            end
-            if enemy ~= nil then
-                self.selectedTarget = enemy
-            else
-                self.selectedTarget = nil
-            end
-            self.lastSelTick = GetTickCount()
-        end
-    end
-end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------spell target------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
 function __gsoTS:_getTarget(_range, orb, changeRange)
     if gso_menu.ts.selected.only:Value() == true and self.selectedTarget ~= nil then
         return self.selectedTarget
@@ -474,8 +483,8 @@ function __gsoTS:_getTarget(_range, orb, changeRange)
     for i = 1, #_gso.OB.enemyHeroes do
         local unit = _gso.OB.enemyHeroes[i]
         local range = changeRange == true and _range + myHero.boundingRadius + unit.boundingRadius - 30 or _range
-        local distance = _gso.OB:_getDistance(myHero.pos, unit.pos)
-        if self:_valid(unit, orb) and distance < range then
+        local distance = _gso.Utils:_getDistance(myHero.pos, unit.pos)
+        if _gso.Utils:_valid(unit, orb) and distance < range then
             if gso_menu.ts.selected.enable:Value() == true and self.selectedTarget ~= nil and unit.networkID == self.selectedTarget.networkID then
                 return self.selectedTarget
             elseif mode == 1 then
@@ -543,6 +552,173 @@ function __gsoTS:_getTarget(_range, orb, changeRange)
     return result
 end
 
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------orbwalker combo----------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTS:_comboT()
+    local target = self:_getTarget(myHero.range, true, true)
+    if target then
+        self.lastTarget = target
+        return target
+    else
+        self.lastTarget = nil
+        return nil
+    end
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------orbwalker lasthit--------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTS:_lastHitT()
+    local result  = nil
+    local min     = 10000000
+    for i = 1, #_gso.Farm.lastHit do
+        local eMinionLH = _gso.Farm.lastHit[i]
+        local minion	= eMinionLH[1]
+        local hp		= eMinionLH[2]
+        local checkT = Game.Timer() < self.LHTimers[0].tick
+        local mHandle = minion.handle
+        if (not checkT or (checkT and self.LHTimers[0].id ~= mHandle)) and hp < min then
+            min = hp
+            result = minion
+            self.LHTimers[4].tick = Game.Timer() + 0.75
+            self.LHTimers[4].id = mHandle
+        end
+    end
+    return result
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------orbwalker turret---------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTS:_getTurret()
+    local result = nil
+    for i=1, #_gso.OB.enemyTurrets do
+        local turret = _gso.OB.enemyTurrets[i]
+        local range = myHero.range + myHero.boundingRadius + turret.boundingRadius - 30
+        if _gso.Utils:_getDistance(myHero.pos, turret.pos) < range then
+            result = turret
+            break
+        end
+    end
+    return result
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------orbwalker laneclear--------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTS:_laneClearT()
+    local result	= self:_lastHitT()
+    if not result then
+        result = self:_comboT()
+        if not result and #_gso.Farm.almostLH == 0 and _gso.Farm.shouldWait == false then
+            result = self:_getTurret()
+            if not result then
+                local min = 10000000
+                for i = 1, #_gso.Farm.laneClear do
+                    local minion = _gso.Farm.laneClear[i]
+                    local hp     = minion.health
+                    if hp < min then
+                        min = hp
+                        result = minion
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------orbwalker harass---------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTS:_harassT()
+    local result = self:_lastHitT()
+    return result == nil and self:_comboT() or result
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------------draw---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTS:_draw()
+    if gso_menu.ts.selected.draw.enable:Value() == true and self.selectedTarget ~= nil then
+        Draw.Circle(self.selectedTarget.pos, gso_menu.ts.selected.draw.radius:Value(), gso_menu.ts.selected.draw.width:Value(), gso_menu.ts.selected.draw.color:Value())
+    end
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------------tick---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTS:_tick()
+    
+    --[[ check if myHero is blinded by teemo's Q ]]
+    if _gso.TS.isTeemo == true then
+        self.isBlinded = _gso.Utils:_hasBuff(myHero, "blindingdart")
+    end
+    
+    --[[ load champions ]]
+    if self.loadedChamps == false then
+        for i = 1, Game.HeroCount() do
+            local hero = Game.Hero(i)
+            if hero.team ~= _gso.OB.meTeam then
+                local eName = hero.charName
+                if eName and #eName > 0 and not gso_menu.ts.priority[eName] then
+                    self.lastFound = Game.Timer()
+                    local priority = _gso.Utils.Priorities[eName] ~= nil and _gso.Utils.Priorities[eName] or 5
+                    gso_menu.ts.priority:MenuElement({ id = eName, name = eName, value = priority, min = 1, max = 5, step = 1 })
+                    if eName == "Teemo" then          self.isTeemo = true
+                    elseif eName == "Kayle" then      _gso.Utils.undyingBuffs["JudicatorIntervention"] = true
+                    elseif eName == "Taric" then      _gso.Utils.undyingBuffs["TaricR"] = true
+                    elseif eName == "Kindred" then    _gso.Utils.undyingBuffs["kindredrnodeathbuff"] = true
+                    elseif eName == "Zilean" then     _gso.Utils.undyingBuffs["ChronoShift"] = true; _gso.Utils.undyingBuffs["chronorevive"] = true
+                    elseif eName == "Tryndamere" then _gso.Utils.undyingBuffs["UndyingRage"] = true
+                    elseif eName == "Jax" then        _gso.Utils.undyingBuffs["JaxCounterStrike"] = true
+                    elseif eName == "Fiora" then      _gso.Utils.undyingBuffs["FioraW"] = true
+                    elseif eName == "Aatrox" then     _gso.Utils.undyingBuffs["aatroxpassivedeath"] = true
+                    elseif eName == "Vladimir" then   _gso.Utils.undyingBuffs["VladimirSanguinePool"] = true
+                    elseif eName == "KogMaw" then     _gso.Utils.undyingBuffs["KogMawIcathianSurprise"] = true
+                    elseif eName == "Karthus" then    _gso.Utils.undyingBuffs["KarthusDeathDefiedBuff"] = true
+                    end
+                end
+            end
+        end
+        if Game.Timer() > self.lastFound + 5 and Game.Timer() < self.lastFound + 10 then
+            self.loadedChamps = true
+        end
+    end
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------onwndmsg--------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTS:_onWndMsg(msg, wParam)
+    local getTick = GetTickCount()
+    if msg == WM_LBUTTONDOWN and gso_menu.ts.selected.enable:Value() == true then
+        if getTick > self.lastSelTick + 100 and getTick > _gso.Spells.lastQ + 250 and getTick > _gso.Spells.lastW + 250 and getTick > _gso.Spells.lastE + 250 and getTick > _gso.Spells.lastR + 250 then 
+            local num = 10000000
+            local enemy = nil
+            for i = 1, #_gso.OB.enemyHeroes do
+                local hero = _gso.OB.enemyHeroes[i]
+                local heroPos = hero.pos
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(myHero.pos, heroPos) < 10000 then
+                    local distance = _gso.Utils:_getDistance(heroPos, mousePos)
+                    if distance < 150 and distance < num then
+                        enemy = hero
+                        num = distance
+                    end
+                end
+            end
+            if enemy ~= nil then
+                self.selectedTarget = enemy
+            else
+                self.selectedTarget = nil
+            end
+            self.lastSelTick = GetTickCount()
+        end
+    end
+end
+
+
 
 
 
@@ -562,7 +738,6 @@ class "__gsoFarm"
 --------------------|--------------------------init---------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoFarm:__init()
-    self.latency        = Game.Latency() * 0.001
     self.aaDmg          = myHero.totalDamage
     self.lastHit        = {}
     self.almostLH       = {}
@@ -572,7 +747,6 @@ function __gsoFarm:__init()
     self.shouldWait     = false
 end
 function __gsoFarm:_tick()
-    self.latency = Game.Latency() * 0.001
     self.aaDmg   = myHero.totalDamage + _gso.Vars._bonusDmg()
     if self.shouldWait == true and Game.Timer() > self.shouldWaitT + 0.5 then
         self.shouldWait = false
@@ -590,8 +764,8 @@ function __gsoFarm:_predPos(speed, pPos, unit)
     if unitPath.hasMovePath == true then
         local uPos    = unit.pos
         local ePos    = unitPath.endPos
-        local distUP  = _gso.OB:_getDistance(pPos, uPos)
-        local distEP  = _gso.OB:_getDistance(pPos, ePos)
+        local distUP  = _gso.Utils:_getDistance(pPos, uPos)
+        local distEP  = _gso.Utils:_getDistance(pPos, ePos)
         local unitMS  = unit.ms
         if distEP > distUP then
             return uPos:Extended(ePos, 50+(unitMS*(distUP / (speed - unitMS))))
@@ -616,7 +790,7 @@ function __gsoFarm:_possibleDmg(eMin, time)
             local animT   = aaData.animationTime
             local windUpT = aaData.windUpTime
             local pSpeed  = aaData.projectileSpeed
-            local pFlyT   = pSpeed > 0 and _gso.OB:_getDistance(aMin.pos, eMin.pos) / pSpeed or 0
+            local pFlyT   = pSpeed > 0 and _gso.Utils:_getDistance(aMin.pos, eMin.pos) / pSpeed or 0
             local pStartT = endT - animT
             local pEndT   = pStartT + pFlyT + windUpT
             local checkT  = Game.Timer()
@@ -629,6 +803,10 @@ function __gsoFarm:_possibleDmg(eMin, time)
     end
     return result
 end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------set enemy minions----------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
 function __gsoFarm:_setEnemyMinions()
     for i=1, #self.lastHit do self.lastHit[i]=nil end
     for i=1, #self.almostLH do self.almostLH[i]=nil end
@@ -637,11 +815,11 @@ function __gsoFarm:_setEnemyMinions()
     for i = 1, #_gso.OB.enemyMinions do
         local eMinion = _gso.OB.enemyMinions[i]
         local eMinion_handle	= eMinion.handle
-        local distance = _gso.OB:_getDistance(myHero.pos, eMinion.pos)
+        local distance = _gso.Utils:_getDistance(myHero.pos, eMinion.pos)
         if distance < myHero.range + myHero.boundingRadius + eMinion.boundingRadius - 30 then
             local eMinion_health	= eMinion.health
             local myHero_aaData		= myHero.attackData
-            local myHero_pFlyTime	= myHero_aaData.windUpTime + (distance / myHero_aaData.projectileSpeed) + self.latency + 0.05 + mLH
+            local myHero_pFlyTime	= myHero_aaData.windUpTime + (distance / myHero_aaData.projectileSpeed) + (Game.Latency()*0.001) + 0.05 + mLH
             for k1,v1 in pairs(self.aAttacks) do
                 for k2,v2 in pairs(self.aAttacks[k1]) do
                     if v2.canceled == false and eMinion_handle == v2.to.handle then
@@ -687,7 +865,7 @@ function __gsoFarm:_setActiveAA()
                     local pSpeed  = aAAData.projectileSpeed
                     local aMPos   = aMinion.pos
                     local eMPos   = eMinion.pos
-                    local pFlyT		= pSpeed > 0 and _gso.OB:_getDistance(aMPos, eMPos) / pSpeed or 0
+                    local pFlyT		= pSpeed > 0 and _gso.Utils:_getDistance(aMPos, eMPos) / pSpeed or 0
                     local pStartT	= aAAData.endTime - aAAData.windDownTime
                     if not self.aAttacks[aHandle] then
                       self.aAttacks[aHandle] = {}
@@ -736,6 +914,10 @@ function __gsoFarm:_setActiveAA()
         end
     end
 end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------handle active attacks------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
 function __gsoFarm:_handleActiveAA()
     local aAttacks2 = self.aAttacks
     for k1,v1 in pairs(aAttacks2) do
@@ -751,9 +933,9 @@ function __gsoFarm:_handleActiveAA()
             if v2.canceled == false then
                 local ranged = v2.speed > 0
                 if ranged == true then
-                    self.aAttacks[k1][k2].pTime = _gso.OB:_getDistance(v2.fromPos, self:_predPos(v2.speed, v2.pos, v2.to)) / v2.speed
+                    self.aAttacks[k1][k2].pTime = _gso.Utils:_getDistance(v2.fromPos, self:_predPos(v2.speed, v2.pos, v2.to)) / v2.speed
                 end
-                if checkT > v2.startTime + self.aAttacks[k1][k2].pTime - self.latency - 0.02 or not v2.to or v2.to.dead then
+                if checkT > v2.startTime + self.aAttacks[k1][k2].pTime - (Game.Latency()*0.001) - 0.02 or not v2.to or v2.to.dead then
                     self.aAttacks[k1][k2] = nil
                 elseif ranged == true then
                     self.aAttacks[k1][k2].pos = v2.fromPos:Extended(v2.to.pos, (checkT-v2.startTime)*v2.speed)
@@ -884,9 +1066,9 @@ function __gsoTPred:GetWaypointsLength(Waypoints)
     return result
 end
 function __gsoTPred:CanMove(unit, delay)
-    for i = 1, unit.buffCount do
+    for i = 0, unit.buffCount do
         local buff = unit:GetBuff(i);
-        if buff.count > 0 and buff.duration>=delay then
+        if buff and buff.count > 0 and buff.duration>=delay then
             if (buff.type == 5 or buff.type == 8 or buff.type == 21 or buff.type == 22 or buff.type == 24 or buff.type == 11) then
                 return false -- block everything
             end
@@ -999,9 +1181,9 @@ function __gsoTPred:CheckMinionCollision(unit, Position, delay, radius, range, s
     return false
 end
 function __gsoTPred:isSlowed(unit, delay, speed, from)
-    for i = 1, unit.buffCount do
+    for i = 0, unit.buffCount do
         local buff = unit:GetBuff(i);
-        if from and buff.count > 0 and buff.duration>=(delay + self:GetDistance(unit.pos, from) / speed) then
+        if buff and from and buff.count > 0 and buff.duration>=(delay + self:GetDistance(unit.pos, from) / speed) then
             if (buff.type == 10) then
                 return true
             end
@@ -1094,108 +1276,31 @@ class "__gsoOrb"
 --------------------|--------------------------init---------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoOrb:__init()
+    
+    --[[ move if stop holding orb key ]]
+    self.lastKey      = 0
+    
+    --[[ orbwalker ]]
+    self.canMove      = true
     self.canAA        = true
+    self.aaReset      = false
     self.lAttack      = 0
     self.lMove        = 0
-    self.isTeemo      = false
-    self.isBlinded    = false
-    self.lastTarget   = nil
-    self.aaReset      = false
-    self.lastKey      = 0
-    self.LHTimers     = { [0] = { tick = 0, id = 0 }, [1] = { tick = 0, id = 0 }, [2] = { tick = 0, id = 0 }, [3] = { tick = 0, id = 0 }, [4] = { tick = 0, id = 0 } }
+    
+    --[[ delayed actions ]]
+    self.dActionsC    = 0
+    self.dActions     = {}
+    
+    --[[ attack data ]]
+    self.baseAASpeed  = 0
+    self.baseWindUp   = 0
     self.windUpT      = myHero.attackData.windUpTime
     self.animT        = myHero.attackData.animationTime
-    self.endTime      = myHero.attackData.endTime
-    self.dActions     = {}
-    self.dActionsC    = 0
+    
+    --[[ callbacks ]]
     Callback.Add('Tick', function() self:_tick() end)
     Callback.Add('Draw', function() self:_draw() end)
-end
-
---------------------|---------------------------------------------------------|--------------------
---------------------|--------------------check blind--------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-function __gsoOrb:_checkTeemoBlind()
-    for i = 1, myHero.buffCount do
-        local buff = myHero:GetBuff(i)
-        if buff and buff.count > 0 and buff.name == "BlindingDart" then
-            return true
-        end
-    end
-    return false
-end
-
---------------------|---------------------------------------------------------|--------------------
---------------------|----------------------get targets------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-function __gsoOrb:_comboT()
-    local target = _gso.TS:_getTarget(myHero.range, true, true)
-    if target ~= nil then
-        self.lastTarget = target
-        return target
-    else
-        self.lastTarget = nil
-        return nil
-    end
-end
-function __gsoOrb:_lastHitT()
-    local result  = nil
-    local min     = 10000000
-    for i = 1, #_gso.Farm.lastHit do
-        local eMinionLH = _gso.Farm.lastHit[i]
-        local minion	= eMinionLH[1]
-        local hp		= eMinionLH[2]
-        local checkT = Game.Timer() < self.LHTimers[0].tick
-        local mHandle = minion.handle
-        if not checkT or (checkT and self.LHTimers[0].id ~= mHandle) then
-            if hp < min then
-                min = hp
-                result = minion
-                self.LHTimers[4].tick = Game.Timer() + 0.75
-                self.LHTimers[4].id = mHandle
-            end
-        end
-    end
-    return result
-end
-function __gsoOrb:_getTurret()
-    local result = nil
-        local cET = #_gso.OB.enemyTurrets
-        for i=1, cET do
-            local turret = _gso.OB.enemyTurrets[i]
-            local range = myHero.range + myHero.boundingRadius + turret.boundingRadius - 30
-            if _gso.OB:_getDistance(myHero.pos, turret.pos) < range then
-                result = turret
-                break
-            end
-        end
-    return result
-end
-function __gsoOrb:_laneClearT()
-    local result	= self:_lastHitT()
-    if result == nil then
-        result = self:_comboT()
-        if result == nil and #_gso.Farm.almostLH == 0 and _gso.Farm.shouldWait == false then
-            result = self:_getTurret()
-            if result == nil then
-                local min = 10000000
-                local cLC = #_gso.Farm.laneClear
-                for i = 1, cLC do
-                    local minion = _gso.Farm.laneClear[i]
-                    local hp     = minion.health
-                    if hp < min then
-                        min = hp
-                        result = minion
-                    end
-                end
-            end
-        end
-    end
-    return result
-end
-function __gsoOrb:_harassT()
-    local result = self:_lastHitT()
-    return result == nil and self:_comboT() or result
+    Callback.Add('WndMsg', function(msg, wParam) self:_onWndMsg(msg, wParam) end)
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -1203,53 +1308,51 @@ end
 --------------------|---------------------------------------------------------|--------------------
 function __gsoOrb:_orb(unit)
     
-    --[[ handle myHero attackData ]]
-    local aaData = myHero.attackData
-    local endTime = aaData.endTime
-    self.animT = aaData.animationTime
-    self.windUpT = aaData.windUpTime
-    if endTime > self.endTime then
-        self.endTime = endTime
-    end
-    
-    --[[ check if can attack | move ]]
-    local checkT  = Game.Timer()
-    local canAA = _gso.Vars._canAttack() and not self.isBlinded and self.canAA and checkT > self.lAttack + 0.4 and checkT > self.endTime - 0.034 - (_gso.Farm.latency*1.5) + gso_menu.orb.delays.anim:Value()*0.001
-    local canMove = _gso.Vars._canMove() and checkT > self.lAttack + self.windUpT + (_gso.Farm.latency*1.5) + gso_menu.orb.delays.windup:Value()*0.001 and checkT > self.lMove + gso_menu.orb.delays.humanizer:Value()*0.001
-    
     --[[ use botrk ]]
-    if self.dActionsC == 0 and canMove and gso_menu.orb.keys.combo:Value() and gso_menu.gsoitem.botrk:Value() and self.lastTarget then
+    if self.dActionsC == 0 and gso_menu.orb.keys.combo:Value() and gso_menu.gsoitem.botrk:Value() and _gso.TS.lastTarget then
         local botrkHK = _gso.Items:_botrk()
         if botrkHK then
-            local targetPos = self.lastTarget.pos
-            if _gso.OB:_getDistance(myHero.pos, targetPos) < 550 then
+            local targetPos = _gso.TS.lastTarget.pos
+            if _gso.Utils:_getDistance(myHero.pos, targetPos) < 550 then
                 local cPos = cursorPos
                 Control.SetCursorPos(targetPos)
                 Control.KeyDown(botrkHK)
                 Control.KeyUp(botrkHK)
                 _gso.Items.lastBotrk = GetTickCount()
                 self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                self.canAA = false
                 self.dActionsC = self.dActionsC + 1
                 return
             end
         end
     end
     
+    --[[ > 2.5 attack speed ]]
+    local aaSpeed = _gso.Vars._aaSpeed() * self.baseAASpeed
+          aaSpeed = aaSpeed > 2.5 and 2.5 or aaSpeed
+    self.animT    = 1 / aaSpeed
+    self.windUpT  = (self.animT * self.baseWindUp) + (gso_menu.orb.delays.windup:Value() * 0.001) + 0.09
+    self.animT    = self.animT + 0.015
+    
+    --[[ check if can attack | move ]]
+    self.canAA      = os.clock() > self.lAttack + self.animT and _gso.Vars._canAttack() and not _gso.TS.isBlinded
+    self.canMove    = os.clock() > self.lAttack + self.windUpT
+    
     --[[ attack | move ]]
     if self.dActionsC == 0 then
-        if unit ~= nil and (canAA or self.aaReset) then
+        if unit ~= nil and (self.canAA or self.aaReset) then
             if ExtLibEvade and ExtLibEvade.Evading then return end
             local cPos = cursorPos
             Control.SetCursorPos(unit.pos)
+            Control.KeyDown(HK_TCO)
             Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
             Control.mouse_event(MOUSEEVENTF_RIGHTUP)
+            Control.KeyUp(HK_TCO)
             self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
             self.dActionsC = self.dActionsC + 1
             self.aaReset = false
-            self.lAttack = checkT
+            self.lAttack = os.clock()
             self.lMove = 0
-        elseif canMove and self.dActionsC == 0 then
+        elseif self.canMove and os.clock() > self.lMove + (gso_menu.orb.delays.humanizer:Value()*0.001) and self.dActionsC == 0 then
             local mPos = _gso.Vars._mousePos()
             if mPos ~= nil then
                 if ExtLibEvade and ExtLibEvade.Evading then return end
@@ -1260,61 +1363,56 @@ function __gsoOrb:_orb(unit)
                 Control.mouse_event(MOUSEEVENTF_RIGHTUP)
                 self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
                 self.dActionsC = self.dActionsC + 1
-                self.lMove = checkT
+                self.lMove = os.clock()
             else
                 if ExtLibEvade and ExtLibEvade.Evading then return end
                 if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
                 Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
                 Control.mouse_event(MOUSEEVENTF_RIGHTUP)
-                self.lMove = checkT
+                self.lMove = os.clock()
             end
         end
     end
 end
 
 --------------------|---------------------------------------------------------|--------------------
+--------------------|----------------------onwndmsg---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoOrb:_onWndMsg(msg, wParam)
+    if wParam == HK_TCO then
+        self.lAttack = os.clock()
+    end
+end
+
+--------------------|---------------------------------------------------------|--------------------
 --------------------|-------------------------tick----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
+--[[local e = myHero.attackData.endTime+1
+local c = 0
+local t = 0
+local pos = nil]]
 function __gsoOrb:_tick()
-  
+    
+    --[[ test orbwalker dmg
+    local aaData = myHero.attackData
+    local ee = aaData.endTime
+    if ee > e then
+        e = ee
+        if c == 0 then
+            t = os.clock()
+            pos = myHero.pos
+        end
+        c = c + 1
+        --self.serverlastAA = e - aaData.animationTime
+        if c == 5 then
+            print(os.clock()-t.." ".._gso.Utils:_getDistance(pos, myHero.pos))
+            c = 0
+            t = 0
+        end
+    end]]
+    
     --[[ disable when evading ]]
     if ExtLibEvade and ExtLibEvade.Evading then return end
-    
-    --[[ load champions to priority table + set undyingBuffs array ]]
-    if _gso.TS.loadedChamps == false then
-        for i = 1, Game.HeroCount() do
-            local hero = Game.Hero(i)
-            if hero.team ~= _gso.OB.meTeam then
-                local eName = hero.charName
-                if eName and #eName > 0 and not gso_menu.ts.priority[eName] then
-                    _gso.TS.lastFound = Game.Timer()
-                    local priority = _gso.TS.Priorities[eName] ~= nil and _gso.TS.Priorities[eName] or 5
-                    gso_menu.ts.priority:MenuElement({ id = eName, name = eName, value = priority, min = 1, max = 5, step = 1 })
-                    if eName == "Teemo" then          self.isTeemo = true
-                    elseif eName == "Kayle" then      _gso.TS.undyingBuffs["JudicatorIntervention"] = true
-                    elseif eName == "Taric" then      _gso.TS.undyingBuffs["TaricR"] = true
-                    elseif eName == "Kindred" then    _gso.TS.undyingBuffs["kindredrnodeathbuff"] = true
-                    elseif eName == "Zilean" then     _gso.TS.undyingBuffs["ChronoShift"] = true; _gso.TS.undyingBuffs["chronorevive"] = true
-                    elseif eName == "Tryndamere" then _gso.TS.undyingBuffs["UndyingRage"] = true
-                    elseif eName == "Jax" then        _gso.TS.undyingBuffs["JaxCounterStrike"] = true
-                    elseif eName == "Fiora" then      _gso.TS.undyingBuffs["FioraW"] = true
-                    elseif eName == "Aatrox" then     _gso.TS.undyingBuffs["aatroxpassivedeath"] = true
-                    elseif eName == "Vladimir" then   _gso.TS.undyingBuffs["VladimirSanguinePool"] = true
-                    elseif eName == "KogMaw" then     _gso.TS.undyingBuffs["KogMawIcathianSurprise"] = true
-                    elseif eName == "Karthus" then    _gso.TS.undyingBuffs["KarthusDeathDefiedBuff"] = true
-                    end
-                end
-            end
-        end
-        if Game.Timer() > _gso.TS.lastFound + 5 and Game.Timer() < _gso.TS.lastFound + 10 then
-            _gso.TS.loadedChamps = true
-        end
-    end
-    
-    --[[ check if myHero is blinded by teemo's Q ]]
-    if self.isTeemo == true then
-        self.isBlinded = self:_checkTeemoBlind()
-    end
     
     --[[ handle objects ]]
     _gso.OB:_tick()
@@ -1340,7 +1438,6 @@ function __gsoOrb:_tick()
     self.dActionsC = cDActions
     
     --[[ orbwalker ]]
-    local checkT  = Game.Timer()
     local ck      = gso_menu.orb.keys.combo:Value()
     local hk      = gso_menu.orb.keys.harass:Value()
     local lhk     = gso_menu.orb.keys.lastHit:Value()
@@ -1348,13 +1445,13 @@ function __gsoOrb:_tick()
     if Game.IsChatOpen() == false and (ck or hk or lhk or lck) then
         local AAtarget = nil
         if ck then
-            AAtarget = self:_comboT()
+            AAtarget = _gso.TS:_comboT()
         elseif hk then
-            AAtarget = self:_harassT()
+            AAtarget = _gso.TS:_harassT()
         elseif lhk then
-            AAtarget = self:_lastHitT()
+            AAtarget = _gso.TS:_lastHitT()
         elseif lck then
-            AAtarget = self:_laneClearT()
+            AAtarget = _gso.TS:_laneClearT()
         end
         if ExtLibEvade then
             if not ExtLibEvade.Evading then
@@ -1374,9 +1471,6 @@ end
 --------------------|-------------------------draw----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoOrb:_draw()
-    for i = 1, #_gso.Vars._onDraw do
-        _gso.Vars._onDraw[i]()
-    end
     if not gso_menu.orb.draw.enable:Value() then return end
     local mePos = myHero.pos
     if gso_menu.orb.draw.me.enable:Value() and not myHero.dead and mePos:ToScreen().onScreen then
@@ -1387,7 +1481,7 @@ function __gsoOrb:_draw()
         for i = 1, countEH do
             local hero = _gso.OB.enemyHeroes[i]
             local heroPos = hero.pos
-            if _gso.OB:_getDistance(mePos, heroPos) < 2000 and heroPos:ToScreen().onScreen then
+            if _gso.Utils:_getDistance(mePos, heroPos) < 2000 and heroPos:ToScreen().onScreen then
                 Draw.Circle(heroPos, hero.range + hero.boundingRadius + 35, gso_menu.orb.draw.he.width:Value(), gso_menu.orb.draw.he.color:Value())
             end
         end
@@ -1419,12 +1513,16 @@ function __gsoAshe:__init()
     self.lastQ = 0
     self.lastW = 0
     self.lastR = 0
-    self.qBuffEndT = 0
+    self.asNoQ = myHero.attackSpeed
+    self.windNoQ = _gso.Orb.windUpT*1000
+    _gso.Orb.baseAASpeed = 0.658
+    _gso.Orb.baseWindUp = 0.2192982
+    _gso.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setBonusDmg(function() return 3 end)
     _gso.Vars:_setBonusDmgUnit(function(unit) return self:_dmgUnit(unit) end)
-    _gso.Vars:_setCanMove(function() return self:_setCanMove() end)
     _gso.Vars:_setChampMenu(function() return self:_menu() end)
+    _gso.Vars:_setCanAttack(function() return self:_canAttack() end)
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -1446,6 +1544,38 @@ function __gsoAshe:_menu()
 end
 
 --------------------|---------------------------------------------------------|--------------------
+--------------------|----------------------aaSpeed----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoAshe:_aaSpeed()
+    local num1 = 4150+_gso.Spells.qLatency-(GetTickCount()-_gso.Spells.lastQ)
+    if (num1 > -1000 and num1 < 250) or num1 > 3500 then
+        return self.asNoQ
+    end
+    return myHero.attackSpeed
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------canAA-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoAshe:_canAttack()
+    local num1 = 4150+_gso.Spells.qLatency-(GetTickCount()-_gso.Spells.lastQ)
+    if num1 > -100 and num1 < self.windNoQ + 90 and myHero.attackSpeed * 0.658 > 1.5 then
+        return false
+    end
+    local checkTick = GetTickCount()
+    local qMinus = checkTick - self.lastQ
+    local qMinuss = checkTick - _gso.Spells.lastQ
+    local wMinus = checkTick - self.lastW
+    local wMinuss = checkTick - _gso.Spells.lastW
+    local rMinus = checkTick - self.lastR
+    local rMinuss = checkTick - _gso.Spells.lastR
+    if qMinus > 200 and qMinuss > 200 and wMinus > 550 and wMinuss > 550 and rMinus > 550 and rMinuss > 550 then
+        return true
+    end
+    return false
+end
+
+--------------------|---------------------------------------------------------|--------------------
 --------------------|--------------------cast spells--------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoAshe:_castW()
@@ -1454,28 +1584,18 @@ function __gsoAshe:_castW()
         local mePos = myHero.pos
         local sW = { delay = 0.25, range = 1200, width = 75, speed = 2000, sType = "line", col = true }
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sW.delay, sW.width*0.5, sW.range, sW.speed, mePos, sW.col, sW.sType)
-        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sW.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.Utils:_getDistance(mePos, castpos) < sW.range and _gso.Utils:_getDistance(target.pos, castpos) < 500 then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_W)
             Control.KeyUp(HK_W)
             self.lastW = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
     end
     return false
-end
-function __gsoAshe:_pointOnLineSegment(x, z, ax, az, bx, bz)
-    local bxax = bx - ax
-    local bzaz = bz - az
-    local t = ((x - ax) * bxax + (z - az) * bzaz) / (bxax * bxax + bzaz * bzaz)
-    if t < 0 then return false
-    elseif t > 1 then return false
-    else return true
-    end
 end
 function __gsoAshe:_castRd()
     local mePos = myHero.pos
@@ -1483,8 +1603,8 @@ function __gsoAshe:_castRd()
     local menuDist = gso_menu.gsoashe.rdist:Value()
     for i = 1, #_gso.OB.enemyHeroes do
         local hero = _gso.OB.enemyHeroes[i]
-        local distance = _gso.OB:_getDistance(mePos, hero.pos)
-        if _gso.TS:_valid(hero, false) and distance < menuDist then
+        local distance = _gso.Utils:_getDistance(mePos, hero.pos)
+        if _gso.Utils:_valid(hero, false) and distance < menuDist then
             menuDist = distance
             t = hero
         end
@@ -1493,14 +1613,13 @@ function __gsoAshe:_castRd()
         local tPos = t.pos
         local sR = { delay = 0.25, range = 1500, width = 125, speed = 1600, sType = "line", col = false }
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(t, sR.delay, sR.width*0.5, sR.range, sR.speed, mePos, sR.col, sR.sType)
-        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(t.pos, castpos) < 500 and self:_pointOnLineSegment(castpos.x, castpos.z, tPos.x, tPos.z, mePos.x, mePos.z) then
+        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.Utils:_getDistance(t.pos, castpos) < 500 and _gso.Utils:_pointOnLineSegment(castpos.x, castpos.z, tPos.x, tPos.z, mePos.x, mePos.z) then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_R)
             Control.KeyUp(HK_R)
             self.lastR = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
@@ -1512,7 +1631,7 @@ function __gsoAshe:_castRi()
     for i = 1, #_gso.OB.enemyHeroes do
         local hero = _gso.OB.enemyHeroes[i]
         local heroPos = hero.pos
-        if _gso.TS:_valid(hero, false) and _gso.OB:_getDistance(mePos, heroPos) < 1000 and _gso.TS:_isImmobile(hero) then
+        if _gso.Utils:_valid(hero, false) and _gso.Utils:_getDistance(mePos, heroPos) < 1000 and _gso.Utils:_isImmobile(hero) then
             local rPred = heroPos
             if rPred and rPred:ToScreen().onScreen then
                 local cPos = cursorPos
@@ -1521,7 +1640,6 @@ function __gsoAshe:_castRi()
                 Control.KeyUp(HK_R)
                 self.lastR = GetTickCount()
                 _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                _gso.Orb.canAA = false
                 _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
                 return true
             end
@@ -1530,38 +1648,27 @@ function __gsoAshe:_castRi()
     return false
 end
 
+
+
 --------------------|---------------------------------------------------------|--------------------
 --------------------|------------------------tick-----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoAshe:_tick()
     
-    --[[ ENABLE AA AFTER SPELLS ]]
-    local checkTick = GetTickCount()
-    local qMinus = checkTick - self.lastQ
-    local wMinus = checkTick - self.lastW
-    local rMinus = checkTick - self.lastR
-    local botrkMinus = checkTick - _gso.Items.lastBotrk
-    if _gso.Orb.canAA == false and wMinus > 350 and rMinus > 350 and botrkMinus > 75 then
-        _gso.Orb.canAA = true
-    end
-    
-    --[[ increase canMove delay - check q buff ]]
-    local checkT = Game.Timer()
-    if myHero:GetSpellData(_Q).level > 0 then
-        for i = 1, myHero.buffCount do
-            local buff = myHero:GetBuff(i)
-            if buff and buff.count > 0 and buff.duration < 0.3 and buff.name:lower() == "asheqattack" then
-                self.qBuffEndT = checkT
-                break
-            end
-        end
-    end
-    
     --[[ cast spells ]]
-    local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*1.5) + gso_menu.orb.delays.windup:Value()*0.001
-    if canMove then
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT then
     
         --[[ check if spells are ready ]]
+        local checkTick = GetTickCount()
+        local qMinus = checkTick - self.lastQ
+        local qMinuss = checkTick - _gso.Spells.lastQ
+        local wMinus = checkTick - self.lastW
+        local wMinuss = checkTick - _gso.Spells.lastW
+        local rMinus = checkTick - self.lastR
+        local rMinuss = checkTick - _gso.Spells.lastR
+        local canQTime = qMinus > 1000 and qMinuss > 1000 and wMinus > 350 and wMinuss > 350 and rMinus > 350 and rMinuss > 350
+        local canWTime = qMinus > 450 and qMinuss > 450 and wMinus > 1000 and wMinuss > 1000 and rMinus > 700 and rMinuss > 700
+        local canRTime = qMinus > 450 and qMinuss > 450 and wMinus > 650 and wMinuss > 650 and rMinus > 1000 and rMinuss > 1000
         local isCombo = gso_menu.orb.keys.combo:Value()
         local isHarass = gso_menu.orb.keys.harass:Value()
         local isComboQ = isCombo and gso_menu.gsoashe.combo.qc:Value()
@@ -1572,10 +1679,10 @@ function __gsoAshe:_tick()
         local isHarassRd = isHarass and gso_menu.gsoashe.harass.rhd:Value()
         local isComboRi = isCombo and gso_menu.gsoashe.combo.rci:Value()
         local isHarassRi = isHarass and gso_menu.gsoashe.harass.rhi:Value()
-        local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 350 and rMinus > 350 and Game.CanUseSpell(_Q) == 0
-        local isWReady = (isComboW or isHarassW) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 1000 and rMinus > 350 and Game.CanUseSpell(_W) == 0
-        local isRdReady = (isComboRd or isHarassRd) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 350 and rMinus > 1000 and Game.CanUseSpell(_R) == 0
-        local isRiReady = (isComboRi or isHarassRi) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 350 and rMinus > 1000 and Game.CanUseSpell(_R) == 0
+        local isQReady = (isComboQ or isHarassQ) and canQTime == true and _gso.Utils:_isReady(_Q) == true
+        local isWReady = (isComboW or isHarassW) and canWTime == true and _gso.Utils:_isReady(_W) == true
+        local isRdReady = (isComboRd or isHarassRd) and canRTime == true and _gso.Utils:_isReady(_R) == true
+        local isRiReady = (isComboRi or isHarassRi) and canRTime == true and _gso.Utils:_isReady(_R) == true
         
         if isQReady or isWReady or isRdReady or isRiReady then
             
@@ -1585,16 +1692,16 @@ function __gsoAshe:_tick()
             local enemiesCount = 0
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
-                if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
                     enemiesCount = enemiesCount + 1
                 end
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT
+            local afterBefore = os.clock() < _gso.Orb.lAttack + _gso.Orb.animT*0.7
             
             --[[ spells if enemy is out of aa range ]]
-            local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+            local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
             
             --[[ cast spells ]]
             if afterBefore or outOfAARange then
@@ -1608,7 +1715,9 @@ function __gsoAshe:_tick()
                     return
                 end
             end
-            if isQReady and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.75 then
+            if isQReady and os.clock() > _gso.Orb.lAttack + _gso.Orb.animT*0.5 and os.clock() < _gso.Orb.lAttack + _gso.Orb.animT*0.7 then
+                self.asNoQ = myHero.attackSpeed
+                self.windNoQ = _gso.Orb.windUpT*1000
                 Control.KeyDown(HK_Q)
                 Control.KeyUp(HK_Q)
                 self.lastQ = GetTickCount()
@@ -1618,27 +1727,15 @@ function __gsoAshe:_tick()
 end
 
 --------------------|---------------------------------------------------------|--------------------
---------------------|---------------------set can move------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-function __gsoAshe:_setCanMove()
-    local result = true
-    local checkT = Game.Timer()
-    if checkT < self.qBuffEndT + _gso.Orb.windUpT + _gso.Orb.animT then
-        result = checkT > _gso.Orb.endTime - (_gso.Orb.animT - _gso.Orb.windUpT)
-    end
-    return result
-end
-
---------------------|---------------------------------------------------------|--------------------
 --------------------|-----------------------bonus dmg-------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoAshe:_dmgUnit(unit)
     local dmg = myHero.totalDamage
     local crit = 0.1 + myHero.critChance
-    for i = 1, unit.buffCount do
+    for i = 0, unit.buffCount do
         local buff = unit:GetBuff(i)
         if buff and buff.count > 0 and buff.name:lower() == "ashepassiveslow" then
-            local aacompleteT = myHero.attackData.windUpTime + (_gso.OB:_getDistance(myHero.pos, unit.pos) / myHero.attackData.projectileSpeed)
+            local aacompleteT = myHero.attackData.windUpTime + (_gso.Utils:_getDistance(myHero.pos, unit.pos) / myHero.attackData.projectileSpeed)
             if aacompleteT + 0.1 < buff.duration then
                 return dmg * crit
             end
@@ -1646,7 +1743,6 @@ function __gsoAshe:_dmgUnit(unit)
     end
     return 0
 end
-
 
 
 
@@ -1667,12 +1763,55 @@ class "__gsoTwitch"
 --------------------|--------------------------init---------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoTwitch:__init()
-    self.lastW         = 0
-    self.lastE         = 0
-    self.eBuffs        = {}
+    self.hasQBuff = false
+    self.qBuffTime = 0
+    self.lastW  = 0
+    self.lastE  = 0
+    self.eBuffs = {}
+    self.asNoQ = myHero.attackSpeed
+    self.boolRecall = true
+    self.QASBuff = false
+    self.QASTime = 0
+    _gso.Orb.baseAASpeed = 0.679
+    _gso.Orb.baseWindUp = 0.2019159
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setBonusDmg(function() return 3 end)
     _gso.Vars:_setChampMenu(function() return self:_menu() end)
+    _gso.Vars:_setCanAttack(function() return self:_canAttack() end)
+    _gso.Vars:_setAASpeed(function() return self:_aaSpeed() end)
+    Callback.Add('Draw', function() self:_draw() end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|----------------------aaSpeed----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTwitch:_aaSpeed()
+    local num1 = self.QASTime-GetTickCount()
+    if (num1 > -1000 and num1 < 100) or num1 > 4500 then
+        return self.asNoQ
+    end
+    return myHero.attackSpeed
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------canAA-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTwitch:_canAttack()
+    local num1 = 1350+_gso.Spells.qLatency-(GetTickCount()-_gso.Spells.lastQ)
+    if num1 > 100 and num1 < (_gso.Orb.windUpT*1000) + 270 then
+        return false
+    end
+    local checkTick = GetTickCount()
+    local qMinuss = checkTick - _gso.Spells.lastQ
+    local wMinus = checkTick - self.lastW
+    local wMinuss = checkTick - _gso.Spells.lastW
+    local eMinus = checkTick - self.lastE
+    local eMinuss = checkTick - _gso.Spells.lastE
+    local rMinuss = checkTick - _gso.Spells.lastR
+    if wMinus > 550 and wMinuss > 550 and eMinus > 400 and eMinuss > 400 then
+        return true
+    end
+    return false
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -1680,7 +1819,11 @@ end
 --------------------|---------------------------------------------------------|--------------------
 function __gsoTwitch:_menu()
     gso_menu:MenuElement({name = "Twitch", id = "gsotwitch", type = MENU, leftIcon = "https://i.imgur.com/tVpVF5L.png"})
+        gso_menu.gsotwitch:MenuElement({name = "Q settings", id = "qset", type = MENU })
+            gso_menu.gsotwitch.qset:MenuElement({id = "recallkey", name = "Invisible Recall Key", key = string.byte("T"), value = false, toggle = true})
+            gso_menu.gsotwitch.qset:MenuElement({id = "note1", name = "Note: Key should be diffrent than recall key", type = SPACE})
         gso_menu.gsotwitch:MenuElement({name = "W settings", id = "wset", type = MENU })
+            gso_menu.gsotwitch.wset:MenuElement({id = "stopq", name = "Stop if Q invisible", value = true})
             gso_menu.gsotwitch.wset:MenuElement({id = "stopult", name = "Stop if R", value = true})
             gso_menu.gsotwitch.wset:MenuElement({id = "combo", name = "Use W Combo", value = true})
             gso_menu.gsotwitch.wset:MenuElement({id = "harass", name = "Use W Harass", value = false})
@@ -1689,28 +1832,142 @@ function __gsoTwitch:_menu()
             gso_menu.gsotwitch.eset:MenuElement({id = "harass", name = "Use E Harass", value = false})
             gso_menu.gsotwitch.eset:MenuElement({id = "stacks", name = "X stacks", value = 6, min = 1, max = 6, step = 1 })
             gso_menu.gsotwitch.eset:MenuElement({id = "enemies", name = "X enemies", value = 1, min = 1, max = 5, step = 1 })
+        gso_menu.gsotwitch:MenuElement({name = "Drawings", id = "draws", type = MENU })
+            gso_menu.gsotwitch.draws:MenuElement({id = "enable", name = "Enable", value = true})
+            gso_menu.gsotwitch.draws:MenuElement({id = "timer", name = "Q Timer", leftIcon = "https://i.imgur.com/TMZUTsh.png", icon = "https://i.imgur.com/uZF90We.png", type = SPACE,
+                onclick = function()
+                    gso_menu.gsotwitch.draws.enablet:Hide()
+                    gso_menu.gsotwitch.draws.colort:Hide()
+                    gso_menu.gsotwitch.draws.note1:Hide()
+                    gso_menu.gsotwitch.draws.note2:Hide()
+                end
+            })
+            gso_menu.gsotwitch.draws:MenuElement({id = "note1", name = "", type = SPACE})
+            gso_menu.gsotwitch.draws:MenuElement({id = "enablet", name = "Enable", value = true})
+            gso_menu.gsotwitch.draws:MenuElement({id = "colort", name = "Color", color = Draw.Color(200, 65, 255, 100)})
+            gso_menu.gsotwitch.draws:MenuElement({id = "note2", name = "", type = SPACE})
+            gso_menu.gsotwitch.draws:MenuElement({id = "circles1", name = "Circles", leftIcon = "https://i.imgur.com/lcp5RVj.png", icon = "https://i.imgur.com/uZF90We.png", type = SPACE,
+                onclick = function()
+                    gso_menu.gsotwitch.draws.invenable:Hide()
+                    gso_menu.gsotwitch.draws.notenable:Hide()
+                    gso_menu.gsotwitch.draws.invcolor:Hide()
+                    gso_menu.gsotwitch.draws.notcolor:Hide()
+                    gso_menu.gsotwitch.draws.wenable:Hide()
+                    gso_menu.gsotwitch.draws.wcolor:Hide()
+                    gso_menu.gsotwitch.draws.eenable:Hide()
+                    gso_menu.gsotwitch.draws.ecolor:Hide()
+                    gso_menu.gsotwitch.draws.note3:Hide()
+                    gso_menu.gsotwitch.draws.note4:Hide()
+                    gso_menu.gsotwitch.draws.note5:Hide()
+                    gso_menu.gsotwitch.draws.note6:Hide()
+                    gso_menu.gsotwitch.draws.note7:Hide()
+                end
+            })
+            gso_menu.gsotwitch.draws:MenuElement({id = "note3", name = "", type = SPACE})
+            gso_menu.gsotwitch.draws:MenuElement({id = "invenable", name = "Q Invisible Enable", value = true})
+            gso_menu.gsotwitch.draws:MenuElement({id = "invcolor", name = "Q Invisible Color ", color = Draw.Color(200, 255, 0, 0)})
+            gso_menu.gsotwitch.draws:MenuElement({id = "note4", name = "", type = SPACE})
+            gso_menu.gsotwitch.draws:MenuElement({id = "notenable", name = "Q Notification Enable", value = true})
+            gso_menu.gsotwitch.draws:MenuElement({id = "notcolor", name = "Q Notification Color", color = Draw.Color(200, 188, 77, 26)})
+            gso_menu.gsotwitch.draws:MenuElement({id = "note5", name = "", type = SPACE})
+            gso_menu.gsotwitch.draws:MenuElement({id = "wenable", name = "W Enable", value = true})
+            gso_menu.gsotwitch.draws:MenuElement({id = "wcolor", name = "W Color", color = Draw.Color(255, 71, 70, 70)})
+            gso_menu.gsotwitch.draws:MenuElement({id = "note6", name = "", type = SPACE})
+            gso_menu.gsotwitch.draws:MenuElement({id = "eenable", name = "E Enable", value = true})
+            gso_menu.gsotwitch.draws:MenuElement({id = "ecolor", name = "E Color", color = Draw.Color(255, 66, 79, 122)})
+            gso_menu.gsotwitch.draws:MenuElement({id = "note7", name = "", type = SPACE})
+gso_menu.gsotwitch.draws.note1:Hide(true)
+gso_menu.gsotwitch.draws.note2:Hide(true)
+gso_menu.gsotwitch.draws.note3:Hide(true)
+gso_menu.gsotwitch.draws.note4:Hide(true)
+gso_menu.gsotwitch.draws.note5:Hide(true)
+gso_menu.gsotwitch.draws.note6:Hide(true)
+gso_menu.gsotwitch.draws.note7:Hide(true)
+gso_menu.gsotwitch.draws.enablet:Hide(true)
+gso_menu.gsotwitch.draws.colort:Hide(true) 
+gso_menu.gsotwitch.draws.invenable:Hide(true)
+gso_menu.gsotwitch.draws.notenable:Hide(true)
+gso_menu.gsotwitch.draws.invcolor:Hide(true)
+gso_menu.gsotwitch.draws.notcolor:Hide(true)
+gso_menu.gsotwitch.draws.wenable:Hide(true)
+gso_menu.gsotwitch.draws.wcolor:Hide(true)
+gso_menu.gsotwitch.draws.eenable:Hide(true)
+gso_menu.gsotwitch.draws.ecolor:Hide(true)
+gso_menu.gsotwitch.qset.recallkey:Value(false)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------------draw---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTwitch:_draw()
+    if not gso_menu.gsotwitch.draws.enable:Value() then return end
+    local mePos = myHero.pos
+    if gso_menu.gsotwitch.draws.wenable:Value() then
+        Draw.Circle(mePos, 950, 1, gso_menu.gsotwitch.draws.wcolor:Value())
+    end
+    if gso_menu.gsotwitch.draws.eenable:Value() then
+        Draw.Circle(mePos, 1200, 1, gso_menu.gsotwitch.draws.ecolor:Value())
+    end
+    if gso_menu.gsotwitch.draws.enablet:Value() and GetTickCount() < _gso.Spells.lastQ + 16000 then
+        local mePos2D = mePos:To2D()
+        local posX = mePos2D.x - 50
+        local posY = mePos2D.y
+        local num1 = math.floor(1350+_gso.Spells.qLatency-(GetTickCount()-_gso.Spells.lastQ))
+        if num1 > 1 then
+            local str1 = tostring(num1)
+            local str2 = ""
+            for i = 1, #str1 do
+                if #str1 <=2 then
+                    str2 = 0
+                    break
+                end
+                local char1 = i <= #str1-2 and str1:sub(i,i) or "0"
+                str2 = str2..char1
+            end
+            Draw.Text(str2, 50, posX+50, posY-15, gso_menu.gsotwitch.draws.colort:Value())
+        elseif self.hasQBuff then
+            local extraQTime = 1000*myHero:GetSpellData(_Q).level
+            local num2 = math.floor(self.qBuffTime-GetTickCount()+_gso.Spells.qLatency)
+            if num2 > 1 then
+                local str1 = tostring(num2)
+                local str2 = ""
+                for i = 1, #str1 do
+                    if #str1 <=2 then
+                        str2 = 0
+                        break
+                    end
+                    local char1 = i <= #str1-2 and str1:sub(i,i) or "0"
+                    str2 = str2..char1
+                end
+                Draw.Text(str2, 50, posX+50, posY-15, gso_menu.gsotwitch.draws.colort:Value())
+                if gso_menu.gsotwitch.draws.invenable:Value() then
+                    Draw.Circle(mePos, 500, 1, gso_menu.gsotwitch.draws.invcolor:Value())
+                end
+                if gso_menu.gsotwitch.draws.notenable:Value() then
+                    Draw.Circle(mePos, 800, 1, gso_menu.gsotwitch.draws.notcolor:Value())
+                end
+            end
+        end
+    end
+    --
 end
 
 --------------------|---------------------------------------------------------|--------------------
 --------------------|---------------------cast spells-------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoTwitch:_castW()
-    if gso_menu.gsotwitch.wset.stopult:Value() and GetTickCount() < _gso.TS.lastR + 5500 then
-        return false
-    end
     local target = _gso.TS:_getTarget(950, false, false)
     if target ~= nil then
         local mePos = myHero.pos
         local sW = { delay = 0.25, range = 950, width = 275, speed = 1400, sType = "circular", col = false }
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sW.delay, sW.width*0.5, sW.range, sW.speed, mePos, sW.col, sW.sType)
-        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sW.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.Utils:_getDistance(mePos, castpos) < sW.range and _gso.Utils:_getDistance(target.pos, castpos) < 500 then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_W)
             Control.KeyUp(HK_W)
             self.lastW = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
@@ -1723,7 +1980,7 @@ function __gsoTwitch:_castE()
     local countE    = 0
     for i = 1, #_gso.OB.enemyHeroes do
         local hero = _gso.OB.enemyHeroes[i]
-        if _gso.OB:_getDistance(myHero.pos, hero.pos) < 1200 and _gso.TS:_valid(hero, false) then
+        if _gso.Utils:_getDistance(myHero.pos, hero.pos) < 1200 and _gso.Utils:_valid(hero, false) then
             local nID = hero.networkID
             if self.eBuffs[nID] and self.eBuffs[nID].count >= xStacks then
                 countE = countE + 1
@@ -1734,7 +1991,6 @@ function __gsoTwitch:_castE()
         Control.KeyDown(HK_E)
         Control.KeyUp(HK_E)
         self.lastE = GetTickCount()
-        _gso.Orb.canAA = false
         return true
     end
     return false
@@ -1745,7 +2001,39 @@ end
 --------------------|---------------------------------------------------------|--------------------
 function __gsoTwitch:_tick()
     
-    --[[ check E buff ]]
+    --[[ recall key ]]
+    local boolRecall = gso_menu.gsotwitch.qset.recallkey:Value()
+    if boolRecall == self.boolRecall then
+        Control.KeyDown(HK_Q)
+        Control.KeyUp(HK_Q)
+        Control.KeyDown(string.byte("B"))
+        Control.KeyUp(string.byte("B"))
+        self.boolRecall = not boolRecall
+        --print("ok")
+    end
+    
+    --[[ twitch Q buff ]]
+    local hasQBuff = false
+    local QASBuff = false
+    for i = 0, myHero.buffCount do
+        local buff = myHero:GetBuff(i)
+        local buffName = buff and buff.name or nil
+        if buffName and buff.count > 0 and buff.duration > 0 then
+            if buffName == "globalcamouflage" or buffName == "TwitchHideInShadows" then
+                hasQBuff = true
+                self.qBuffTime = GetTickCount() + (buff.duration*1000)
+                break
+            end
+            if buffName == "twitchhideinshadowsbuff" then
+                QASBuff = true
+                self.QASTime = GetTickCount() + (buff.duration*1000)
+            end
+        end
+    end
+    self.hasQBuff = hasQBuff
+    self.QASBuff = QASBuff
+    
+    --[[ handle E buffs ]]
     for i = 1, #_gso.OB.enemyHeroes do
         local hero  = _gso.OB.enemyHeroes[i]
         local nID   = hero.networkID
@@ -1756,9 +2044,9 @@ function __gsoTwitch:_tick()
             local hasB = false
             local cB = self.eBuffs[nID].count
             local dB = self.eBuffs[nID].durT
-            for i = 1, hero.buffCount do
+            for i = 0, hero.buffCount do
                 local buff = hero:GetBuff(i)
-                if buff.count > 0 and buff.name:lower() == "twitchdeadlyvenom" then
+                if buff and buff.count > 0 and buff.name:lower() == "twitchdeadlyvenom" then
                     hasB = true
                     if cB < 6 and buff.duration > dB then
                         self.eBuffs[nID].count = cB + 1
@@ -1776,28 +2064,37 @@ function __gsoTwitch:_tick()
         end
     end
     
-    --[[ enable aa after spells ]]
-    local checkTick = GetTickCount()
-    local wMinus = checkTick - self.lastW
-    local eMinus = checkTick - self.lastE
-    local botrkMinus = checkTick - _gso.Items.lastBotrk
-    if _gso.Orb.canAA == false and wMinus > 350 and eMinus > 350 and botrkMinus > 75 then
-        _gso.Orb.canAA = true
+    --[[ custom attack speed]]
+    if GetTickCount() - _gso.Spells.lastQ < 500 then
+        self.asNoQ = myHero.attackSpeed
     end
     
     --[[ cast spells ]]
-    local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*1.5) + gso_menu.orb.delays.windup:Value()*0.001
-    if canMove then
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT then
         
         --[[ check if spells are ready ]]
+        local checkTick = GetTickCount()
+        local wMinus = checkTick - self.lastW
+        local wMinuss = checkTick - _gso.Spells.lastW
+        local eMinus = checkTick - self.lastE
+        local eMinuss = checkTick - _gso.Spells.lastE
+        local canWTime = wMinus > 1000 and wMinuss > 1000 and eMinus > 700 and eMinuss > 700
+        local canETime = wMinus > 350 and wMinuss > 350 and eMinus > 1000 and eMinuss > 1000
         local isCombo = gso_menu.orb.keys.combo:Value()
         local isHarass = gso_menu.orb.keys.harass:Value()
         local isComboW = isCombo and gso_menu.gsotwitch.wset.combo:Value()
         local isHarassW = isHarass and gso_menu.gsotwitch.wset.harass:Value()
         local isComboE = isCombo and gso_menu.gsotwitch.eset.combo:Value()
         local isHarassE = isHarass and gso_menu.gsotwitch.eset.harass:Value()
-        local isWReady = (isComboW or isHarassW) and _gso.Orb.dActionsC == 0 and wMinus > 1000 and eMinus > 350 and Game.CanUseSpell(_W) == 0
-        local isEReady = wMinus > 350 and eMinus > 1000 and Game.CanUseSpell(_E) == 0
+        local stopWIfR = gso_menu.gsotwitch.wset.stopult:Value() and GetTickCount() < _gso.Spells.lastR + 5450
+        local stopWIfQ = gso_menu.gsotwitch.wset.stopq:Value() and self.hasQBuff
+        local stopifQBuff = false
+        local num1 = 1350+_gso.Spells.qLatency-(GetTickCount()-_gso.Spells.lastQ)
+        if num1 > 100 and num1 < 550 then
+            stopifQBuff = true
+        end
+        local isWReady = (isComboW or isHarassW) and canWTime == true and _gso.Utils:_isReady(_W) and not stopWIfR and not stopWIfQ and not stopifQBuff
+        local isEReady = canETime == true and _gso.Utils:_isReady(_E) and not stopifQBuff
         
         --[[ combo/harass ]]
         if isWReady or ( isEReady and (isComboE or isHarassE) ) then
@@ -1808,23 +2105,23 @@ function __gsoTwitch:_tick()
             local enemiesCount = 0
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
-                if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
                     enemiesCount = enemiesCount + 1
                 end
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT
+            local afterBefore = os.clock() < _gso.Orb.lAttack + _gso.Orb.animT*0.7
             
             --[[ spells if enemy is out of aa range ]]
-            local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+            local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
             
             --[[ cast spells ]]
             if afterBefore or outOfAARange then
-                if isWReady and self:_castW() then
+                if isEReady and (isComboE or isHarassE) and self:_castE() then
                     return
                 end
-                if isEReady and (isComboE or isHarassE) and self:_castE() then
+                if isWReady and self:_castW() then
                     return
                 end
             end
@@ -1835,7 +2132,7 @@ function __gsoTwitch:_tick()
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero  = _gso.OB.enemyHeroes[i]
                 local nID   = hero.networkID
-                if self.eBuffs[nID] and self.eBuffs[nID].count > 0 and _gso.TS:_valid(hero, false) and _gso.OB:_getDistance(myHero.pos, hero.pos) < 1200 then
+                if self.eBuffs[nID] and self.eBuffs[nID].count > 0 and _gso.Utils:_valid(hero, false) and _gso.Utils:_getDistance(myHero.pos, hero.pos) < 1200 then
                     local elvl = myHero:GetSpellData(_E).level
                     local basedmg = 5 + ( elvl * 15 )
                     local cstacks = self.eBuffs[nID].count
@@ -1851,7 +2148,6 @@ function __gsoTwitch:_tick()
                         Control.KeyDown(HK_E)
                         Control.KeyUp(HK_E)
                         self.lastE = GetTickCount()
-                        _gso.Orb.canAA = false
                         return
                     end
                 end
@@ -1884,9 +2180,31 @@ function __gsoKogMaw:__init()
     self.lastW = 0
     self.lastE = 0
     self.lastR = 0
+    self.WBuffTime = 0 
+    self.hasWBuff = false
+    _gso.Orb.baseAASpeed = 0.665
+    _gso.Orb.baseWindUp = 0.1662234
     _gso.Vars:_setBonusDmg(function() return 3 end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setChampMenu(function() return self:_menu() end)
+    _gso.Vars:_setCanAttack(function() return self:_canAttack() end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------canAA-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoKogMaw:_canAttack()
+    local checkTick = GetTickCount()
+    local qMinus = checkTick - self.lastQ
+    local qMinuss = checkTick - _gso.Spells.lastQ
+    local eMinus = checkTick - self.lastE
+    local eMinuss = checkTick - _gso.Spells.lastE
+    local rMinus = checkTick - self.lastR
+    local rMinuss = checkTick - _gso.Spells.lastR
+    if qMinus > 550 and qMinuss > 550 and eMinus > 550 and eMinuss > 550 and rMinus > 550 and rMinuss > 550 then
+        return true
+    end
+    return false
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -1900,6 +2218,9 @@ function __gsoKogMaw:_menu()
         gso_menu.gsokog:MenuElement({name = "W settings", id = "wset", type = MENU })
             gso_menu.gsokog.wset:MenuElement({id = "combo", name = "Combo", value = true})
             gso_menu.gsokog.wset:MenuElement({id = "harass", name = "Harass", value = false})
+            gso_menu.gsokog.wset:MenuElement({id = "stopq", name = "Stop Q if has W buff", value = false})
+            gso_menu.gsokog.wset:MenuElement({id = "stope", name = "Stop E if has W buff", value = false})
+            gso_menu.gsokog.wset:MenuElement({id = "stopr", name = "Stop R if has W buff", value = false})
         gso_menu.gsokog:MenuElement({name = "E settings", id = "eset", type = MENU })
             gso_menu.gsokog.eset:MenuElement({id = "combo", name = "Combo", value = true})
             gso_menu.gsokog.eset:MenuElement({id = "harass", name = "Harass", value = false})
@@ -1910,46 +2231,21 @@ function __gsoKogMaw:_menu()
 end
 
 --------------------|---------------------------------------------------------|--------------------
---------------------|--------------------buff manager-------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-function __gsoKogMaw:_getBuffCount()
-    local result = 0
-    for i = 1, myHero.buffCount do
-        local buff = myHero:GetBuff(i)
-        if buff and buff.count > 0 and buff.name:lower() == "kogmawlivingartillerycost" then
-            return buff.count
-        end
-    end
-    return result
-end
-function __gsoKogMaw:_hasBuff()
-    local result = false
-    for i = 1, myHero.buffCount do
-        local buff = myHero:GetBuff(i)
-        if buff and buff.count > 0 and buff.name:lower() == "kogmawbioarcanebarrage" then
-            return true
-        end
-    end
-    return result
-end
-
---------------------|---------------------------------------------------------|--------------------
 --------------------|--------------------cast spells--------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoKogMaw:_castQ()
-    local target = _gso.Orb.lastTarget and _gso.Orb.lastTarget or _gso.TS:_getTarget(1175, false, false)
+    local target = _gso.TS.lastTarget and _gso.TS.lastTarget or _gso.TS:_getTarget(1175, false, false)
     if target then
         local mePos = myHero.pos
         local sQ = { delay = 0.25, range = 1175, width = 70, speed = 1650, sType = "line", col = true }
         local castpos,HitChance,pos = _gso.TPred:GetBestCastPosition(target, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.Utils:_getDistance(mePos, castpos) < sQ.range and _gso.Utils:_getDistance(target.pos, castpos) < 500 then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_Q)
             Control.KeyUp(HK_Q)
             self.lastQ = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
@@ -1957,19 +2253,18 @@ function __gsoKogMaw:_castQ()
     return false
 end
 function __gsoKogMaw:_castE()
-    local target = _gso.Orb.lastTarget and _gso.Orb.lastTarget or _gso.TS:_getTarget(1280, false, false)
+    local target = _gso.TS.lastTarget and _gso.TS.lastTarget or _gso.TS:_getTarget(1280, false, false)
     if target then
         local mePos = myHero.pos
         local sE = { delay = 0.25, range = 1280, width = 120, speed = 1350, sType = "line", col = false }
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sE.delay, sE.width*0.5, sE.range, sE.speed, mePos, sE.col, sE.sType)
-        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sE.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.Utils:_getDistance(mePos, castpos) < sE.range and _gso.Utils:_getDistance(target.pos, castpos) < 500 then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_E)
             Control.KeyUp(HK_E)
             self.lastE = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
@@ -1979,18 +2274,17 @@ end
 function __gsoKogMaw:_castR()
     local sR = { delay = 1.2, range = 0, width = 225, speed = math.maxinteger, sType = "circular", col = false }
     sR.range = 900 + ( 300 * myHero:GetSpellData(_R).level )
-    local target = _gso.Orb.lastTarget and _gso.Orb.lastTarget or _gso.TS:_getTarget(sR.range + (sR.width*0.5), false, false)
+    local target = _gso.TS.lastTarget and _gso.TS.lastTarget or _gso.TS:_getTarget(sR.range + (sR.width*0.5), false, false)
     if target then
         local mePos = myHero.pos
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sR.delay, sR.width*0.5, sR.range, sR.speed, mePos, sR.col, sR.sType)
-        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sR.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.Utils:_getDistance(mePos, castpos) < sR.range and _gso.Utils:_getDistance(target.pos, castpos) < 500 then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_R)
             Control.KeyUp(HK_R)
             self.lastR = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
@@ -2003,22 +2297,38 @@ end
 --------------------|---------------------------------------------------------|--------------------
 function __gsoKogMaw:_tick()
     
-    --[[ enable aa after spells ]]
-    local checkTick = GetTickCount()
-    local qMinus = checkTick - self.lastQ
-    local wMinus = checkTick - self.lastW
-    local eMinus = checkTick - self.lastE
-    local rMinus = checkTick - self.lastR
-    local botrkMinus = checkTick - _gso.Items.lastBotrk
-    if _gso.Orb.canAA == false and qMinus > 350 and eMinus > 350 and rMinus > 350 and botrkMinus > 75 then
-        _gso.Orb.canAA = true
+    --[[ kog W buff ]]
+    local hasWBuff = false
+    for i = 0, myHero.buffCount do
+        local buff = myHero:GetBuff(i)
+        local buffName = buff and buff.name or nil
+        if buffName and buff.count > 0 and buff.duration > 0 then
+            if buffName == "KogMawBioArcaneBarrage" then
+                hasWBuff = true
+                self.WBuffTime = GetTickCount() + (buff.duration*1000)
+                break
+            end
+        end
     end
+    self.hasWBuff = hasWBuff
     
     --[[ cast spells ]]
-    local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*1.5) + gso_menu.orb.delays.windup:Value()*0.001
-    if canMove then
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT then
         
         --[[ check if spells are ready ]]
+        local checkTick = GetTickCount()
+        local qMinus = checkTick - self.lastQ
+        local qMinuss = checkTick - _gso.Spells.lastQ
+        local wMinus = checkTick - self.lastW
+        local wMinuss = checkTick - _gso.Spells.lastW
+        local eMinus = checkTick - self.lastE
+        local eMinuss = checkTick - _gso.Spells.lastE
+        local rMinus = checkTick - self.lastR
+        local rMinuss = checkTick - _gso.Spells.lastR
+        local canQTime = qMinus > 1000 and qMinuss > 1000 and eMinus > 650 and eMinuss > 650 and rMinus > 650 and rMinuss > 650
+        local canWTime = qMinus > 550 and qMinuss > 550 and wMinus > 1000 and wMinuss > 1000 and eMinus > 550 and eMinuss > 550 and rMinus > 550 and rMinuss > 550
+        local canETime = qMinus > 650 and qMinuss > 650 and eMinus > 1000 and eMinuss > 1000 and rMinus > 650 and rMinuss > 650
+        local canRTime = qMinus > 650 and qMinuss > 650 and eMinus > 650 and eMinuss > 650 and rMinus > 1000 and rMinuss > 1000
         local isCombo = gso_menu.orb.keys.combo:Value()
         local isHarass = gso_menu.orb.keys.harass:Value()
         local isComboQ = isCombo and gso_menu.gsokog.qset.combo:Value()
@@ -2029,17 +2339,22 @@ function __gsoKogMaw:_tick()
         local isHarassE = isHarass and gso_menu.gsokog.eset.harass:Value()
         local isComboR = isCombo and gso_menu.gsokog.rset.combo:Value()
         local isHarassR = isHarass and gso_menu.gsokog.rset.harass:Value()
-        local isQReady = (isComboQ or isHarassQ) and _gso.Orb.dActionsC == 0 and qMinus > 1000 and wMinus > 350 and eMinus > 350 and rMinus > 350 and Game.CanUseSpell(_Q) == 0
-        local isWReady = (isComboW or isHarassW) and qMinus > 250 and wMinus > 1000 and eMinus > 250 and rMinus > 250 and Game.CanUseSpell(_W) == 0
-        local isEReady = (isComboE or isHarassE) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 350 and eMinus > 1000 and rMinus > 350 and Game.CanUseSpell(_E) == 0
-        local isRReady = (isComboR or isHarassR) and _gso.Orb.dActionsC == 0 and qMinus > 350 and wMinus > 350 and eMinus > 350 and rMinus > 1000 and Game.CanUseSpell(_R) == 0 and self:_getBuffCount() < gso_menu.gsokog.rset.stack:Value()
+        local rStacks = _gso.Utils:_buffCount(myHero, "kogmawlivingartillerycost") < gso_menu.gsokog.rset.stack:Value()
+        local stopQIfW = gso_menu.gsokog.wset.stopq:Value() and self.hasWBuff
+        local stopEIfW = gso_menu.gsokog.wset.stope:Value() and self.hasWBuff
+        local stopRIfW = gso_menu.gsokog.wset.stopr:Value() and self.hasWBuff
+        local isQReady = (isComboQ or isHarassQ) and canQTime and _gso.Utils:_isReady(_Q) and not stopQIfW
+        local isWReady = (isComboW or isHarassW) and canWTime and _gso.Utils:_isReady(_W)
+        local isEReady = (isComboE or isHarassE) and canETime and _gso.Utils:_isReady(_E) and not stopEIfW
+        local isRReady = (isComboR or isHarassR) and canRTime and _gso.Utils:_isReady(_R) and rStacks and not stopRIfW
         
         --[[ combo/harass ]]
         local mePos = myHero.pos
         if isWReady then
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
-                if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < 610 + ( 20 * myHero:GetSpellData(_W).level ) + myHero.boundingRadius + hero.boundingRadius then
+                local wRange = 610 + ( 20 * myHero:GetSpellData(_W).level ) + myHero.boundingRadius + hero.boundingRadius
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < wRange then
                     Control.KeyDown(HK_W)
                     Control.KeyUp(HK_W)
                     self.lastW = GetTickCount()
@@ -2057,16 +2372,16 @@ function __gsoKogMaw:_tick()
             local enemiesCount = 0
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
-                if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + myHero.boundingRadius + hero.boundingRadius then
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + myHero.boundingRadius + hero.boundingRadius then
                     enemiesCount = enemiesCount + 1
                 end
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.75
+            local afterBefore = os.clock() < _gso.Orb.lAttack + _gso.Orb.animT*0.7
             
             --[[ spells if enemy is out of aa range ]]
-            local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+            local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
             
             --[[ cast spells ]]
             if afterBefore or outOfAARange then
@@ -2109,11 +2424,13 @@ function __gsoDraven:__init()
     self.lastE = 0
     self.lastR = 0
     self.lMove = 0
+    _gso.Orb.baseAASpeed = 0.679
+    _gso.Orb.baseWindUp = 0.21 -- ???
     _gso.Vars:_setBonusDmg(function() return 3 end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setMousePos(function() return self:_setMousePos() end)
-    _gso.Vars:_setOnDraw(function() self:_draw() end)
     _gso.Vars:_setChampMenu(function() return self:_menu() end)
+    Callback.Add('Draw', function() self:_draw() end)
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -2158,33 +2475,24 @@ end
 --------------------|---------------------------------------------------------|--------------------
 --------------------|--------------------cast spells--------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
-function __gsoDraven:_pointOnLineSegment(x, z, ax, az, bx, bz)
-    local bxax = bx - ax
-    local bzaz = bz - az
-    local t = ((x - ax) * bxax + (z - az) * bzaz) / (bxax * bxax + bzaz * bzaz)
-    if t < 0 then return false
-    elseif t > 1 then return false
-    else return true
-    end
-end
 function __gsoDraven:_castE()
-    local target = _gso.Orb.lastTarget and _gso.Orb.lastTarget or _gso.TS:_getTarget(1050, false, false)
+    local target = _gso.TS.lastTarget and _gso.TS.lastTarget or _gso.TS:_getTarget(1050, false, false)
     if target then
         local sE = { delay = 0.25, range = 1050, width = 150, speed = 1400, sType = "line", col = false }
         local mePos = myHero.pos
         local targetPos = target.pos
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sE.delay, sE.width*0.5, sE.range, sE.speed, mePos, sE.col, sE.sType)
-        local distToPred = _gso.OB:_getDistance(mePos, castpos)
-        local distToTarget = _gso.OB:_getDistance(mePos, targetPos)
-        local isOnLine = self:_pointOnLineSegment(castpos.x, castpos.z, mePos.x, mePos.z, targetPos.x, targetPos.z)
-        if HitChance > 0 and castpos:ToScreen().onScreen and distToPred < sE.range and distToPred > 125 and distToTarget > 125 and _gso.OB:_getDistance(targetPos, castpos) < 250 and isOnLine then
+        local distToPred = _gso.Utils:_getDistance(mePos, castpos)
+        local distToTarget = _gso.Utils:_getDistance(mePos, targetPos)
+        local isOnLine = _gso.Utils:_pointOnLineSegment(castpos.x, castpos.z, mePos.x, mePos.z, targetPos.x, targetPos.z)
+        if HitChance > 0 and castpos:ToScreen().onScreen and distToPred < sE.range and distToPred > 125 and distToTarget > 125 and _gso.Utils:_getDistance(targetPos, castpos) < 250 and isOnLine then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_E)
             Control.KeyUp(HK_E)
             self.lastE = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
+            _gso.Orb.enableAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
@@ -2203,8 +2511,8 @@ function __gsoDraven:_tick()
     local wMinus = checkTick - self.lastW
     local eMinus = checkTick - self.lastE
     local botrkMinus = checkTick - _gso.Items.lastBotrk
-    if _gso.Orb.canAA == false and wMinus > 200 and eMinus > 350 and botrkMinus > 75 then
-        _gso.Orb.canAA = true
+    if _gso.Orb.enableAA == false and wMinus > 200 and eMinus > 350 and botrkMinus > 75 then
+        _gso.Orb.enableAA = true
     end
     
     --[[ handle axes ]]
@@ -2213,7 +2521,7 @@ function __gsoDraven:_tick()
         local particle = Game.Particle(i)
         if particle then
             local particlePos = particle.pos
-            if _gso.OB:_getDistance(mePos, particlePos) < 500 and particle.name == "Draven_Base_Q_reticle" then
+            if _gso.Utils:_getDistance(mePos, particlePos) < 500 and particle.name == "Draven_Base_Q_reticle" then
                 local particleID = particle.handle
                 if not self.qParticles[particleID] then
                     self.qParticles[particleID] = { pos = particlePos, tick = GetTickCount(), success = false, active = false }
@@ -2238,8 +2546,7 @@ function __gsoDraven:_tick()
     end
     
     --[[ cast spells ]]
-    local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*1.5) + gso_menu.orb.delays.windup:Value()*0.001
-    if canMove then
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.1 then
         
         --[[ check if spells are ready ]]
         local isCombo = gso_menu.orb.keys.combo:Value()
@@ -2263,18 +2570,18 @@ function __gsoDraven:_tick()
             local enemiesCount = 0
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
-                if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
                     enemiesCount = enemiesCount + 1
                 end
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT
+            local afterBefore = os.clock() < _gso.Orb.lAttack + _gso.Orb.animT
             
             --[[ spells if enemy is out of aa range ]]
-            local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+            local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
             
-            if isQReady and not outOfAARange and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.animT*0.5 then
+            if isQReady and not outOfAARange and os.clock() > _gso.Orb.lAttack + _gso.Orb.animT*0.5 then
                 Control.KeyDown(HK_Q)
                 Control.KeyUp(HK_Q)
                 self.lastQ = GetTickCount()
@@ -2287,7 +2594,7 @@ function __gsoDraven:_tick()
                     Control.KeyDown(HK_W)
                     Control.KeyUp(HK_W)
                     self.lastW = GetTickCount()
-                    _gso.Orb.canAA = false
+                    _gso.Orb.enableAA = false
                     return
                 end
                 if isEReady and self:_castE() then
@@ -2316,8 +2623,8 @@ function __gsoDraven:_setMousePos()
         for k,v in pairs(self.qParticles) do
             if not v.success then
                 local mePos = myHero.pos
-                local distanceToHero = v.pos:DistanceTo(mePos)
-                local distanceToMouse = v.pos:DistanceTo(mousePos)
+                local distanceToHero = _gso.Utils:_getDistance(v.pos, mePos)
+                local distanceToMouse = _gso.Utils:_getDistance(v.pos, mousePos)
                 if distanceToHero < hdist and distanceToMouse < cdist then
                     local canContinue = true
                     local eQMenu = gso_menu.gsodraven.aset.dist.enemyq:Value()
@@ -2326,7 +2633,7 @@ function __gsoDraven:_setMousePos()
                         local cEM = #_gso.OB.enemyMinions
                         for i = 1, cEM do
                             local minion = _gso.OB.enemyMinions[i]
-                            if _gso.OB:_getDistance(v.pos, minion.pos) < eQMenu then
+                            if _gso.Utils:_getDistance(v.pos, minion.pos) < eQMenu then
                                 canContinue = false
                                 break
                             end
@@ -2338,11 +2645,11 @@ function __gsoDraven:_setMousePos()
                     for i = 1, cEH do
                         local hero = _gso.OB.enemyHeroes[i]
                         local heroPos = hero.pos
-                        if eQMenu > 0 and _gso.OB:_getDistance(v.pos, heroPos) < eQMenu then
+                        if eQMenu > 0 and _gso.Utils:_getDistance(v.pos, heroPos) < eQMenu then
                             canContinue = false
                             break
                         end
-                        local distToHero = _gso.OB:_getDistance(mePos, heroPos)
+                        local distToHero = _gso.Utils:_getDistance(mePos, heroPos)
                         if eHeroMenu > 0 and distToHero < eHeroMenu then
                             canContinue = false
                             break
@@ -2383,7 +2690,7 @@ function __gsoDraven:_setMousePos()
             local cET = #_gso.OB.enemyTurrets
             for i=1, cET do
                 local turret = _gso.OB.enemyTurrets[i]
-                if _gso.OB:_getDistance(qPos, turret.pos) < 775 + turret.boundingRadius then
+                if _gso.Utils:_getDistance(qPos, turret.pos) < 775 + turret.boundingRadius then
                     self.qParticles[kID].active = false
                     return nil
                 end
@@ -2429,19 +2736,21 @@ class "__gsoEzreal"
 --------------------|--------------------------init---------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoEzreal:__init()
-    self.res    = Game.Resolution()
-    self.resX   = self.res.x
-    self.resY   = self.res.y
-    self.lastQ    = 0
-    self.lastW    = 0
-    self.lastE    = 0
-    self.delayedE = nil
-    self.shouldWaitT    = 0
-    self.shouldWait     = false
+    self.res          = Game.Resolution()
+    self.resX         = self.res.x
+    self.resY         = self.res.y
+    self.lastQ        = 0
+    self.lastW        = 0
+    self.lastE        = 0
+    self.shouldWaitT  = 0
+    self.shouldWait   = false
+    _gso.Orb.baseAASpeed = 0.625
+    _gso.Orb.baseWindUp = 0.21 -- ???
+        print(myHero.attackData.windUpTime/myHero.attackData.animationTime)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setBonusDmg(function() return 3 end)
-    _gso.Vars:_setOnDraw(function() self:_draw() end)
     _gso.Vars:_setChampMenu(function() return self:_menu() end)
+    Callback.Add('Draw', function() self:_draw() end)
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -2482,8 +2791,8 @@ function __gsoEzreal:_castQCombo()
         local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
         local mePos = myHero.pos
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-        local distMeToPredPos = _gso.OB:_getDistance(mePos, castpos)
-        local distUnitToPredPos = _gso.OB:_getDistance(target.pos, castpos)
+        local distMeToPredPos = _gso.Utils:_getDistance(mePos, castpos)
+        local distUnitToPredPos = _gso.Utils:_getDistance(target.pos, castpos)
         if HitChance > gso_menu.gsoezreal.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 500 then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
@@ -2491,7 +2800,7 @@ function __gsoEzreal:_castQCombo()
             Control.KeyUp(HK_Q)
             self.lastQ = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
+            _gso.Orb.enableAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
@@ -2511,12 +2820,12 @@ function __gsoEzreal:_autoQ()
             local unit = _gso.OB.enemyHeroes[i]
             local unitPos = unit.pos
             local mePos = myHero.pos
-            local distance = _gso.OB:_getDistance(mePos, unitPos)
-            if _gso.TS:_valid(unit, true) and distance < 1150 then
+            local distance = _gso.Utils:_getDistance(mePos, unitPos)
+            if _gso.Utils:_valid(unit, true) and distance < 1150 then
                 local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
                 local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(unit, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-                local distMeToPredPos = _gso.OB:_getDistance(mePos, castpos)
-                local distUnitToPredPos = _gso.OB:_getDistance(unitPos, castpos)
+                local distMeToPredPos = _gso.Utils:_getDistance(mePos, castpos)
+                local distUnitToPredPos = _gso.Utils:_getDistance(unitPos, castpos)
                 if HitChance > gso_menu.gsoezreal.autoq.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 500 then
                     local cPos = cursorPos
                     Control.SetCursorPos(castpos)
@@ -2524,7 +2833,7 @@ function __gsoEzreal:_autoQ()
                     Control.KeyUp(HK_Q)
                     self.lastQ = GetTickCount()
                     _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                    _gso.Orb.canAA = false
+                    _gso.Orb.enableAA = false
                     _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
                     return true
                 end
@@ -2540,8 +2849,8 @@ end
 function __gsoEzreal:_castQ(t, tPos, mePos)
     local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
     local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(t, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-    local distMeToPredPos = _gso.OB:_getDistance(mePos, castpos)
-    local distUnitToPredPos = _gso.OB:_getDistance(tPos, castpos)
+    local distMeToPredPos = _gso.Utils:_getDistance(mePos, castpos)
+    local distUnitToPredPos = _gso.Utils:_getDistance(tPos, castpos)
     if HitChance > gso_menu.gsoezreal.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 500 then
         local cPos = cursorPos
         Control.SetCursorPos(castpos)
@@ -2549,7 +2858,7 @@ function __gsoEzreal:_castQ(t, tPos, mePos)
         Control.KeyUp(HK_Q)
         self.lastQ = GetTickCount()
         _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-        _gso.Orb.canAA = false
+        _gso.Orb.enableAA = false
         _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
         return true
     end
@@ -2582,7 +2891,7 @@ function __gsoEzreal:_castQFarm()
             local eMinion_handle	= eMinion.handle
             local eMinion_health	= eMinion.health
             local myHero_aaData		= myHero.attackData
-            local myHero_pFlyTime	= _gso.OB:_getDistance(myHero.pos, eMinion.pos) / 2000
+            local myHero_pFlyTime	= _gso.Utils:_getDistance(myHero.pos, eMinion.pos) / 2000
             for k1,v1 in pairs(_gso.Farm.aAttacks) do
                 for k2,v2 in pairs(_gso.Farm.aAttacks[k1]) do
                     if v2.canceled == false and eMinion_handle == v2.to.handle then
@@ -2615,27 +2924,27 @@ function __gsoEzreal:_castQFarm()
                 local unit = lastHitT[i]
                 local unitPos = unit.pos
                 local mePos = myHero.pos
-                local checkT = Game.Timer() < _gso.Orb.LHTimers[4].tick
+                local checkT = Game.Timer() < _gso.TS.LHTimers[4].tick
                 local mHandle = unit.handle
-                if not checkT or (checkT and _gso.Orb.LHTimers[4].id ~= mHandle) then
-                    if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                if not checkT or (checkT and _gso.TS.LHTimers[4].id ~= mHandle) then
+                    if _gso.Utils:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
                         canCheckT = true
                         break
                     end
                 end
             end
-            if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+            if not canCheckT or (canCheckT and os.clock() < _gso.Orb.lAttack + _gso.Orb.animT) then
                 for i = 1, #lastHitT do
                     local minion = lastHitT[i]
                     local minionPos = minion.pos
                     local mePos = myHero.pos
-                    local checkT = Game.Timer() < _gso.Orb.LHTimers[4].tick
+                    local checkT = Game.Timer() < _gso.TS.LHTimers[4].tick
                     local mHandle = minion.handle
-                    if not checkT or (checkT and _gso.Orb.LHTimers[4].id ~= mHandle) then
-                        local distance = _gso.OB:_getDistance(mePos, minionPos)
+                    if not checkT or (checkT and _gso.TS.LHTimers[4].id ~= mHandle) then
+                        local distance = _gso.Utils:_getDistance(mePos, minionPos)
                         if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
-                            _gso.Orb.LHTimers[0].tick = Game.Timer() + 0.75
-                            _gso.Orb.LHTimers[0].id = mHandle
+                            _gso.TS.LHTimers[0].tick = Game.Timer() + 0.75
+                            _gso.TS.LHTimers[0].id = mHandle
                             return
                         end
                     end
@@ -2650,27 +2959,27 @@ function __gsoEzreal:_castQFarm()
                 local unit = lastHitT[i]
                 local unitPos = unit.pos
                 local mePos = myHero.pos
-                local checkT = Game.Timer() < _gso.Orb.LHTimers[4].tick
+                local checkT = Game.Timer() < _gso.TS.LHTimers[4].tick
                 local mHandle = unit.handle
-                if not checkT or (checkT and _gso.Orb.LHTimers[4].id ~= mHandle) then
-                    if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                if not checkT or (checkT and _gso.TS.LHTimers[4].id ~= mHandle) then
+                    if _gso.Utils:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
                         canCheckT = true
                         break
                     end
                 end
             end
-            if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+            if not canCheckT or (canCheckT and os.clock() < _gso.Orb.lAttack + _gso.Orb.animT) then
                 for i = 1, #lastHitT do
                     local minion = lastHitT[i]
                     local minionPos = minion.pos
                     local mePos = myHero.pos
-                    local checkT = Game.Timer() < _gso.Orb.LHTimers[4].tick
+                    local checkT = Game.Timer() < _gso.TS.LHTimers[4].tick
                     local mHandle = minion.handle
-                    if not checkT or (checkT and _gso.Orb.LHTimers[4].id ~= mHandle) then
-                        local distance = _gso.OB:_getDistance(mePos, minionPos)
+                    if not checkT or (checkT and _gso.TS.LHTimers[4].id ~= mHandle) then
+                        local distance = _gso.Utils:_getDistance(mePos, minionPos)
                         if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
-                            _gso.Orb.LHTimers[0].tick = Game.Timer() + 0.75
-                            _gso.Orb.LHTimers[0].id = mHandle
+                            _gso.TS.LHTimers[0].tick = Game.Timer() + 0.75
+                            _gso.TS.LHTimers[0].id = mHandle
                             return
                         end
                     end
@@ -2682,18 +2991,18 @@ function __gsoEzreal:_castQFarm()
                     local unit = _gso.OB.enemyHeroes[i]
                     local unitPos = unit.pos
                     local mePos = myHero.pos
-                    if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                    if _gso.Utils:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
                         canCheckT = true
                         break
                     end
                 end
-                if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+                if not canCheckT or (canCheckT and os.clock() < _gso.Orb.lAttack + _gso.Orb.animT) then
                     for i = 1, #_gso.OB.enemyHeroes do
                         local unit = _gso.OB.enemyHeroes[i]
                         local unitPos = unit.pos
                         local mePos = myHero.pos
-                        local distance = _gso.OB:_getDistance(mePos, unitPos)
-                        if _gso.TS:_valid(unit, true) and distance < 1150 and self:_castQ(unit, unitPos, mePos) then return end
+                        local distance = _gso.Utils:_getDistance(mePos, unitPos)
+                        if _gso.Utils:_valid(unit, true) and distance < 1150 and self:_castQ(unit, unitPos, mePos) then return end
                     end
                 end
                 canCheckT = false
@@ -2701,17 +3010,17 @@ function __gsoEzreal:_castQFarm()
                     local unit = laneClearT[i]
                     local unitPos = unit.pos
                     local mePos = myHero.pos
-                    if _gso.OB:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
+                    if _gso.Utils:_getDistance(mePos, unitPos) < meRange + unit.boundingRadius then
                         canCheckT = true
                         break
                     end
                 end
-                if not canCheckT or (canCheckT and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT) then
+                if not canCheckT or (canCheckT and os.clock() < _gso.Orb.lAttack + _gso.Orb.animT) then
                     for i = 1, #laneClearT do
                         local minion = laneClearT[i]
                         local minionPos = minion.pos
                         local mePos = myHero.pos
-                        local distance = _gso.OB:_getDistance(myHero.pos, minionPos)
+                        local distance = _gso.Utils:_getDistance(myHero.pos, minionPos)
                         if distance < 1150 and self:_castQ(minion, minionPos, mePos) then return end
                     end
                 end
@@ -2729,8 +3038,8 @@ function __gsoEzreal:_castW()
         local mePos = myHero.pos
         local sW = { delay = 0.25, range = 1150, width = 80, speed = 1550, sType = "line", col = false }
         local castpos,HitChance, pos = _gso.TPred:GetBestCastPosition(target, sW.delay, sW.width*0.5, sW.range, sW.speed, mePos, sW.col, sW.sType)
-        local distMeToPredPos = _gso.OB:_getDistance(mePos, castpos)
-        local distUnitToPredPos = _gso.OB:_getDistance(target.pos, castpos)
+        local distMeToPredPos = _gso.Utils:_getDistance(mePos, castpos)
+        local distUnitToPredPos = _gso.Utils:_getDistance(target.pos, castpos)
         if HitChance > gso_menu.gsoezreal.wset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sW.range and distUnitToPredPos < 500 then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
@@ -2738,7 +3047,7 @@ function __gsoEzreal:_castW()
             Control.KeyUp(HK_W)
             self.lastW = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
+            _gso.Orb.enableAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return
         end
@@ -2749,20 +3058,20 @@ end
 --------------------|-----------------------e manual--------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoEzreal:_castE()
-    local dActions = _gso.TS.delayedSpell
+    local dActions = _gso.Spells.delayedSpell
     for k,v in pairs(dActions) do
         if k == 2 then
             if _gso.Orb.dActionsC == 0 then
                 v[1]()
                 _gso.Orb.dActions[GetTickCount()] = { function() return 0 end, 50 }
-                _gso.Orb.canAA = false
+                _gso.Orb.enableAA = false
                 _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
                 self.lastE = GetTickCount()
-                _gso.TS.delayedSpell[k] = nil
+                _gso.Spells.delayedSpell[k] = nil
                 break
             end
             if GetTickCount() - v[2] > 125 then
-                _gso.TS.delayedSpell[k] = nil
+                _gso.Spells.delayedSpell[k] = nil
             end
             break
         end
@@ -2780,8 +3089,8 @@ function __gsoEzreal:_tick()
     local wMinus = getTick - self.lastW
     local eMinus = getTick - self.lastE
     local botrkMinus = getTick - _gso.Items.lastBotrk
-    if _gso.Orb.canAA == false and qMinus > 350 and wMinus > 350 and eMinus > 350 and botrkMinus > 75 then
-        _gso.Orb.canAA = true
+    if _gso.Orb.enableAA == false and qMinus > 350 and wMinus > 350 and eMinus > 350 and botrkMinus > 75 then
+        _gso.Orb.enableAA = true
     end
     
     --[[ manual E ]]
@@ -2791,8 +3100,7 @@ function __gsoEzreal:_tick()
     end
     
     --[[ cast spells ]]
-    local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001
-    if canMove then
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.1 then
         
         --[[ check if spells are ready ]]
         local isCombo = gso_menu.orb.keys.combo:Value()
@@ -2811,16 +3119,16 @@ function __gsoEzreal:_tick()
         local enemiesCount = 0
         for i = 1, #_gso.OB.enemyHeroes do
             local hero = _gso.OB.enemyHeroes[i]
-            if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+            if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
                 enemiesCount = enemiesCount + 1
             end
         end
         
         --[[ spells after/before if enemy is in aa range ]]
-        local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.75
+        local afterBefore = os.clock() < _gso.Orb.lAttack + _gso.Orb.animT*0.75
         
         --[[ spells if enemy is out of aa range ]]
-        local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+        local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
         
         --[[ cast spells ]]
         if afterBefore or outOfAARange then
@@ -2880,10 +3188,27 @@ function __gsoVayne:__init()
     self.lastQ = 0
     self.lastE = 0
     self.lastReset = 0
-    self.lastReset2 = 0
+    _gso.Orb.baseAASpeed = 0.658
+    _gso.Orb.baseWindUp = 0.1754385
     _gso.Vars:_setBonusDmg(function() return 3 end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setChampMenu(function() return self:_menu() end)
+    _gso.Vars:_setCanAttack(function() return self:_canAttack() end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------canAA-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoVayne:_canAttack()
+    local checkTick = GetTickCount()
+    local qMinus = checkTick - self.lastQ
+    local qMinuss = checkTick - _gso.Spells.lastQ
+    local eMinus = checkTick - self.lastE
+    local eMinuss = checkTick - _gso.Spells.lastE
+    if qMinus > 450 and qMinuss > 450 and eMinus > 650 and eMinuss > 650 then
+        return true
+    end
+    return false
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -2908,9 +3233,9 @@ function __gsoVayne:_castQ()
     for i = 1, #_gso.OB.enemyHeroes do
         local hero = _gso.OB.enemyHeroes[i]
         local heroPos = hero.pos
-        local distToMouse = _gso.OB:_getDistance(mePos, mousePos)
-        local distToHero = _gso.OB:_getDistance(mePos, heroPos)
-        local distToEndPos = _gso.OB:_getDistance(mePos, hero.pathing.endPos)
+        local distToMouse = _gso.Utils:_getDistance(mePos, mousePos)
+        local distToHero = _gso.Utils:_getDistance(mePos, heroPos)
+        local distToEndPos = _gso.Utils:_getDistance(mePos, hero.pathing.endPos)
         local extRange
         if distToEndPos > distToHero then
             extRange = distToMouse > 200 and 200 or distToMouse
@@ -2918,12 +3243,11 @@ function __gsoVayne:_castQ()
             extRange = distToMouse > 300 and 300 or distToMouse
         end
         local extPos = mePos + (mousePos-mePos):Normalized() * extRange
-        local distEnemyToExt = _gso.OB:_getDistance(extPos, heroPos)
-        if _gso.TS:_valid(hero, true) and distEnemyToExt < meRange + hero.boundingRadius - 30 then
+        local distEnemyToExt = _gso.Utils:_getDistance(extPos, heroPos)
+        if _gso.Utils:_valid(hero, true) and distEnemyToExt < meRange + hero.boundingRadius - 30 then
             Control.KeyDown(HK_Q)
             Control.KeyUp(HK_Q)
             self.lastQ = GetTickCount()
-            _gso.Orb.canAA = false
             return
         end
     end
@@ -2938,36 +3262,15 @@ function __gsoVayne:_checkWall(from, to)
     end
     return false
 end
-function __gsoVayne:_nearUnit(pos, id)
-    for i = 1, #_gso.OB.enemyHeroes do
-        local unit = _gso.OB.enemyHeroes[i]
-        if id ~= unit.networkID and _gso.OB:_getDistance(pos, unit.pos) < 125 then
-            return true
-        end
-    end
-    for i = 1, #_gso.OB.enemyMinions do
-        local unit = _gso.OB.enemyMinions[i]
-        if _gso.OB:_getDistance(pos, unit.pos) < 125 then
-            return true
-        end
-    end
-    for i = 1, #_gso.OB.enemyTurrets do
-        local unit = _gso.OB.enemyTurrets[i]
-        if _gso.OB:_getDistance(pos, unit.pos) < 125 then
-            return true
-        end
-    end
-    return false
-end
 function __gsoVayne:_castE()
     local mePos = myHero.pos
     for i = 1, #_gso.OB.enemyHeroes do
         local hero = _gso.OB.enemyHeroes[i]
         local heroPos = hero.pos
-        if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, heroPos) < 650 then
+        if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, heroPos) < 650 then
             local ePred = hero:GetPrediction(2000,0.15)
-            local distance = _gso.OB:_getDistance(ePred, heroPos)
-            if ePred and distance < 500 and not self:_nearUnit(heroPos, hero.networkID) and self:_checkWall(mePos, ePred) and self:_checkWall(mePos, heroPos) then
+            local distance = _gso.Utils:_getDistance(ePred, heroPos)
+            if ePred and distance < 500 and not _gso.Utils:_nearUnit(heroPos, hero.networkID) and self:_checkWall(mePos, ePred) and self:_checkWall(mePos, heroPos) then
                 Control.KeyDown(83)
                 Control.KeyUp(83)
                 local cPos = cursorPos
@@ -2976,7 +3279,6 @@ function __gsoVayne:_castE()
                 Control.KeyUp(HK_E)
                 self.lastE = GetTickCount()
                 _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                _gso.Orb.canAA = false
                 _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
                 return true
             end
@@ -2990,44 +3292,34 @@ end
 --------------------|---------------------------------------------------------|--------------------
 function __gsoVayne:_tick()
     
-    --[[ enable aa ]]
     local getTick = GetTickCount()
-    local qMinus = getTick - self.lastQ
-    local eMinus = getTick - self.lastE
-    local botrkMinus = getTick - _gso.Items.lastBotrk
-    if _gso.Orb.canAA == false and qMinus > 350 and eMinus > 350 and botrkMinus > 75 then
-        _gso.Orb.canAA = true
-    end
-    
-    --[[ reset aa - check q buff ]]
-    local hasQBuff = false
-    for i = 1, myHero.buffCount do
+    --[[ reset aa ]]
+    for i = 0, myHero.buffCount do
         local buff = myHero:GetBuff(i)
-        if buff and buff.count > 0 and buff.name == "vaynetumblebonus" then
-            if os.clock() > self.lastReset + 1.2 and buff.duration > 6.25 then
-                self.lastReset = os.clock()
-            end
-            hasQBuff = true
+        if buff and buff.count > 0 and buff.name == "vaynetumblebonus" and os.clock() > self.lastReset + 1.2 and buff.duration > 5.8 and getTick - self.lastQ > 450 and getTick - _gso.Spells.lastQ > 450 then
+            self.lastReset = os.clock()
+            _gso.Orb.aaReset = true
         end
-    end
-    if hasQBuff and os.clock() < self.lastReset + 1 and os.clock() > self.lastReset2 + 2 and qMinus > 350 then
-        _gso.Orb.aaReset = true
-        self.lastReset2 = os.clock()
     end
     
     --[[ cast spells ]]
-    local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001
-    if canMove then
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT then
     
         --[[ check if spells are ready ]]
+        local qMinus = getTick - self.lastQ
+        local qMinuss = getTick - _gso.Spells.lastQ
+        local eMinus = getTick - self.lastE
+        local eMinuss = getTick - _gso.Spells.lastE
+        local canQTime = qMinus > 1000 and qMinuss > 1000 and eMinus > 650 and eMinuss > 650
+        local canETime = qMinus > 450 and qMinuss > 450 and eMinus > 1000 and eMinuss > 1000
         local isCombo = gso_menu.orb.keys.combo:Value()
         local isHarass = gso_menu.orb.keys.harass:Value()
         local isComboQ = isCombo and gso_menu.gsovayne.qset.combo:Value()
         local isHarassQ = isHarass and gso_menu.gsovayne.qset.harass:Value()
         local isComboE = isCombo and gso_menu.gsovayne.eset.combo:Value()
         local isHarassE = isHarass and gso_menu.gsovayne.eset.harass:Value()
-        local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and eMinus > 250 and Game.CanUseSpell(_Q) == 0
-        local isEReady = (isComboE or isHarassE) and _gso.Orb.dActionsC == 0 and qMinus > 250 and eMinus > 1000 and Game.CanUseSpell(_E) == 0
+        local isQReady = (isComboQ or isHarassQ) and canQTime and _gso.Utils:_isReady(_Q)
+        local isEReady = (isComboE or isHarassE) and canETime and _gso.Utils:_isReady(_E)
         
         if isQReady or isEReady then
             
@@ -3037,19 +3329,19 @@ function __gsoVayne:_tick()
             local enemiesCount = 0
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
-                if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
                     enemiesCount = enemiesCount + 1
                 end
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.75
+            local afterBefore = os.clock() < _gso.Orb.lAttack + _gso.Orb.animT*0.75
             
             --[[ spells if enemy is out of aa range ]]
-            local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+            local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
             
             --[[ cast spells ]]
-            if isEReady and self:_castE() then
+            if isEReady and (afterBefore or outOfAARange) and self:_castE() then
                 return
             end
             if isQReady and (afterBefore or outOfAARange) then
@@ -3058,9 +3350,6 @@ function __gsoVayne:_tick()
         end
     end
 end
-
-
-
 
 
 
@@ -3083,6 +3372,8 @@ class "__gsoTeemo"
 function __gsoTeemo:__init()
     self.lastQ = 0
     self.lastW = 0
+    _gso.Orb.baseAASpeed = 0.69
+    _gso.Orb.baseWindUp = 0.215743
     _gso.Vars:_setBonusDmg(function() return 3 end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setChampMenu(function() return self:_menu() end)
@@ -3105,39 +3396,18 @@ end
 --------------------|---------------------------------------------------------|--------------------
 --------------------|--------------------cast spells--------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
-function __gsoTeemo:_nearUnit(pos, id)
-    for i = 1, #_gso.OB.enemyHeroes do
-        local unit = _gso.OB.enemyHeroes[i]
-        if id ~= unit.networkID and _gso.OB:_getDistance(pos, unit.pos) < 125 then
-            return true
-        end
-    end
-    for i = 1, #_gso.OB.enemyMinions do
-        local unit = _gso.OB.enemyMinions[i]
-        if _gso.OB:_getDistance(pos, unit.pos) < 125 then
-            return true
-        end
-    end
-    for i = 1, #_gso.OB.enemyTurrets do
-        local unit = _gso.OB.enemyTurrets[i]
-        if _gso.OB:_getDistance(pos, unit.pos) < 125 then
-            return true
-        end
-    end
-    return false
-end
 function __gsoTeemo:_castQ()
-    local aaTarget = _gso.Orb.lastTarget
+    local aaTarget = _gso.TS.lastTarget
     local target = aaTarget and aaTarget or _gso.TS:_getTarget(680, false, false)
     local tPos = target and target.pos or nil
-    if tPos and not self:_nearUnit(tPos, target.networkID) then
+    if tPos and not _gso.Utils:_nearUnit(tPos, target.networkID) then
         local cPos = cursorPos
         Control.SetCursorPos(target.pos)
         Control.KeyDown(HK_Q)
         Control.KeyUp(HK_Q)
         self.lastQ = GetTickCount()
         _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-        _gso.Orb.canAA = false
+        _gso.Orb.enableAA = false
         _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
         return true
     end
@@ -3148,7 +3418,7 @@ function __gsoTeemo:_castW()
     for i = 1, #_gso.OB.enemyHeroes do
         local hero = _gso.OB.enemyHeroes[i]
         local heroPos = hero.pos
-        if _gso.OB:_getDistance(mePos, heroPos) < gso_menu.gsoteemo.wset.mindist:Value() then
+        if _gso.Utils:_getDistance(mePos, heroPos) < gso_menu.gsoteemo.wset.mindist:Value() then
             Control.KeyDown(HK_W)
             Control.KeyUp(HK_W)
             self.lastW = GetTickCount()
@@ -3168,13 +3438,12 @@ function __gsoTeemo:_tick()
     local qMinus = getTick - self.lastQ
     local wMinus = getTick - self.lastW
     local botrkMinus = getTick - _gso.Items.lastBotrk
-    if _gso.Orb.canAA == false and qMinus > 350 and botrkMinus > 75 then
-        _gso.Orb.canAA = true
+    if _gso.Orb.enableAA == false and qMinus > 350 and botrkMinus > 75 then
+        _gso.Orb.enableAA = true
     end
     
     --[[ cast spells ]]
-    local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001
-    if canMove then
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.1 then
     
         --[[ check if spells are ready ]]
         local isCombo = gso_menu.orb.keys.combo:Value()
@@ -3195,16 +3464,16 @@ function __gsoTeemo:_tick()
             local enemiesCount = 0
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
-                if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
                     enemiesCount = enemiesCount + 1
                 end
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.9
+            local afterBefore = os.clock() < _gso.Orb.lAttack + _gso.Orb.animT*0.9
             
             --[[ spells if enemy is out of aa range ]]
-            local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+            local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
             
             --[[ cast spells ]]
             if afterBefore or outOfAARange then
@@ -3242,14 +3511,11 @@ function __gsoSivir:__init()
     self.lastQ = 0
     self.lastW = 0
     self.lastReset = 0
-    self.lastWStack = 0
-    self.setAATime = 0
-    self.animTW = 0
-    self.animTNoW = 0
+    _gso.Orb.baseAASpeed = 0.625
+    _gso.Orb.baseWindUp = 0.1199999
     _gso.Vars:_setBonusDmg(function() return 3 end)
     _gso.Vars:_setOnTick(function() self:_tick() end)
     _gso.Vars:_setChampMenu(function() return self:_menu() end)
-    _gso.Vars:_setCanAttack(function() return self:_setCanAttack() end)
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -3269,20 +3535,20 @@ end
 --------------------|--------------------cast spells--------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoSivir:_castQ()
-    local aaTarget = _gso.Orb.lastTarget
+    local aaTarget = _gso.TS.lastTarget
     local target = aaTarget and aaTarget or _gso.TS:_getTarget(1250, false, false)
     if target then
         local sQ = { delay = 0.25, range = 1250, width = 60, speed = 1350, sType = "line", col = false }
         local mePos = myHero.pos
         local castpos,HitChance,pos = _gso.TPred:GetBestCastPosition(target, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.OB:_getDistance(mePos, castpos) < sQ.range and _gso.OB:_getDistance(target.pos, castpos) < 500 then
+        if HitChance > 0 and castpos:ToScreen().onScreen and _gso.Utils:_getDistance(mePos, castpos) < sQ.range and _gso.Utils:_getDistance(target.pos, castpos) < 500 then
             local cPos = cursorPos
             Control.SetCursorPos(castpos)
             Control.KeyDown(HK_Q)
             Control.KeyUp(HK_Q)
             self.lastQ = GetTickCount()
             _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            _gso.Orb.canAA = false
+            _gso.Orb.enableAA = false
             _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
             return true
         end
@@ -3295,7 +3561,7 @@ function __gsoSivir:_castW()
     for i = 1, #_gso.OB.enemyHeroes do
         local hero = _gso.OB.enemyHeroes[i]
         local heroPos = hero.pos
-        if _gso.OB:_getDistance(mePos, heroPos) < meRange + hero.boundingRadius then
+        if _gso.Utils:_getDistance(mePos, heroPos) < meRange + hero.boundingRadius then
             Control.KeyDown(HK_W)
             Control.KeyUp(HK_W)
             self.lastW = GetTickCount()
@@ -3303,20 +3569,6 @@ function __gsoSivir:_castW()
         end
     end
     return false
-end
-
---------------------|---------------------------------------------------------|--------------------
---------------------|---------------------set can move------------------------|--------------------
---------------------|---------------------------------------------------------|--------------------
-function __gsoSivir:_setCanAttack()
-    local result = true
-    local checkT = Game.Timer()
-    if checkT < self.setAATime + 2 * (_gso.Orb.windUpT + _gso.Orb.animT) then
-        local endTime = _gso.Orb.endTime - 0.034 - (_gso.Farm.latency*1.5) + gso_menu.orb.delays.anim:Value()*0.001
-        local extraAnimTime = self.animTNoW - self.animTW
-        result = checkT > endTime + extraAnimTime
-    end
-    return result
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -3329,36 +3581,21 @@ function __gsoSivir:_tick()
     local qMinus = getTick - self.lastQ
     local wMinus = getTick - self.lastW
     local botrkMinus = getTick - _gso.Items.lastBotrk
-    if _gso.Orb.canAA == false and qMinus > 350 and botrkMinus > 75 then
-        _gso.Orb.canAA = true
+    if _gso.Orb.enableAA == false and qMinus > 350 and botrkMinus > 75 then
+        _gso.Orb.enableAA = true
     end
     
-    --[[ reset aa - check q buff ]]
-    local isWBuff = false
-    for i = 1, myHero.buffCount do
+    --[[ reset aa ]]
+    for i = 0, myHero.buffCount do
         local buff = myHero:GetBuff(i)
-        if buff and buff.count > 0 and buff.name == "SivirWMarker" then
-            isWBuff = true
-            if Game.Timer() > self.lastReset + 3 and buff.duration > 3 then
-                _gso.Orb.aaReset = true
-                self.lastReset = Game.Timer()
-            end
-            if Game.Timer() > self.lastWStack + 2 and buff.count == 1 then
-                self.lastWStack = Game.Timer()
-                self.animTW = _gso.Orb.animT
-            end
+        if buff and buff.count > 0 and buff.name == "SivirWMarker" and os.clock() > self.lastReset + 3 and buff.duration > 3 then
+            self.lastReset = os.clock()
+            _gso.Orb.aaReset = true
         end
-    end
-    if not isWBuff and Game.Timer() < self.lastWStack + 2 and Game.Timer() > self.setAATime + 2 then
-        self.setAATime = Game.Timer()
-    end
-    if not isWBuff and Game.Timer() > self.lastReset + 5 and wMinus > 1000 then
-        self.animTNoW = _gso.Orb.animT
     end
     
     --[[ cast spells ]]
-    local canMove = _gso.Vars._canMove() and Game.Timer() > _gso.Orb.lAttack + _gso.Orb.windUpT + (_gso.Farm.latency*0.5) + 0.025 + gso_menu.orb.delays.windup:Value()*0.001
-    if canMove then
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.1 then
     
         --[[ check if spells are ready ]]
         local isCombo = gso_menu.orb.keys.combo:Value()
@@ -3379,24 +3616,241 @@ function __gsoSivir:_tick()
             local enemiesCount = 0
             for i = 1, #_gso.OB.enemyHeroes do
                 local hero = _gso.OB.enemyHeroes[i]
-                if _gso.TS:_valid(hero, true) and _gso.OB:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
                     enemiesCount = enemiesCount + 1
                 end
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.9
+            local afterBefore = os.clock() < _gso.Orb.lAttack + _gso.Orb.animT*0.75
             
             --[[ spells if enemy is out of aa range ]]
-            local outOfAARange = not _gso.Orb.lastTarget and enemiesCount == 0
+            local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
             
             --[[ cast spells ]]
             if afterBefore or outOfAARange then
-                if isWReady and not outOfAARange and Game.Timer() < _gso.Orb.lAttack + _gso.Orb.animT*0.75 and self:_castW() then
+                if isWReady and not outOfAARange and self:_castW() then
                     return
                 end
                 if isQReady and self:_castQ() then
                     return
+                end
+            end
+        end
+    end
+end
+
+
+
+
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------TRISTANA--------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+class "__gsoTristana"
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------init----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTristana:__init()
+    self.lastQ = 0
+    self.lastW = 0
+    self.lastE = 0
+    self.lastR = 0
+    self.eBuffs = {}
+    _gso.Orb.baseAASpeed = 0.656
+    _gso.Orb.baseWindUp = 0.1480066
+    _gso.Vars:_setBonusDmg(function() return 3 end)
+    _gso.Vars:_setOnTick(function() self:_tick() end)
+    _gso.Vars:_setChampMenu(function() return self:_menu() end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------menu----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTristana:_menu()
+    gso_menu:MenuElement({name = "Tristana", id = "gsotristana", type = MENU, leftIcon = "https://i.imgur.com/SMrqd0t.png"})
+        gso_menu.gsotristana:MenuElement({name = "Q settings", id = "qset", type = MENU })
+            gso_menu.gsotristana.qset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsotristana.qset:MenuElement({id = "harass", name = "Harass", value = false})
+        gso_menu.gsotristana:MenuElement({name = "E settings", id = "eset", type = MENU })
+            gso_menu.gsotristana.eset:MenuElement({id = "combo", name = "Combo", value = true})
+            gso_menu.gsotristana.eset:MenuElement({id = "harass", name = "Harass", value = false})
+        gso_menu.gsotristana:MenuElement({name = "R settings", id = "rset", type = MENU })
+            gso_menu.gsotristana.rset:MenuElement({id = "ks", name = "KS", value = true})
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|--------------------cast spells--------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTristana:_castW()
+    local dActions = _gso.Spells.delayedSpell
+    for k,v in pairs(dActions) do
+        if k == 1 then
+            if _gso.Orb.dActionsC == 0 then
+                v[1]()
+                _gso.Orb.dActions[GetTickCount()] = { function() return 0 end, 50 }
+                _gso.Orb.enableAA = false
+                _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
+                self.lastW = GetTickCount()
+                _gso.Spells.delayedSpell[k] = nil
+                break
+            end
+            if GetTickCount() - v[2] > 125 then
+                _gso.Spells.delayedSpell[k] = nil
+            end
+            break
+        end
+    end
+end
+function __gsoTristana:_rKS()
+    for i = 1, #_gso.OB.enemyHeroes do
+        local hero  = _gso.OB.enemyHeroes[i]
+        local nID   = hero.networkID
+        if self.eBuffs[nID] and self.eBuffs[nID].count > 0 and _gso.Utils:_valid(hero, false) and _gso.Utils:_getDistance(myHero.pos, hero.pos) < 1200 then
+            --print(self.eBuffs[nID].count)
+            local elvl = myHero:GetSpellData(_E).level
+            local basedmg = 5 + ( elvl * 15 )
+            local cstacks = self.eBuffs[nID].count
+            local perstack = ( 10 + (5*elvl) ) * cstacks
+            local bonusAD = myHero.bonusDamage * 0.25 * cstacks
+            local bonusAP = myHero.ap * 0.2 * cstacks
+            local edmg = basedmg + perstack + bonusAD + bonusAP
+            local tarm = hero.armor - myHero.armorPen
+                  tarm = tarm > 0 and myHero.armorPenPercent * tarm or tarm
+            local DmgDealt = tarm > 0 and edmg * ( 100 / ( 100 + tarm ) ) or edmg * ( 2 - ( 100 / ( 100 - tarm ) ) )
+            local HPRegen = hero.hpRegen * 1.5
+            if hero.health + hero.shieldAD + HPRegen < DmgDealt then
+                Control.KeyDown(HK_E)
+                Control.KeyUp(HK_E)
+                self.lastE = GetTickCount()
+                _gso.Orb.enableAA = false
+                return
+            end
+        end
+    end
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------------tick-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTristana:_tick()
+    
+    --[[ enable aa ]]
+    local getTick = GetTickCount()
+    local qMinus = getTick - self.lastQ
+    local wMinus = getTick - self.lastW
+    local wMinus2 = getTick - _gso.Spells.lastW
+    local eMinus = getTick - self.lastE
+    local rMinus = getTick - self.lastR
+    local botrkMinus = getTick - _gso.Items.lastBotrk
+    if _gso.Orb.enableAA == false and qMinus > 100 and wMinus > 750 and wMinus2 > 1050 and eMinus > 150 and rMinus > 350 and botrkMinus > 75 and GetTickCount() - _gso.Spells.lastE > 150 then
+        _gso.Orb.enableAA = true
+    end
+    
+    --[[ handle E buffs ]]
+    for i = 1, #_gso.OB.enemyHeroes do
+        local hero  = _gso.OB.enemyHeroes[i]
+        local nID   = hero.networkID
+        if not self.eBuffs[nID] then
+            self.eBuffs[nID] = { count = 0, durT = 0 }
+        end
+        if not hero.dead then
+            local hasB = false
+            local cB = self.eBuffs[nID].count
+            local dB = self.eBuffs[nID].durT
+            for i = 0, hero.buffCount do
+                local buff = hero:GetBuff(i)
+                if buff and buff.count > 0 and buff.name:lower() == "tristanaechargesound" then
+                    hasB = true
+                    --print(buff.stacks)
+                    if cB < 6 and buff.duration > dB then
+                        self.eBuffs[nID].count = cB + 1
+                        self.eBuffs[nID].durT = buff.duration
+                    else
+                        self.eBuffs[nID].durT = buff.duration
+                    end
+                    break
+                end
+            end
+            if not hasB then
+                self.eBuffs[nID].count = 0
+                self.eBuffs[nID].durT = 0
+            end
+        end
+    end
+    
+    --[[ manual W ]]
+    local isWReady = wMinus > 1000 and Game.CanUseSpell(_W) == 0
+    if isWReady then
+        self:_castW()
+    end
+    
+    local isCombo = gso_menu.orb.keys.combo:Value()
+    local isHarass = gso_menu.orb.keys.harass:Value()
+    local isKSR = (isCombo or isHarass) and gso_menu.gsotristana.rset.ks:Value()
+    local isRReady = isKSR and _gso.Orb.dActionsC == 0 and wMinus > 750 and wMinus2 > 1050 and eMinus > 350 and rMinus > 1000 and Game.CanUseSpell(_R) == 0
+    
+    --[[ KS R ]]
+    if isRReady and self:_rKS() then
+        return
+    end
+    
+    --[[ cast spells ]]
+    if os.clock() > _gso.Orb.lAttack + _gso.Orb.windUpT + 0.1 then
+        
+        --[[ check if spells are ready ]]
+        local isComboQ = isCombo and gso_menu.gsotristana.qset.combo:Value()
+        local isHarassQ = isHarass and gso_menu.gsotristana.qset.harass:Value()
+        local isComboE = isCombo and gso_menu.gsotristana.eset.combo:Value()
+        local isHarassE = isHarass and gso_menu.gsotristana.eset.harass:Value()
+        local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 500 and eMinus > 350 and rMinus > 350 and Game.CanUseSpell(_Q) == 0
+        local isEReady = (isComboE or isHarassE) and _gso.Orb.dActionsC == 0 and wMinus > 750 and wMinus2 > 1050 and eMinus > 1000 and rMinus > 350 and Game.CanUseSpell(_E) == 0
+        
+        --[[ combo/harass ]]
+        if isQReady or isEReady then
+            
+            --[[ check enemies in aa range ]]
+            local mePos = myHero.pos
+            local meRange = myHero.range + myHero.boundingRadius
+            local enemiesCount = 0
+            for i = 1, #_gso.OB.enemyHeroes do
+                local hero = _gso.OB.enemyHeroes[i]
+                if _gso.Utils:_valid(hero, true) and _gso.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
+                    enemiesCount = enemiesCount + 1
+                end
+            end
+            
+            --[[ spells if enemy is out of aa range ]]
+            local outOfAARange = not _gso.TS.lastTarget and enemiesCount == 0
+            
+            --[[ cast Q ]]
+            if isQReady and not outOfAARange then
+                Control.KeyDown(HK_Q)
+                Control.KeyUp(HK_Q)
+                self.lastQ = GetTickCount()
+                _gso.Orb.enableAA = false
+            end
+            
+            --[[ cast E ]]
+            if isEReady and not outOfAARange then
+                local target = _gso.TS.lastTarget
+                local targetPos = target and target.pos or nil
+                if targetPos and not _gso.Utils:_nearUnit(targetPos, target.networkID) and _gso.Utils:_getDistance(targetPos, myHero.pos) < myHero.range + myHero.boundingRadius + target.boundingRadius - 30 then
+                    local cPos = cursorPos
+                    Control.SetCursorPos(targetPos)
+                    Control.KeyDown(HK_E)
+                    Control.KeyUp(HK_E)
+                    self.lastE = GetTickCount()
+                    _gso.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                    _gso.Orb.enableAA = false
+                    _gso.Orb.dActionsC = _gso.Orb.dActionsC + 1
                 end
             end
         end
@@ -3432,9 +3886,8 @@ function OnLoad()
                     gso_menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
         gso_menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = "https://i.imgur.com/kPzTQDw.png"})
             gso_menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
-                gso_menu.orb.delays:MenuElement({name = "only if aa cancel -> higher value = less aa/dmg ", id = "anim", value = 0, min = 0, max = 50, step = 5 })
-                gso_menu.orb.delays:MenuElement({name = "only if aa cancel -> higher value = slower kite", id = "windup", value = 0, min = 0, max = 200, step = 5 })
-                gso_menu.orb.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 200, step = 5 })
+                gso_menu.orb.delays:MenuElement({name = "extra WindUp", id = "windup", value = 0, min = 0, max = 50, step = 10 })
+                gso_menu.orb.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 10 })
                 gso_menu.orb.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
             gso_menu.orb:MenuElement({name = "Keys", id = "keys", type = MENU})
                 gso_menu.orb.keys:MenuElement({name = "Combo Key", id = "combo", key = string.byte(" ")})
@@ -3460,6 +3913,8 @@ function OnLoad()
             gso_menu.gsoitem:MenuElement({name = "", id = "botrk", leftIcon = "https://i.imgur.com/xSE3Kc0.png", value = true})
 
     _gso.Items = __gsoItems()
+    _gso.Spells = __gsoSpells()
+    _gso.Utils = __gsoUtils()
     _gso.OB = __gsoOB()
     _gso.TS = __gsoTS()
     _gso.Farm = __gsoFarm()
@@ -3486,23 +3941,17 @@ function OnLoad()
     elseif _gso.Vars.hName == "KogMaw" then
         __gsoKogMaw()
     elseif _gso.Vars.hName == "Draven" then
-        __gsoDraven()
+        --__gsoDraven()
     elseif _gso.Vars.hName == "Ezreal" then
-        __gsoEzreal()
+        --__gsoEzreal()
     elseif _gso.Vars.hName == "Vayne" then
         __gsoVayne()
     elseif _gso.Vars.hName == "Teemo" then
-        __gsoTeemo()
+        --__gsoTeemo()
     elseif _gso.Vars.hName == "Sivir" then
-        __gsoSivir()
+        --__gsoSivir()
     elseif _gso.Vars.hName == "Tristana" then
         --__gsoTristana()
-    elseif _gso.Vars.hName == "MissFortune" then
-        --__gsoMissFortune()
-    elseif _gso.Vars.hName == "Lucian" then
-        --__gsoLucian()
-    elseif _gso.Vars.hName == "Kayle" then
-        --__gsoKayle()
     end
     _gso.Vars._champMenu()
     print("gamsteronAIO ".._gso.Vars.version.." | loaded!")
