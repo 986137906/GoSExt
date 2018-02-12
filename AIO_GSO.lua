@@ -8,6 +8,7 @@ local Vector = Vector
 local Draw = Draw
 local gsoAIO = {
   Vars = nil,
+  Dmg = nil,
   Items = nil,
   Spells = nil,
   Utils = nil,
@@ -28,8 +29,9 @@ local gsoAIO = {
 --------------------|---------------------------------------------------------|--------------------
 class "__gsoVars"
 function __gsoVars:__init()
-    self.version = "0.57"
+    self.version = "0.58"
     self.hName = myHero.charName
+    self.meTristana = self.hName == "Tristana"
     self.loaded = true
     self.supportedChampions = {
       ["Ashe"] = true,
@@ -37,10 +39,10 @@ function __gsoVars:__init()
       ["Twitch"] = true,
       --["Draven"] = true,
       ["Ezreal"] = true,
-      ["Vayne"] = true
-      --["Teemo"] = true,
+      ["Vayne"] = true,
+      ["Teemo"] = true,
       --["Sivir"] = true,
-      --["Tristana"] = true
+      ["Tristana"] = true
     }
     if not self.supportedChampions[self.hName] == true then
         self.loaded = false
@@ -68,6 +70,130 @@ gsoAIO.Vars = __gsoVars()
 if gsoAIO.Vars.loaded == false then
     return
 end
+
+
+
+
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|------------------------DAMAGE---------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+class "__gsoDmg"
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------INIT----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoDmg:__init()
+    
+    
+    
+    --[[ ---------------- ]]
+    --[[   BASE DAMAGES   ]]
+    --[[ ---------------- ]]
+    
+    self.Damages =
+    {
+        ["Tristana"] =
+        {
+            --   E
+            e =
+            {
+                dmgAP =
+                    function()
+                        return 25 + ( 25 * myHero:GetSpellData(_E).level ) + ( 0.25 * myHero.ap )
+                    end,
+                dmgAD =
+                    function(stacks)
+                        local elvl = myHero:GetSpellData(_E).level
+                        local meDmg = myHero.totalDamage
+                        local meAP = myHero.ap
+                        local stacksDmg = 0
+                        local baseDmg = 50 + ( 10 * elvl ) + ( ( 0.4 + ( 0.1 * elvl ) ) * meDmg ) + ( 0.5 * meAP )
+                        if stacks > 0 then
+                            local stackDmg = 15 + ( 3 * elvl ) + ( ( 0.12 + ( 0.03 * elvl ) ) * meDmg ) + ( 0.15 * meAP )
+                            stacksDmg = stacks * stackDmg
+                        end
+                        return baseDmg + stacksDmg
+                    end,
+                dmgType = "mixed"
+            },
+            
+            --   R
+            r =
+            {
+                dmgAP =
+                    function()
+                        return 200 + ( 100 * myHero:GetSpellData(_R).level ) + myHero.ap
+                    end,
+                dmgType = "ap"
+            }
+        }
+    }
+    
+    --[[ ------------------ ]]
+    --[[   CALC DMG AP/AD   ]]
+    --[[ ------------------ ]]
+    self.CalcDmg =
+        function(unit, dmg, isAP)
+            if unit == nil or dmg == nil or isAP == nil then return 0 end
+            if dmg > 0 then
+                local def = isAP and unit.magicResist - myHero.magicPen or unit.armor - myHero.armorPen
+                if def > 0 then
+                    def = isAP and myHero.magicPenPercent * def or myHero.bonusArmorPenPercent * def
+                end
+                local result = def > 0 and dmg * ( 100 / ( 100 + def ) ) or dmg * ( 2 - ( 100 / ( 100 - def ) ) )
+                local unitShield = isAP and unit.shieldAP or 0
+                result = result - unitShield
+                return result < 0 and 0 or result
+            else
+                return 0
+            end
+        end
+    
+    --[[ ---------------- ]]
+    --[[   PREDICTED HP   ]]
+    --[[ ---------------- ]]
+    
+    self.PredHP =
+        function(unit, spellData)
+            
+            if unit == nil or spellData == nil then return 0 end
+            
+            --[[ spell data ]]
+            local dmgAP = spellData.dmgAP and spellData.dmgAP or 0
+            local dmgAD = spellData.dmgAD and spellData.dmgAD or 0
+            local dmgTrue = spellData.dmgTrue and spellData.dmgTrue or 0
+            local dmgType = spellData.dmgType and spellData.dmgType or ""
+            
+            --[[ ad damage ]]
+            if dmgType == "ad" then
+                return self.CalcDmg(unit, dmgAD, false) - unit.shieldAD
+            end
+
+            --[[ ap damage ]]
+            if dmgType == "ap" then
+                return self.CalcDmg(unit, dmgAP, true) - unit.shieldAD
+            end
+
+            --[[ true damage ]]
+            if dmgType == "true" then
+                return dmgTrue - unit.shieldAD
+            end
+
+            --[[ mixed damage ]]
+            if dmgType == "mixed" then
+                return self.CalcDmg(unit, dmgAP, true) + self.CalcDmg(unit, dmgAD, false) - unit.shieldAD
+            end
+            
+            --[[ wrong damage type ]]
+            return 0
+        end
+end
+
 
 
 
@@ -208,6 +334,8 @@ class "__gsoUtils"
 --------------------|-------------------------init----------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoUtils:__init()
+    self.delayedActions = {}
+    self.eBuffTarget = nil
     self.undyingBuffs = {
         ["zhonyasringshield"] = true
     }
@@ -227,6 +355,21 @@ function __gsoUtils:__init()
         ["Varus"] = 1, ["Vayne"] = 1, ["Veigar"] = 2, ["Velkoz"] = 2, ["Vi"] = 4, ["Viktor"] = 2, ["Vladimir"] = 3, ["Volibear"] = 4, ["Warwick"] = 4, ["Xayah"] = 1,
         ["Xerath"] = 2, ["XinZhao"] = 3, ["Yasuo"] = 2, ["Yorick"] = 4, ["Zac"] = 5, ["Zed"] = 2, ["Ziggs"] = 2, ["Zilean"] = 3, ["Zoe"] = 2, ["Zyra"] = 2
     }
+    Callback.Add('Tick', function() self:_tick() end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-------------------------tick----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoUtils:_tick()
+    for i = 1, #gsoAIO.Utils.delayedActions do
+        local dAction = gsoAIO.Utils.delayedActions[i]
+        if os.clock() > dAction.endTime then
+            dAction.func()
+            gsoAIO.Utils.delayedActions[i] = nil
+            --print("ok")
+        end
+    end
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -365,7 +508,7 @@ function __gsoUtils:_hasBuff(unit, bName)
 end
 
 --------------------|---------------------------------------------------------|--------------------
---------------------|------------------check if has buff----------------------|--------------------
+--------------------|----------------------is ready---------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoUtils:_isReady(spell)
     return gsoAIO.Orb.dActionsC == 0 and Game.CanUseSpell(spell) == 0
@@ -470,7 +613,7 @@ function __gsoTS:__init()
 end
 
 --------------------|---------------------------------------------------------|--------------------
---------------------|---------------------spell target------------------------|--------------------
+--------------------|----------------------get target-------------------------|--------------------
 --------------------|---------------------------------------------------------|--------------------
 function __gsoTS:_getTarget(_range, orb, changeRange)
     if gsoAIO.Load.menu.ts.selected.only:Value() == true and gsoAIO.Utils:_valid(self.selectedTarget, true) then
@@ -482,11 +625,15 @@ function __gsoTS:_getTarget(_range, orb, changeRange)
     local prioT  = { 10000000, 10000000 }
     for i = 1, #gsoAIO.OB.enemyHeroes do
         local unit = gsoAIO.OB.enemyHeroes[i]
+        local unitID = unit.networkID
+        local canTrist = gsoAIO.Vars.meTristana and gsoAIO.Load.menu.ts.tristE.enable:Value() and gsoAIO.Utils.eBuffTarget and gsoAIO.Utils.eBuffTarget.stacks >= gsoAIO.Load.menu.ts.tristE.stacks:Value() and unitID == gsoAIO.Utils.eBuffTarget.id
         local range = changeRange == true and _range + myHero.boundingRadius + unit.boundingRadius - 30 or _range
         local distance = gsoAIO.Utils:_getDistance(myHero.pos, unit.pos)
         if gsoAIO.Utils:_valid(unit, orb) and distance < range then
-            if gsoAIO.Load.menu.ts.selected.enable:Value() == true and gsoAIO.Utils:_valid(self.selectedTarget, true) and unit.networkID == self.selectedTarget.networkID then
+            if gsoAIO.Load.menu.ts.selected.enable:Value() and self.selectedTarget and unitID == self.selectedTarget.networkID then
                 return self.selectedTarget
+            elseif canTrist then
+                return unit
             elseif mode == 1 then
                 local unitName = unit.charName
                 local priority = 6
@@ -819,7 +966,7 @@ function __gsoFarm:_setEnemyMinions()
         if distance < myHero.range + myHero.boundingRadius + eMinion.boundingRadius - 30 then
             local eMinion_health	= eMinion.health
             local myHero_aaData		= myHero.attackData
-            local myHero_pFlyTime	= myHero_aaData.windUpTime + (distance / myHero_aaData.projectileSpeed) + (Game.Latency()*0.001) + 0.05 + mLH
+            local myHero_pFlyTime	= myHero_aaData.windUpTime + (distance / myHero_aaData.projectileSpeed) + 0.125 + mLH
             for k1,v1 in pairs(self.aAttacks) do
                 for k2,v2 in pairs(self.aAttacks[k1]) do
                     if v2.canceled == false and eMinion_handle == v2.to.handle then
@@ -935,7 +1082,7 @@ function __gsoFarm:_handleActiveAA()
                 if ranged == true then
                     self.aAttacks[k1][k2].pTime = gsoAIO.Utils:_getDistance(v2.fromPos, self:_predPos(v2.speed, v2.pos, v2.to)) / v2.speed
                 end
-                if checkT > v2.startTime + self.aAttacks[k1][k2].pTime - (Game.Latency()*0.001) - 0.02 or not v2.to or v2.to.dead then
+                if checkT > v2.startTime + self.aAttacks[k1][k2].pTime - (Game.Latency()*0.0015) - 0.034 or not v2.to or v2.to.dead then
                     self.aAttacks[k1][k2] = nil
                 elseif ranged == true then
                     self.aAttacks[k1][k2].pos = v2.fromPos:Extended(v2.to.pos, (checkT-v2.startTime)*v2.speed)
@@ -1330,7 +1477,7 @@ function __gsoOrb:_orb(unit)
     local aaSpeed = gsoAIO.Vars._aaSpeed() * self.baseAASpeed
           aaSpeed = aaSpeed > 2.5 and 2.5 or aaSpeed
     self.animT    = 1 / aaSpeed
-    self.windUpT  = (self.animT * self.baseWindUp) + (gsoAIO.Load.menu.orb.delays.windup:Value() * 0.001) + 0.05
+    self.windUpT  = (self.animT * self.baseWindUp) + (gsoAIO.Load.menu.orb.delays.windup:Value() * 0.001) + 0.09
     self.animT    = self.animT + 0.01
     
     --[[ check if can attack | move ]]
@@ -1352,6 +1499,12 @@ function __gsoOrb:_orb(unit)
             self.aaReset = false
             self.lAttack = os.clock()
             self.lMove = 0
+            if gsoAIO.Vars.meTristana and gsoAIO.Utils.eBuffTarget and gsoAIO.Utils.eBuffTarget.id == unit.networkID then
+                gsoAIO.Utils.eBuffTarget.stacks = gsoAIO.Utils.eBuffTarget.stacks + 1
+                if gsoAIO.Utils.eBuffTarget.stacks == 5 then
+                    gsoAIO.Utils.delayedActions[#gsoAIO.Utils.delayedActions+1] = { func = function() gsoAIO.Utils.eBuffTarget = nil end, endTime = os.clock() + self.windUpT + (gsoAIO.Utils:_getDistance(myHero.pos, unit.pos) / 2000) }
+                end
+            end
         elseif self.canMove and os.clock() > self.lMove + (gsoAIO.Load.menu.orb.delays.humanizer:Value()*0.001) and self.dActionsC == 0 then
             local mPos = gsoAIO.Vars._mousePos()
             if mPos ~= nil then
@@ -1667,7 +1820,7 @@ function __gsoAshe:_tick()
     self.hasQBuff = hasQBuff
     
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.05 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
     
         --[[ check if spells are ready ]]
         local checkTick = GetTickCount()
@@ -2084,7 +2237,7 @@ function __gsoTwitch:_tick()
     end
     
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.05 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
         
         --[[ check if spells are ready ]]
         local checkTick = GetTickCount()
@@ -2327,7 +2480,7 @@ function __gsoKogMaw:_tick()
     self.hasWBuff = hasWBuff
     
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.05 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
         
         --[[ check if spells are ready ]]
         local checkTick = GetTickCount()
@@ -2561,7 +2714,7 @@ function __gsoDraven:_tick()
     end
     
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.1 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
         
         --[[ check if spells are ready ]]
         local isCombo = gsoAIO.Load.menu.orb.keys.combo:Value()
@@ -2833,7 +2986,6 @@ function __gsoEzreal:_castQCombo()
             Control.KeyUp(HK_Q)
             self.lastQ = GetTickCount()
             gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            gsoAIO.Orb.enableAA = false
             gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
             return true
         end
@@ -2866,7 +3018,6 @@ function __gsoEzreal:_autoQ()
                     Control.KeyUp(HK_Q)
                     self.lastQ = GetTickCount()
                     gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                    gsoAIO.Orb.enableAA = false
                     gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
                     return true
                 end
@@ -2891,7 +3042,6 @@ function __gsoEzreal:_castQ(t, tPos, mePos)
         Control.KeyUp(HK_Q)
         self.lastQ = GetTickCount()
         gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-        gsoAIO.Orb.enableAA = false
         gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
         return true
     end
@@ -3080,7 +3230,6 @@ function __gsoEzreal:_castW()
             Control.KeyUp(HK_W)
             self.lastW = GetTickCount()
             gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            gsoAIO.Orb.enableAA = false
             gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
             return
         end
@@ -3118,13 +3267,12 @@ function __gsoEzreal:_tick()
     
     --[[ manual E ]]
     local getTick = GetTickCount()
-    local isEReady = getTick - self.lastE > 1000 and Game.CanUseSpell(_E) == 0
-    if isEReady then
+    if getTick - self.lastE > 1000 and Game.CanUseSpell(_E) == 0 then
         self:_castE()
     end
     
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.05 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
         
         --[[ check if spells are ready ]]
         local qMinus = getTick - self.lastQ
@@ -3338,7 +3486,7 @@ function __gsoVayne:_tick()
     end
     
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.05 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
     
         --[[ check if spells are ready ]]
         local qMinus = getTick - self.lastQ
@@ -3412,6 +3560,23 @@ function __gsoTeemo:__init()
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
+    gsoAIO.Vars:_setCanAttack(function() return self:_canAttack() end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------canAA-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTeemo:_canAttack()
+    local getTick = GetTickCount()
+    local qMinus = getTick - self.lastQ
+    local qMinuss = getTick - gsoAIO.Spells.lastQ
+    local wMinus = getTick - self.lastW
+    local wMinuss = getTick - gsoAIO.Spells.lastW
+    local rMinuss = getTick - gsoAIO.Spells.lastR
+    if qMinus > 450 and qMinuss > 450 and wMinus > 50 and wMinuss > 50 and rMinuss > 700 then
+        return true
+    end
+    return false
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -3441,7 +3606,6 @@ function __gsoTeemo:_castQ()
         Control.KeyUp(HK_Q)
         self.lastQ = GetTickCount()
         gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-        gsoAIO.Orb.enableAA = false
         gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
         return true
     end
@@ -3467,27 +3631,26 @@ end
 --------------------|---------------------------------------------------------|--------------------
 function __gsoTeemo:_tick()
     
-    --[[ enable aa ]]
-    local getTick = GetTickCount()
-    local qMinus = getTick - self.lastQ
-    local wMinus = getTick - self.lastW
-    local botrkMinus = getTick - gsoAIO.Items.lastBotrk
-    if gsoAIO.Orb.enableAA == false and qMinus > 350 and botrkMinus > 75 then
-        gsoAIO.Orb.enableAA = true
-    end
-    
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.1 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
     
         --[[ check if spells are ready ]]
+        local getTick = GetTickCount()
+        local qMinus = getTick - self.lastQ
+        local qMinuss = getTick - gsoAIO.Spells.lastQ
+        local wMinus = getTick - self.lastW
+        local wMinuss = getTick - gsoAIO.Spells.lastW
+        local rMinuss = getTick - gsoAIO.Spells.lastR
+        local canQTime = qMinus > 1000 and qMinuss > 1000 and rMinuss > 1050
+        local canWTime = qMinus > 50 and qMinuss > 50 and wMinus > 1000 and wMinuss > 1000 and rMinuss > 50
         local isCombo = gsoAIO.Load.menu.orb.keys.combo:Value()
         local isHarass = gsoAIO.Load.menu.orb.keys.harass:Value()
         local isComboQ = isCombo and gsoAIO.Load.menu.gsoteemo.qset.combo:Value()
         local isHarassQ = isHarass and gsoAIO.Load.menu.gsoteemo.qset.harass:Value()
         local isComboW = isCombo and gsoAIO.Load.menu.gsoteemo.wset.combo:Value()
         local isHarassW = isHarass and gsoAIO.Load.menu.gsoteemo.wset.harass:Value()
-        local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 250 and Game.CanUseSpell(_Q) == 0
-        local isWReady = (isComboW or isHarassW) and wMinus > 1000 and qMinus > 250 and Game.CanUseSpell(_W) == 0
+        local isQReady = (isComboQ or isHarassQ) and canQTime and gsoAIO.Utils:_isReady(_Q)
+        local isWReady = (isComboW or isHarassW) and canWTime and gsoAIO.Utils:_isReady(_W)
         
         --[[ combo harass ]]
         if isQReady or isWReady then
@@ -3504,7 +3667,7 @@ function __gsoTeemo:_tick()
             end
             
             --[[ spells after/before if enemy is in aa range ]]
-            local afterBefore = os.clock() < gsoAIO.Orb.lAttack + gsoAIO.Orb.animT*0.9
+            local afterBefore = os.clock() < gsoAIO.Orb.lAttack + gsoAIO.Orb.animT*0.75
             
             --[[ spells if enemy is out of aa range ]]
             local outOfAARange = not gsoAIO.Utils:_valid(gsoAIO.TS.lastTarget, true) and enemiesCount == 0
@@ -3628,7 +3791,7 @@ function __gsoSivir:_tick()
     end
     
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.1 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
     
         --[[ check if spells are ready ]]
         local isCombo = gsoAIO.Load.menu.orb.keys.combo:Value()
@@ -3697,11 +3860,50 @@ function __gsoTristana:__init()
     self.lastE = 0
     self.lastR = 0
     self.eBuffs = {}
+    self.eData = gsoAIO.Dmg.Damages["Tristana"].e
+    self.rData = gsoAIO.Dmg.Damages["Tristana"].r
+    self.getEData =
+        function(stacks)
+            return
+            {
+                dmgAP = self.eData.dmgAP(),
+                dmgAD = self.eData.dmgAD(stacks),
+                dmgType = self.eData.dmgType
+            }
+        end
+    self.getRData =
+        function()
+            return
+            {
+                dmgAP = self.rData.dmgAP(),
+                dmgType = self.rData.dmgType
+            }
+        end
     gsoAIO.Orb.baseAASpeed = 0.656
     gsoAIO.Orb.baseWindUp = 0.1480066
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
+    gsoAIO.Vars:_setCanAttack(function() return self:_canAttack() end)
+end
+
+--------------------|---------------------------------------------------------|--------------------
+--------------------|-----------------------canAA-----------------------------|--------------------
+--------------------|---------------------------------------------------------|--------------------
+function __gsoTristana:_canAttack()
+    local getTick = GetTickCount()
+    local qMinus = getTick - self.lastQ
+    local qMinuss = getTick - gsoAIO.Spells.lastQ
+    local wMinus = getTick - self.lastW
+    local wMinuss = getTick - gsoAIO.Spells.lastW
+    local eMinus = getTick - self.lastE
+    local eMinuss = getTick - gsoAIO.Spells.lastE
+    local rMinus = getTick - self.lastR
+    local rMinuss = getTick - gsoAIO.Spells.lastR
+    if Game.CanUseSpell(_E) ~= 0 and qMinus > 50 and qMinuss > 50 and wMinus > 1050 and wMinuss > 1050 and eMinus > 200 and eMinuss > 200 and rMinus > 300 and rMinuss > 300 then
+        return true
+    end
+    return false
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -3717,6 +3919,7 @@ function __gsoTristana:_menu()
             gsoAIO.Load.menu.gsotristana.eset:MenuElement({id = "harass", name = "Harass", value = false})
         gsoAIO.Load.menu.gsotristana:MenuElement({name = "R settings", id = "rset", type = MENU })
             gsoAIO.Load.menu.gsotristana.rset:MenuElement({id = "ks", name = "KS", value = true})
+            gsoAIO.Load.menu.gsotristana.rset:MenuElement({id = "kse", name = "KS only E + R", value = false})
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -3729,7 +3932,6 @@ function __gsoTristana:_castW()
             if gsoAIO.Orb.dActionsC == 0 then
                 v[1]()
                 gsoAIO.Orb.dActions[GetTickCount()] = { function() return 0 end, 50 }
-                gsoAIO.Orb.enableAA = false
                 gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
                 self.lastW = GetTickCount()
                 gsoAIO.Spells.delayedSpell[k] = nil
@@ -3743,31 +3945,41 @@ function __gsoTristana:_castW()
     end
 end
 function __gsoTristana:_rKS()
-    for i = 1, #gsoAIO.OB.enemyHeroes do
-        local hero  = gsoAIO.OB.enemyHeroes[i]
-        local nID   = hero.networkID
-        if self.eBuffs[nID] and self.eBuffs[nID].count > 0 and gsoAIO.Utils:_valid(hero, false) and gsoAIO.Utils:_getDistance(myHero.pos, hero.pos) < 1200 then
-            --print(self.eBuffs[nID].count)
-            local elvl = myHero:GetSpellData(_E).level
-            local basedmg = 5 + ( elvl * 15 )
-            local cstacks = self.eBuffs[nID].count
-            local perstack = ( 10 + (5*elvl) ) * cstacks
-            local bonusAD = myHero.bonusDamage * 0.25 * cstacks
-            local bonusAP = myHero.ap * 0.2 * cstacks
-            local edmg = basedmg + perstack + bonusAD + bonusAP
-            local tarm = hero.armor - myHero.armorPen
-                  tarm = tarm > 0 and myHero.armorPenPercent * tarm or tarm
-            local DmgDealt = tarm > 0 and edmg * ( 100 / ( 100 + tarm ) ) or edmg * ( 2 - ( 100 / ( 100 - tarm ) ) )
-            local HPRegen = hero.hpRegen * 1.5
-            if hero.health + hero.shieldAD + HPRegen < DmgDealt then
-                Control.KeyDown(HK_E)
-                Control.KeyUp(HK_E)
-                self.lastE = GetTickCount()
-                gsoAIO.Orb.enableAA = false
-                return
+    local mePos = myHero.pos
+    local meRange = myHero.range + ( myHero.boundingRadius * 0.5 )
+    if gsoAIO.Utils.eBuffTarget then
+        local unit = gsoAIO.Utils.eBuffTarget.unit
+        local stacks = gsoAIO.Utils.eBuffTarget.stacks
+        local unitPos = unit and unit.pos or nil
+        if unitPos and gsoAIO.Utils:_valid(unit, false) and gsoAIO.Utils:_getDistance(unitPos, mePos) < meRange + ( unit.boundingRadius * 0.5 ) and not gsoAIO.Utils:_nearUnit(unitPos, unit.networkID) and gsoAIO.Dmg.PredHP(unit, self.getRData()) + gsoAIO.Dmg.PredHP(unit, self.getEData(stacks)) > unit.health + (unit.hpRegen * 2) then
+            local cPos = cursorPos
+            Control.SetCursorPos(unitPos)
+            Control.KeyDown(HK_R)
+            Control.KeyUp(HK_R)
+            self.lastR = GetTickCount()
+            gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+            gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+            gsoAIO.Utils.eBuffTarget = nil
+            return true
+        end
+    end
+    if not gsoAIO.Load.menu.gsotristana.rset.kse:Value() then
+        for i = 1, #gsoAIO.OB.enemyHeroes do
+            local unit  = gsoAIO.OB.enemyHeroes[i]
+            local unitPos = unit and unit.pos or nil
+            if unitPos and gsoAIO.Utils:_valid(unit, false) and gsoAIO.Utils:_getDistance(unitPos, mePos) < meRange + ( unit.boundingRadius * 0.5 ) and not gsoAIO.Utils:_nearUnit(unitPos, unit.networkID) and gsoAIO.Dmg.PredHP(unit, self.getRData()) > unit.health + (unit.hpRegen * 2) then
+                local cPos = cursorPos
+                Control.SetCursorPos(unitPos)
+                Control.KeyDown(HK_R)
+                Control.KeyUp(HK_R)
+                self.lastR = GetTickCount()
+                gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+                return true
             end
         end
     end
+    return false
 end
 
 --------------------|---------------------------------------------------------|--------------------
@@ -3775,76 +3987,58 @@ end
 --------------------|---------------------------------------------------------|--------------------
 function __gsoTristana:_tick()
     
-    --[[ enable aa ]]
-    local getTick = GetTickCount()
-    local qMinus = getTick - self.lastQ
-    local wMinus = getTick - self.lastW
-    local wMinus2 = getTick - gsoAIO.Spells.lastW
-    local eMinus = getTick - self.lastE
-    local rMinus = getTick - self.lastR
-    local botrkMinus = getTick - gsoAIO.Items.lastBotrk
-    if gsoAIO.Orb.enableAA == false and qMinus > 100 and wMinus > 750 and wMinus2 > 1050 and eMinus > 150 and rMinus > 350 and botrkMinus > 75 and GetTickCount() - gsoAIO.Spells.lastE > 150 then
-        gsoAIO.Orb.enableAA = true
-    end
-    
     --[[ handle E buffs ]]
     for i = 1, #gsoAIO.OB.enemyHeroes do
         local hero  = gsoAIO.OB.enemyHeroes[i]
-        local nID   = hero.networkID
-        if not self.eBuffs[nID] then
-            self.eBuffs[nID] = { count = 0, durT = 0 }
-        end
-        if not hero.dead then
-            local hasB = false
-            local cB = self.eBuffs[nID].count
-            local dB = self.eBuffs[nID].durT
-            for i = 0, hero.buffCount do
-                local buff = hero:GetBuff(i)
-                if buff and buff.count > 0 and buff.name:lower() == "tristanaechargesound" then
-                    hasB = true
-                    --print(buff.stacks)
-                    if cB < 6 and buff.duration > dB then
-                        self.eBuffs[nID].count = cB + 1
-                        self.eBuffs[nID].durT = buff.duration
-                    else
-                        self.eBuffs[nID].durT = buff.duration
-                    end
-                    break
-                end
-            end
-            if not hasB then
-                self.eBuffs[nID].count = 0
-                self.eBuffs[nID].durT = 0
+        for i = 0, hero.buffCount do
+            local buff = hero:GetBuff(i)
+            if buff and buff.count > 0 and buff.duration > 1 and buff.name:lower() == "tristanaechargesound" and gsoAIO.Utils.eBuffTarget and not gsoAIO.Utils.eBuffTarget.endTime then
+                gsoAIO.Utils.eBuffTarget.endTime = Game.Timer() + buff.duration - Game.Latency()*0.0015 - 0.034
+                --print("ok")
             end
         end
+    end
+    if gsoAIO.Utils.eBuffTarget and gsoAIO.Utils.eBuffTarget.endTime and Game.Timer() > gsoAIO.Utils.eBuffTarget.endTime then
+        gsoAIO.Utils.eBuffTarget = nil
+        --print("ok")
     end
     
     --[[ manual W ]]
-    local isWReady = wMinus > 1000 and Game.CanUseSpell(_W) == 0
-    if isWReady then
+    local getTick = GetTickCount()
+    if getTick - self.lastW > 1000 and Game.CanUseSpell(_W) == 0 then
         self:_castW()
     end
     
-    local isCombo = gsoAIO.Load.menu.orb.keys.combo:Value()
-    local isHarass = gsoAIO.Load.menu.orb.keys.harass:Value()
-    local isKSR = (isCombo or isHarass) and gsoAIO.Load.menu.gsotristana.rset.ks:Value()
-    local isRReady = isKSR and gsoAIO.Orb.dActionsC == 0 and wMinus > 750 and wMinus2 > 1050 and eMinus > 350 and rMinus > 1000 and Game.CanUseSpell(_R) == 0
-    
-    --[[ KS R ]]
-    if isRReady and self:_rKS() then
-        return
-    end
-    
     --[[ cast spells ]]
-    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.1 then
+    if os.clock() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
         
         --[[ check if spells are ready ]]
+        local qMinus = getTick - self.lastQ
+        local qMinuss = getTick - gsoAIO.Spells.lastQ
+        local wMinus = getTick - self.lastW
+        local wMinuss = getTick - gsoAIO.Spells.lastW
+        local eMinus = getTick - self.lastE
+        local eMinuss = getTick - gsoAIO.Spells.lastE
+        local rMinus = getTick - self.lastR
+        local rMinuss = getTick - gsoAIO.Spells.lastR
+        local canQTime = qMinus > 1000 and qMinuss > 1000 and wMinus > 1050 and wMinuss > 1050 and eMinus > 50 and eMinuss > 50 and rMinus > 600 and rMinuss > 600
+        local canETime = qMinus > 50 and qMinuss > 50 and wMinus > 1050 and wMinuss > 1050 and eMinus > 1000 and eMinuss > 1000 and rMinus > 600 and rMinuss > 600
+        local canRTime = qMinus > 50 and qMinuss > 50 and wMinus > 1050 and wMinuss > 1050 and eMinus > 450 and eMinuss > 450 and rMinus > 1000 and rMinuss > 1000
+        local isCombo = gsoAIO.Load.menu.orb.keys.combo:Value()
+        local isHarass = gsoAIO.Load.menu.orb.keys.harass:Value()
         local isComboQ = isCombo and gsoAIO.Load.menu.gsotristana.qset.combo:Value()
         local isHarassQ = isHarass and gsoAIO.Load.menu.gsotristana.qset.harass:Value()
         local isComboE = isCombo and gsoAIO.Load.menu.gsotristana.eset.combo:Value()
         local isHarassE = isHarass and gsoAIO.Load.menu.gsotristana.eset.harass:Value()
-        local isQReady = (isComboQ or isHarassQ) and qMinus > 1000 and wMinus > 500 and eMinus > 350 and rMinus > 350 and Game.CanUseSpell(_Q) == 0
-        local isEReady = (isComboE or isHarassE) and gsoAIO.Orb.dActionsC == 0 and wMinus > 750 and wMinus2 > 1050 and eMinus > 1000 and rMinus > 350 and Game.CanUseSpell(_E) == 0
+        local isQReady = (isComboQ or isHarassQ) and canQTime and gsoAIO.Utils:_isReady(_Q)
+        local isEReady = (isComboE or isHarassE) and canETime and gsoAIO.Utils:_isReady(_E)
+        local isKSR = (isCombo or isHarass) and gsoAIO.Load.menu.gsotristana.rset.ks:Value()
+        local isRReady = isKSR and canRTime and gsoAIO.Utils:_isReady(_R)
+        
+        --[[ KS R ]]
+        if isRReady and self:_rKS() then
+            return
+        end
         
         --[[ combo/harass ]]
         if isQReady or isEReady then
@@ -3868,21 +4062,20 @@ function __gsoTristana:_tick()
                 Control.KeyDown(HK_Q)
                 Control.KeyUp(HK_Q)
                 self.lastQ = GetTickCount()
-                gsoAIO.Orb.enableAA = false
             end
             
             --[[ cast E ]]
             if isEReady and not outOfAARange then
-                local targetPos = gsoAIO.Utils:_valid(gsoAIO.TS.lastTarget, true) and gsoAIO.TS.lastTarget.pos or nil
-                if targetPos and not gsoAIO.Utils:_nearUnit(targetPos, target.networkID) and gsoAIO.Utils:_getDistance(targetPos, myHero.pos) < myHero.range + myHero.boundingRadius + target.boundingRadius - 30 then
+                local targetPos = gsoAIO.Utils:_valid(gsoAIO.TS.lastTarget, true) == true and gsoAIO.TS.lastTarget.pos or nil
+                if targetPos and not gsoAIO.Utils:_nearUnit(targetPos, gsoAIO.TS.lastTarget.networkID) and gsoAIO.Utils:_getDistance(targetPos, myHero.pos) < myHero.range + myHero.boundingRadius + gsoAIO.TS.lastTarget.boundingRadius - 30 then
                     local cPos = cursorPos
                     Control.SetCursorPos(targetPos)
                     Control.KeyDown(HK_E)
                     Control.KeyUp(HK_E)
                     self.lastE = GetTickCount()
                     gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                    gsoAIO.Orb.enableAA = false
                     gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+                    gsoAIO.Utils.eBuffTarget = { id = gsoAIO.TS.lastTarget.networkID, stacks = 1, unit = gsoAIO.TS.lastTarget }
                 end
             end
         end
@@ -3918,6 +4111,11 @@ end
 function __gsoLoad:_load()
     self.menu:MenuElement({name = "Target Selector", id = "ts", type = MENU, leftIcon = "https://i.imgur.com/vzoiheQ.png"})
         self.menu.ts:MenuElement({ id = "Mode", name = "Mode", value = 1, drop = { "Auto", "Closest", "Least Health", "Least Priority" } })
+        if gsoAIO.Vars.meTristana then
+            self.menu.ts:MenuElement({ id = "tristE", name = "Tristana E Target", type = MENU })
+                self.menu.ts.tristE:MenuElement({ id = "enable", name = "Enable", value = true })
+                self.menu.ts.tristE:MenuElement({ id = "stacks", name = "Min. Stacks", value = 3, min = 1, max = 4})
+        end
         self.menu.ts:MenuElement({ id = "priority", name = "Priorities", type = MENU })
         self.menu.ts:MenuElement({ id = "selected", name = "Selected Target", type = MENU })
             self.menu.ts.selected:MenuElement({ id = "enable", name = "Enable", value = true })
@@ -3929,7 +4127,7 @@ function __gsoLoad:_load()
                 self.menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
     self.menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = "https://i.imgur.com/kPzTQDw.png"})
         self.menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
-            self.menu.orb.delays:MenuElement({name = "extra WindUp", id = "windup", value = 0, min = 0, max = 50, step = 1 })
+            self.menu.orb.delays:MenuElement({name = "extra WindUp", id = "windup", value = 0, min = -30, max = 50, step = 1 })
             self.menu.orb.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 1 })
             self.menu.orb.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 0, max = 300, step = 10 })
         self.menu.orb:MenuElement({name = "Keys", id = "keys", type = MENU})
@@ -3954,7 +4152,8 @@ function __gsoLoad:_load()
                 self.menu.orb.draw.cpos:MenuElement({name = "Radius",  id = "radius", value = 250, min = 1, max = 300})
     self.menu:MenuElement({name = "Items", id = "gsoitem", type = MENU, leftIcon = "https://i.imgur.com/nMg6NAA.png"})
         self.menu.gsoitem:MenuElement({name = "", id = "botrk", leftIcon = "https://i.imgur.com/xSE3Kc0.png", value = true})
-
+    
+    gsoAIO.Dmg = __gsoDmg()
     gsoAIO.Items = __gsoItems()
     gsoAIO.Spells = __gsoSpells()
     gsoAIO.Utils = __gsoUtils()
@@ -3989,11 +4188,11 @@ function __gsoLoad:_load()
     elseif gsoAIO.Vars.hName == "Vayne" then
         __gsoVayne()
     elseif gsoAIO.Vars.hName == "Teemo" then
-        --__gsoTeemo()
+        __gsoTeemo()
     elseif gsoAIO.Vars.hName == "Sivir" then
         --__gsoSivir()
     elseif gsoAIO.Vars.hName == "Tristana" then
-        --__gsoTristana()
+        __gsoTristana()
     end
     gsoAIO.Vars._champMenu()
     print("gamsteronAIO "..gsoAIO.Vars.version.." | loaded!")
