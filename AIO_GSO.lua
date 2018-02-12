@@ -52,7 +52,6 @@ function __gsoVars:__init()
         ["twitch"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/twitch.png",
         ["vayne"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/vayne.png"
     }
-    print(self.Icons["arrow"])
     self.supportedChampions = {
       ["Ashe"] = true,
       ["KogMaw"] = true,
