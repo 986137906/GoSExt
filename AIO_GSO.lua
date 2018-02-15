@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.61"
+    self.version = "0.62"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
