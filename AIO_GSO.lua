@@ -31,11 +31,11 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.598"
+    self.version = "0.599"
     self.hName = myHero.charName
     self.supportedChampions = {
       --["Draven"] = true,
-      --["Ezreal"] = true,
+      ["Ezreal"] = true,
       ["Ashe"] = true,
       ["Twitch"] = true,
       ["KogMaw"] = true,
@@ -101,6 +101,10 @@ function __gsoVars:__init()
     self.meAshe = self.hName == "Ashe"
     self.asheCanW = true
     self.asheCanR = true
+-- EZREAL :
+    self.meEzreal = self.hName == "Ezreal"
+    self.ezrealCanQ = true
+    self.ezrealCanW = true
 end
 function __gsoVars:_setAASpeed(func) self._aaSpeed = func end
 function __gsoVars:_setChampMenu(func) self._champMenu = func end
@@ -323,12 +327,20 @@ function __gsoSpells:_onWndMsg(msg, wParam)
     elseif Game.CanUseSpell(_E) == 0 and wParam == HK_E and getTick > self.lastE + 1000 then
         self.lastE = getTick
         self.eLatency = Game.Latency()*1.1
+        if gsoAIO.Vars.meEzreal then
+            gsoAIO.Vars.ezrealCanQ = false
+            gsoAIO.Vars.ezrealCanW = false
+        end
         if isKey and not self.delayedSpell[2] then
             self.delayedSpell[2] = { function() gsoAIO.Utils:_castAgain(wParam) end, getTick }
         end
     elseif Game.CanUseSpell(_R) == 0 and wParam == HK_R and getTick > self.lastR + 1000 then
         self.lastR = getTick
         self.rLatency = Game.Latency()*1.1
+        if gsoAIO.Vars.meEzreal then
+            gsoAIO.Vars.ezrealCanQ = false
+            gsoAIO.Vars.ezrealCanW = false
+        end
         if isKey and not self.delayedSpell[3] then
             self.delayedSpell[3] = { function() gsoAIO.Utils:_castAgain(wParam) end, getTick }
         end
@@ -1640,6 +1652,10 @@ function __gsoOrb:_attack(unit)
         if not gsoAIO.Vars.asheCanW then gsoAIO.Vars.asheCanW = true end
         if not gsoAIO.Vars.asheCanR then gsoAIO.Vars.asheCanR = true end
     end
+    if gsoAIO.Vars.meEzreal then
+        if not gsoAIO.Vars.ezrealCanQ then gsoAIO.Vars.ezrealCanQ = true end
+        if not gsoAIO.Vars.ezrealCanW then gsoAIO.Vars.ezrealCanW = true end
+    end
     if not gsoAIO.Vars.canBotrk then gsoAIO.Vars.canBotrk = true end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -2119,52 +2135,26 @@ function __gsoTwitch:_canAttack(target)
             local canETime = wMinus > 350 and wMinuss > 350 and eMinus > 1000 and eMinuss > 1000
             local isComboE = isCombo and gsoAIO.Load.menu.gsotwitch.eset.combo:Value()
             local isHarassE = isHarass and gsoAIO.Load.menu.gsotwitch.eset.harass:Value()
-            local isEReady = canETime == true and gsoAIO.Utils:_isReady(_E) and not stopifQBuff
+            local isEReady = (isComboE or isHarassE) and canETime and gsoAIO.Utils:_isReady(_E) and not stopifQBuff
             if isEReady and ( not target or (target and gsoAIO.Vars.twitchCanE) ) then
-                if isComboE or isHarassE then
-                    local xStacks   = gsoAIO.Load.menu.gsotwitch.eset.stacks:Value()
-                    local xEnemies  = gsoAIO.Load.menu.gsotwitch.eset.enemies:Value()
-                    local countE    = 0
-                    for i = 1, #gsoAIO.OB.enemyHeroes do
-                        local hero = gsoAIO.OB.enemyHeroes[i]
-                        if gsoAIO.Utils:_getDistance(myHero.pos, hero.pos) < 1200 and gsoAIO.Utils:_valid(hero, false) then
-                            local nID = hero.networkID
-                            if self.eBuffs[nID] and self.eBuffs[nID].count >= xStacks then
-                                countE = countE + 1
-                            end
+                local xStacks   = gsoAIO.Load.menu.gsotwitch.eset.stacks:Value()
+                local xEnemies  = gsoAIO.Load.menu.gsotwitch.eset.enemies:Value()
+                local countE    = 0
+                for i = 1, #gsoAIO.OB.enemyHeroes do
+                    local hero = gsoAIO.OB.enemyHeroes[i]
+                    if gsoAIO.Utils:_getDistance(myHero.pos, hero.pos) < 1200 and gsoAIO.Utils:_valid(hero, false) then
+                        local nID = hero.networkID
+                        if self.eBuffs[nID] and self.eBuffs[nID].count >= xStacks then
+                            countE = countE + 1
                         end
-                    end
-                    if countE >= xEnemies then
-                        Control.KeyDown(HK_E)
-                        Control.KeyUp(HK_E)
-                        self.lastE = GetTickCount()
-                        gsoAIO.Vars.twitchCanW = false
-                        return false
                     end
                 end
-                for i = 1, #gsoAIO.OB.enemyHeroes do
-                    local hero  = gsoAIO.OB.enemyHeroes[i]
-                    local nID   = hero.networkID
-                    if self.eBuffs[nID] and self.eBuffs[nID].count > 0 and gsoAIO.Utils:_valid(hero, false) and gsoAIO.Utils:_getDistance(myHero.pos, hero.pos) < 1200 then
-                        local elvl = myHero:GetSpellData(_E).level
-                        local basedmg = 5 + ( elvl * 15 )
-                        local cstacks = self.eBuffs[nID].count
-                        local perstack = ( 10 + (5*elvl) ) * cstacks
-                        local bonusAD = myHero.bonusDamage * 0.25 * cstacks
-                        local bonusAP = myHero.ap * 0.2 * cstacks
-                        local edmg = basedmg + perstack + bonusAD + bonusAP
-                        local tarm = hero.armor - myHero.armorPen
-                              tarm = tarm > 0 and myHero.armorPenPercent * tarm or tarm
-                        local DmgDealt = tarm > 0 and edmg * ( 100 / ( 100 + tarm ) ) or edmg * ( 2 - ( 100 / ( 100 - tarm ) ) )
-                        local HPRegen = hero.hpRegen * 1.5
-                        if hero.health + hero.shieldAD + HPRegen < DmgDealt then
-                            Control.KeyDown(HK_E)
-                            Control.KeyUp(HK_E)
-                            self.lastE = GetTickCount()
-                            gsoAIO.Vars.twitchCanW = false
-                            return false
-                        end
-                    end
+                if countE >= xEnemies then
+                    Control.KeyDown(HK_E)
+                    Control.KeyUp(HK_E)
+                    self.lastE = GetTickCount()
+                    gsoAIO.Vars.twitchCanW = false
+                    return false
                 end
             end
         end
@@ -2242,6 +2232,38 @@ function __gsoTwitch:_tick()
             if not hasB then
                 self.eBuffs[nID].count = 0
                 self.eBuffs[nID].durT = 0
+            end
+        end
+    end
+    
+    -- E KS :
+    local getTick = GetTickCount() - (gsoAIO.Utils.maxPing*1000)
+    local wMinus = getTick - self.lastW
+    local wMinuss = getTick - gsoAIO.Spells.lastW
+    local eMinus = getTick - self.lastE
+    local eMinuss = getTick - gsoAIO.Spells.lastE
+    local canETime = wMinus > 350 and wMinuss > 350 and eMinus > 1000 and eMinuss > 1000
+    local isEReady = canETime and gsoAIO.Utils:_isReady(_E)
+    for i = 1, #gsoAIO.OB.enemyHeroes do
+        local hero  = gsoAIO.OB.enemyHeroes[i]
+        local nID   = hero.networkID
+        if self.eBuffs[nID] and self.eBuffs[nID].count > 0 and gsoAIO.Utils:_valid(hero, false) and gsoAIO.Utils:_getDistance(myHero.pos, hero.pos) < 1200 then
+            local elvl = myHero:GetSpellData(_E).level
+            local basedmg = 5 + ( elvl * 15 )
+            local cstacks = self.eBuffs[nID].count
+            local perstack = ( 10 + (5*elvl) ) * cstacks
+            local bonusAD = myHero.bonusDamage * 0.25 * cstacks
+            local bonusAP = myHero.ap * 0.2 * cstacks
+            local edmg = basedmg + perstack + bonusAD + bonusAP
+            local tarm = hero.armor - myHero.armorPen
+                  tarm = tarm > 0 and myHero.armorPenPercent * tarm or tarm
+            local DmgDealt = tarm > 0 and edmg * ( 100 / ( 100 + tarm ) ) or edmg * ( 2 - ( 100 / ( 100 - tarm ) ) )
+            local HPRegen = hero.hpRegen * 1.5
+            if hero.health + hero.shieldAD + HPRegen < DmgDealt then
+                Control.KeyDown(HK_E)
+                Control.KeyUp(HK_E)
+                self.lastE = GetTickCount()
+                gsoAIO.Vars.twitchCanW = false
             end
         end
     end
@@ -2857,29 +2879,12 @@ function __gsoEzreal:__init()
     self.shouldWait   = false
     gsoAIO.Orb.baseAASpeed = 0.625
     gsoAIO.Orb.baseWindUp = 0.18838652
+    gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
+    gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
+    gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
-    gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     Callback.Add('Draw', function() self:_draw() end)
-    gsoAIO.Vars:_setCanAttack(function() return self:_canAttack() end)
-end
---   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
---
---
---
-function __gsoEzreal:_canAttack()
-    local getTick = GetTickCount()
-    local qMinus = getTick - self.lastQ
-    local qMinuss = getTick - gsoAIO.Spells.lastQ
-    local wMinus = getTick - self.lastW
-    local wMinuss = getTick - gsoAIO.Spells.lastW
-    local eMinus = getTick - self.lastE
-    local eMinuss = getTick - gsoAIO.Spells.lastE
-    local rMinuss = getTick - gsoAIO.Spells.lastR
-    if qMinus > 450 and qMinuss > 450 and wMinus > 450 and wMinuss > 450 and eMinus > 550 and eMinuss > 550 and rMinuss > 1200 then
-        return true
-    end
-    return false
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -2890,7 +2895,6 @@ function __gsoEzreal:_menu()
         gsoAIO.Load.menu.gsoezreal:MenuElement({name = "Auto Q", id = "autoq", type = MENU })
             gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({id = "enable", name = "Enable", value = true, key = string.byte("T"), toggle = true})
             gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({id = "mana", name = "Q Auto min. mana percent", value = 50, min = 0, max = 100, step = 1 })
-            gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
             gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({id = "draw", name = "Draw Text", value = true})
             gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({name = "Text Settings", id = "textset", type = MENU })
                 gsoAIO.Load.menu.gsoezreal.autoq.textset:MenuElement({id = "size", name = "Text Size", value = 25, min = 1, max = 64, step = 1 })
@@ -2914,24 +2918,16 @@ end
 --
 --
 --
-function __gsoEzreal:_castQCombo()
-    local target = gsoAIO.TS:_getTarget(1150, true, false)
-    if target ~= nil then
-        local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
-        local mePos = myHero.pos
-        local castpos,HitChance, pos = gsoAIO.TPred:GetBestCastPosition(target, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-        local distMeToPredPos = gsoAIO.Utils:_getDistance(mePos, castpos)
-        local distUnitToPredPos = gsoAIO.Utils:_getDistance(target.pos, castpos)
-        if HitChance > gsoAIO.Load.menu.gsoezreal.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 500 then
-            local cPos = cursorPos
-            Control.SetCursorPos(castpos)
-            Control.KeyDown(HK_Q)
-            Control.KeyUp(HK_Q)
-            self.lastQ = GetTickCount()
-            gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
-            return true
-        end
+function __gsoEzreal:_canMove()
+    local getTick = GetTickCount() - (gsoAIO.Utils.maxPing*1000)
+    local qMinus = getTick - self.lastQ
+    local qMinuss = getTick - gsoAIO.Spells.lastQ
+    local wMinus = getTick - self.lastW
+    local wMinuss = getTick - gsoAIO.Spells.lastW
+    local eMinuss = getTick - gsoAIO.Spells.lastE
+    local rMinuss = getTick - gsoAIO.Spells.lastR
+    if qMinus > 250 and qMinuss > 250 and wMinus > 250 and wMinuss > 250 and eMinuss > 250 and rMinuss > 1000 then
+        return true
     end
     return false
 end
@@ -2939,33 +2935,94 @@ end
 --
 --
 --
-function __gsoEzreal:_autoQ()
-    local manaPercent = 100 * myHero.mana / myHero.maxMana
-    local isAutoQ = gsoAIO.Load.menu.gsoezreal.autoq.enable:Value() and manaPercent > gsoAIO.Load.menu.gsoezreal.autoq.mana:Value()
-    local meRange = myHero.range + myHero.boundingRadius
-    if isAutoQ then
-        for i = 1, #gsoAIO.OB.enemyHeroes do
-            local unit = gsoAIO.OB.enemyHeroes[i]
-            local unitPos = unit.pos
-            local mePos = myHero.pos
-            local distance = gsoAIO.Utils:_getDistance(mePos, unitPos)
-            if gsoAIO.Utils:_valid(unit, true) and distance < 1150 then
-                local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
-                local castpos,HitChance, pos = gsoAIO.TPred:GetBestCastPosition(unit, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
-                local distMeToPredPos = gsoAIO.Utils:_getDistance(mePos, castpos)
-                local distUnitToPredPos = gsoAIO.Utils:_getDistance(unitPos, castpos)
-                if HitChance > gsoAIO.Load.menu.gsoezreal.autoq.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 500 then
-                    local cPos = cursorPos
-                    Control.SetCursorPos(castpos)
-                    Control.KeyDown(HK_Q)
-                    Control.KeyUp(HK_Q)
-                    self.lastQ = GetTickCount()
-                    gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-                    gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
-                    return true
+function __gsoEzreal:_canAttack(target)
+    local getTick = GetTickCount() - (gsoAIO.Utils.maxPing*1000)
+    local qMinus = getTick - self.lastQ
+    local qMinuss = getTick - gsoAIO.Spells.lastQ
+    local wMinus = getTick - self.lastW
+    local wMinuss = getTick - gsoAIO.Spells.lastW
+    local eMinus = getTick - self.lastE
+    local eMinuss = getTick - gsoAIO.Spells.lastE
+    local rMinuss = getTick - gsoAIO.Spells.lastR
+    if Game.Timer() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT + 0.1 + gsoAIO.Utils.maxPing then
+        local isCombo = gsoAIO.Load.menu.orb.keys.combo:Value()
+        local isHarass = gsoAIO.Load.menu.orb.keys.harass:Value()
+        local afterAttack = Game.Timer() < gsoAIO.Orb.lAttack + ( gsoAIO.Orb.animT * 0.75 )
+        if not target or afterAttack then
+            
+            -- Q :
+            local canQTime = qMinus > 1000 and qMinuss > 1000 and wMinus > 450 and wMinuss > 450 and eMinus > 650 and eMinuss > 650 and rMinuss > 1500
+            local isComboQ = isCombo and gsoAIO.Load.menu.gsoezreal.qset.combo:Value()
+            local isHarassQ = isHarass and gsoAIO.Load.menu.gsoezreal.qset.harass:Value()
+            local isQReady = canQTime and gsoAIO.Utils:_isReady(_Q)
+            local isQReadyCombo = isQReady and (isComboQ or isHarassQ)
+            
+            -- Q FARM :
+            if isQReady and ( not target or (target and gsoAIO.Vars.ezrealCanQ) ) and self:_castQFarm() then
+                gsoAIO.Vars.ezrealCanW = false
+                return false
+            end
+            
+            -- USE Q :
+            if isQReadyCombo and ( not target or (target and gsoAIO.Vars.ezrealCanQ) ) then
+                local target = gsoAIO.TS:_getTarget(1150, true, false)
+                if target ~= nil then
+                    local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
+                    local mePos = myHero.pos
+                    local castpos,HitChance, pos = gsoAIO.TPred:GetBestCastPosition(target, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
+                    local distMeToPredPos = gsoAIO.Utils:_getDistance(mePos, castpos)
+                    local distUnitToPredPos = gsoAIO.Utils:_getDistance(target.pos, castpos)
+                    if HitChance > gsoAIO.Load.menu.gsoezreal.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 500 then
+                        local cPos = cursorPos
+                        Control.SetCursorPos(castpos)
+                        Control.KeyDown(HK_Q)
+                        Control.KeyUp(HK_Q)
+                        self.lastQ = GetTickCount()
+                        gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                        gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+                        gsoAIO.Vars.ezrealCanW = false
+                        return false
+                    end
+                end
+            end
+            
+            -- USE W :
+            local canWTime = qMinus > 650 and qMinuss > 650 and wMinus > 1000 and wMinuss > 1000 and eMinus > 650 and eMinuss > 650 and rMinuss > 1500
+            local isComboW = isCombo and gsoAIO.Load.menu.gsoezreal.wset.combo:Value()
+            local isHarassW = isHarass and gsoAIO.Load.menu.gsoezreal.wset.harass:Value()
+            local isWReady = (isComboW or isHarassW) and canWTime and gsoAIO.Utils:_isReady(_W)
+            if isWReady and ( not target or (target and gsoAIO.Vars.ezrealCanW) ) then
+                local target = gsoAIO.TS:_getTarget(1000, false, false)
+                if target ~= nil then
+                    local mePos = myHero.pos
+                    local sW = { delay = 0.25, range = 1000, width = 80, speed = 1550, sType = "line", col = false }
+                    local castpos,HitChance, pos = gsoAIO.TPred:GetBestCastPosition(target, sW.delay, sW.width*0.5, sW.range, sW.speed, mePos, sW.col, sW.sType)
+                    local distMeToPredPos = gsoAIO.Utils:_getDistance(mePos, castpos)
+                    local distUnitToPredPos = gsoAIO.Utils:_getDistance(target.pos, castpos)
+                    if HitChance > gsoAIO.Load.menu.gsoezreal.wset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sW.range and distUnitToPredPos < 500 then
+                        local cPos = cursorPos
+                        Control.SetCursorPos(castpos)
+                        Control.KeyDown(HK_W)
+                        Control.KeyUp(HK_W)
+                        self.lastW = GetTickCount()
+                        gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                        gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+                        gsoAIO.Vars.ezrealCanQ = false
+                        return false
+                    end
                 end
             end
         end
+        if target and afterAttack then
+            
+            -- USE BOTRK:
+            if gsoAIO.Items:_botrk(target) then
+                return false
+            end
+        end
+    end
+    if qMinus > 350 and qMinuss > 350 and wMinus > 350 and wMinuss > 350 and eMinus > 350 and eMinuss > 350 and rMinuss > 1100 then
+        return true
     end
     return false
 end
@@ -2986,6 +3043,7 @@ function __gsoEzreal:_castQ(t, tPos, mePos)
         self.lastQ = GetTickCount()
         gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
         gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+        gsoAIO.Vars.ezrealCanW = false
         return true
     end
     return false
@@ -3002,7 +3060,7 @@ function __gsoEzreal:_castQFarm()
     if isLH or isLC then
         local canLH = manaPercent > gsoAIO.Load.menu.gsoezreal.qset.qlh:Value()
         local canLC = manaPercent > gsoAIO.Load.menu.gsoezreal.qset.qlc:Value()
-        if not canLH and not canLC then return end
+        if not canLH and not canLC then return false end
         if self.shouldWait == true and Game.Timer() > self.shouldWaitT + 0.5 then
             self.shouldWait = false
         end
@@ -3071,7 +3129,7 @@ function __gsoEzreal:_castQFarm()
                         if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
                             gsoAIO.TS.LHTimers[0].tick = Game.Timer() + 0.75
                             gsoAIO.TS.LHTimers[0].id = mHandle
-                            return
+                            return true
                         end
                     end
                 end
@@ -3106,7 +3164,7 @@ function __gsoEzreal:_castQFarm()
                         if distance < 1150 and self:_castQ(minion, minionPos, mePos) then
                             gsoAIO.TS.LHTimers[0].tick = Game.Timer() + 0.75
                             gsoAIO.TS.LHTimers[0].id = mHandle
-                            return
+                            return true
                         end
                     end
                 end
@@ -3128,7 +3186,7 @@ function __gsoEzreal:_castQFarm()
                         local unitPos = unit.pos
                         local mePos = myHero.pos
                         local distance = gsoAIO.Utils:_getDistance(mePos, unitPos)
-                        if gsoAIO.Utils:_valid(unit, true) and distance < 1150 and self:_castQ(unit, unitPos, mePos) then return end
+                        if gsoAIO.Utils:_valid(unit, true) and distance < 1150 and self:_castQ(unit, unitPos, mePos) then return true end
                     end
                 end
                 canCheckT = false
@@ -3147,130 +3205,83 @@ function __gsoEzreal:_castQFarm()
                         local minionPos = minion.pos
                         local mePos = myHero.pos
                         local distance = gsoAIO.Utils:_getDistance(myHero.pos, minionPos)
-                        if distance < 1150 and self:_castQ(minion, minionPos, mePos) then return end
+                        if distance < 1150 and self:_castQ(minion, minionPos, mePos) then return true end
                     end
                 end
             end
         end
     end
-end
---   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
---
---
---
-function __gsoEzreal:_castW()
-    local target = gsoAIO.TS:_getTarget(1000, false, false)
-    if target ~= nil then
-        local mePos = myHero.pos
-        local sW = { delay = 0.25, range = 1150, width = 80, speed = 1550, sType = "line", col = false }
-        local castpos,HitChance, pos = gsoAIO.TPred:GetBestCastPosition(target, sW.delay, sW.width*0.5, sW.range, sW.speed, mePos, sW.col, sW.sType)
-        local distMeToPredPos = gsoAIO.Utils:_getDistance(mePos, castpos)
-        local distUnitToPredPos = gsoAIO.Utils:_getDistance(target.pos, castpos)
-        if HitChance > gsoAIO.Load.menu.gsoezreal.wset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sW.range and distUnitToPredPos < 500 then
-            local cPos = cursorPos
-            Control.SetCursorPos(castpos)
-            Control.KeyDown(HK_W)
-            Control.KeyUp(HK_W)
-            self.lastW = GetTickCount()
-            gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
-            gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
-            return
-        end
-    end
-end
---   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
---
---
---
-function __gsoEzreal:_castE()
-    local dActions = gsoAIO.Spells.delayedSpell
-    for k,v in pairs(dActions) do
-        if k == 2 then
-            if gsoAIO.Orb.dActionsC == 0 then
-                v[1]()
-                gsoAIO.Orb.dActions[GetTickCount()] = { function() return 0 end, 50 }
-                gsoAIO.Orb.enableAA = false
-                gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
-                self.lastE = GetTickCount()
-                gsoAIO.Spells.delayedSpell[k] = nil
-                break
-            end
-            if GetTickCount() - v[2] > 125 then
-                gsoAIO.Spells.delayedSpell[k] = nil
-            end
-            break
-        end
-    end
+    return false
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
 --
 --
 function __gsoEzreal:_tick()
-    
-    --[[ manual E ]]
     local getTick = GetTickCount()
     if getTick - self.lastE > 1000 and Game.CanUseSpell(_E) == 0 then
-        self:_castE()
+        local dActions = gsoAIO.Spells.delayedSpell
+        for k,v in pairs(dActions) do
+            if k == 2 then
+                if gsoAIO.Orb.dActionsC == 0 then
+                    v[1]()
+                    gsoAIO.Orb.dActions[GetTickCount()] = { function() return 0 end, 50 }
+                    gsoAIO.Orb.enableAA = false
+                    gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+                    self.lastE = GetTickCount()
+                    gsoAIO.Spells.delayedSpell[k] = nil
+                    break
+                end
+                if GetTickCount() - v[2] > 125 then
+                    gsoAIO.Spells.delayedSpell[k] = nil
+                end
+                break
+            end
+        end
     end
     
-    --[[ cast spells ]]
-    if Game.Timer() > gsoAIO.Orb.lAttack + gsoAIO.Orb.windUpT then
-        
-        --[[ check if spells are ready ]]
-        local qMinus = getTick - self.lastQ
-        local qMinuss = getTick - gsoAIO.Spells.lastQ
-        local wMinus = getTick - self.lastW
-        local wMinuss = getTick - gsoAIO.Spells.lastW
-        local eMinus = getTick - self.lastE
-        local eMinuss = getTick - gsoAIO.Spells.lastE
-        local rMinuss = getTick - gsoAIO.Spells.lastR
-        local canQTime = qMinus > 1000 and qMinuss > 1000 and wMinus > 450 and wMinuss > 450 and eMinus > 650 and eMinuss > 650 and rMinuss > 1500
-        local canWTime = qMinus > 650 and qMinuss > 650 and wMinus > 1000 and wMinuss > 1000 and eMinus > 650 and eMinuss > 650 and rMinuss > 1500
-        local canETime = qMinus > 350 and qMinuss > 350 and wMinus > 350 and wMinuss > 350 and eMinus > 1000 and eMinuss > 1000 and rMinuss > 1500
-        local canRTime = qMinus > 350 and qMinuss > 350 and wMinus > 350 and wMinuss > 350 and eMinus > 650 and eMinuss > 650 and rMinuss > 2000
-        local isCombo = gsoAIO.Load.menu.orb.keys.combo:Value()
-        local isHarass = gsoAIO.Load.menu.orb.keys.harass:Value()
-        local isComboQ = isCombo and gsoAIO.Load.menu.gsoezreal.qset.combo:Value()
-        local isHarassQ = isHarass and gsoAIO.Load.menu.gsoezreal.qset.harass:Value()
-        local isComboW = isCombo and gsoAIO.Load.menu.gsoezreal.wset.combo:Value()
-        local isHarassW = isHarass and gsoAIO.Load.menu.gsoezreal.wset.harass:Value()
-        local isQReady = canQTime and gsoAIO.Utils:_isReady(_Q)
-        local isQReadyCombo = isQReady and (isComboQ or isHarassQ)
-        local isWReady = (isComboW or isHarassW) and canWTime and gsoAIO.Utils:_isReady(_W)
-        
-        --[[ check enemies in aa range ]]
-        local mePos = myHero.pos
+    -- AUTO Q :
+    local qMinus = getTick - self.lastQ
+    local qMinuss = getTick - gsoAIO.Spells.lastQ
+    local wMinus = getTick - self.lastW
+    local wMinuss = getTick - gsoAIO.Spells.lastW
+    local eMinus = getTick - self.lastE
+    local eMinuss = getTick - gsoAIO.Spells.lastE
+    local rMinuss = getTick - gsoAIO.Spells.lastR
+    local canQTime = qMinus > 1000 and qMinuss > 1000 and wMinus > 450 and wMinuss > 450 and eMinus > 650 and eMinuss > 650 and rMinuss > 1500
+    local isComboQ = isCombo and gsoAIO.Load.menu.gsoezreal.qset.combo:Value()
+    local isHarassQ = isHarass and gsoAIO.Load.menu.gsoezreal.qset.harass:Value()
+    local isQReady = canQTime and gsoAIO.Utils:_isReady(_Q)
+    if isQReady and not isComboQ and not isHarassQ then
+        local manaPercent = 100 * myHero.mana / myHero.maxMana
+        local isAutoQ = gsoAIO.Load.menu.gsoezreal.autoq.enable:Value() and manaPercent > gsoAIO.Load.menu.gsoezreal.autoq.mana:Value()
         local meRange = myHero.range + myHero.boundingRadius
-        local enemiesCount = 0
-        for i = 1, #gsoAIO.OB.enemyHeroes do
-            local hero = gsoAIO.OB.enemyHeroes[i]
-            if gsoAIO.Utils:_valid(hero, true) and gsoAIO.Utils:_getDistance(mePos, hero.pos) < meRange + hero.boundingRadius then
-                enemiesCount = enemiesCount + 1
+        if isAutoQ then
+            for i = 1, #gsoAIO.OB.enemyHeroes do
+                local unit = gsoAIO.OB.enemyHeroes[i]
+                local unitPos = unit.pos
+                local mePos = myHero.pos
+                local distance = gsoAIO.Utils:_getDistance(mePos, unitPos)
+                local isTargetAA = distance < meRange + unit.boundingRadius
+                if gsoAIO.Utils:_valid(unit, true) and distance < 1150 and ( not isTargetAA or (isTargetAA and gsoAIO.Vars.ezrealCanQ) ) then
+                    local sQ = { delay = 0.25, range = 1150, width = 60, speed = 2000, sType = "line", col = true }
+                    local castpos,HitChance, pos = gsoAIO.TPred:GetBestCastPosition(unit, sQ.delay, sQ.width*0.5, sQ.range, sQ.speed, mePos, sQ.col, sQ.sType)
+                    local distMeToPredPos = gsoAIO.Utils:_getDistance(mePos, castpos)
+                    local distUnitToPredPos = gsoAIO.Utils:_getDistance(unitPos, castpos)
+                    if HitChance > 0 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 200 then
+                        local cPos = cursorPos
+                        Control.SetCursorPos(castpos)
+                        Control.KeyDown(HK_Q)
+                        Control.KeyUp(HK_Q)
+                        self.lastQ = GetTickCount()
+                        gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
+                        gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+                        gsoAIO.Vars.ezrealCanW = false
+                        break
+                    end
+                end
             end
         end
-        
-        --[[ spells after/before if enemy is in aa range ]]
-        local afterBefore = Game.Timer() < gsoAIO.Orb.lAttack + gsoAIO.Orb.animT*0.75
-        
-        --[[ spells if enemy is out of aa range ]]
-        local outOfAARange = not gsoAIO.Utils:_valid(gsoAIO.TS.lastTarget, true) and enemiesCount == 0
-        
-        --[[ cast spells ]]
-        if afterBefore or outOfAARange then
-            if isQReady and not isQReadyCombo and self:_autoQ() then
-                return
-            end
-            if isQReadyCombo and self:_castQCombo() then
-                return
-            end
-            if isWReady and self:_castW() then
-                return
-            end
-        end
-        
-        --[[ q farm ]]
-        if isQReady then self:_castQFarm() end
     end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -3335,7 +3346,7 @@ function __gsoVayne:_canMove()
     local qMinuss = getTick - gsoAIO.Spells.lastQ
     local eMinus = checkTick - self.lastE
     local eMinuss = checkTick - gsoAIO.Spells.lastE
-    if qMinus > 250 and qMinuss > 250 and qMinus > 500 and qMinuss > 500 then
+    if qMinus > 250 and qMinuss > 250 and eMinus > 500 and eMinuss > 500 then
         return true
     end
     return false
@@ -4013,7 +4024,7 @@ function __gsoLoad:_load()
     if gsoAIO.Vars.hName == "Draven" then
         --__gsoDraven()
     elseif gsoAIO.Vars.hName == "Ezreal" then
-        --__gsoEzreal()
+        __gsoEzreal()
     elseif gsoAIO.Vars.hName == "Ashe" then
         __gsoAshe()
     elseif gsoAIO.Vars.hName == "Twitch" then
