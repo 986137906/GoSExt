@@ -3944,7 +3944,7 @@ class "__gsoLoad"
 --
 --
 function __gsoLoad:__init()
-    self.menu = MenuElement({name = "Gamsteron AIO", id = "gsoaiobeta", type = MENU, leftIcon = gsoAIO.Vars.Icons["gsoaio"] })
+    self.menu = MenuElement({name = "Gamsteron AIO", id = "gamsteronaio", type = MENU, leftIcon = gsoAIO.Vars.Icons["gsoaio"] })
     Callback.Add('Load', function() self:_load() end)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
