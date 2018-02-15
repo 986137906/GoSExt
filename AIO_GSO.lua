@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.62"
+    self.version = "0.63"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -1543,7 +1543,15 @@ end
 --
 --
 function __gsoOrb:_orb(unit)
-
+    
+    local unitValid = unit and not unit.dead and unit.isTargetable and unit.visible and unit.valid
+    if unitValid and unit.type == Obj_AI_Hero then
+        unitValid = gsoAIO.Utils:_isImmortal(unit, true) == false
+    end
+    if not unitValid then
+        unit = nil
+    end
+    
     local aaSpeed = gsoAIO.Vars._aaSpeed() * self.baseAASpeed
     local numAS   = aaSpeed >= 2.5 and 2.5 or aaSpeed
     local animT   = 1 / numAS
@@ -1576,7 +1584,7 @@ function __gsoOrb:_orb(unit)
     self.canAA    = self.canAA and (self.aaReset or Game.Timer() > self.serverStart - windUpAA + self.animT - gsoAIO.Utils.minPing - 0.05 )
     self.canMove  = canOrb and gsoAIO.Vars._canMove()
     self.canMove  = self.canMove and Game.Timer() > self.serverStart + extraWindUp - (gsoAIO.Utils.minPing*0.5)
-
+    
     if unit ~= nil and self.canAA then
         self:_attack(unit)
     elseif self.canMove and Game.Timer() > self.lMove + (gsoAIO.Load.menu.orb.delays.humanizer:Value()*0.001) then
@@ -3998,7 +4006,7 @@ function __gsoLoad:_load()
     self.menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = gsoAIO.Vars.Icons["orb"] })
         self.menu.orb:MenuElement({name = "Server Response", id = "response", type = MENU})
             self.menu.orb.response:MenuElement({ id = "enable", name = "Display Message", value = false })
-            self.menu.orb.response:MenuElement({name = "Extra Response Timout", id = "timeout", value = 0, min = -100, max = 100, step = 10 })
+            self.menu.orb.response:MenuElement({name = "Extra Response Timeout", id = "timeout", value = 0, min = -100, max = 100, step = 10 })
         self.menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
             self.menu.orb.delays:MenuElement({name = "Extra Kite Delay", id = "windup", value = 0, min = -50, max = 50, step = 1 })
             self.menu.orb.delays:MenuElement({name = "Extra LastHit Delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 1 })
