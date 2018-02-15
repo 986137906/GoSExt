@@ -1524,16 +1524,6 @@ function __gsoOrb:__init()
     --[[ callbacks ]]
     Callback.Add('Tick', function() self:_tick() end)
     Callback.Add('Draw', function() self:_draw() end)
-    Callback.Add('WndMsg', function(msg, wParam) self:_onWndMsg(msg, wParam) end)
-end
---   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
---
---
---
-function __gsoOrb:_onWndMsg(msg, wParam)
-    if wParam == HK_TCO then
-        self.lAttack = Game.Timer()
-    end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -1709,6 +1699,7 @@ function __gsoOrb:_attack(unit)
         if not gsoAIO.Vars.dravenCanR then gsoAIO.Vars.dravenCanR = true end
     end
     if not gsoAIO.Vars.canBotrk then gsoAIO.Vars.canBotrk = true end
+    self.lAttack = Game.Timer()
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -3953,7 +3944,7 @@ class "__gsoLoad"
 --
 --
 function __gsoLoad:__init()
-    self.menu = MenuElement({name = "Gamsteron AIO", id = "gamsteronaio", type = MENU, leftIcon = gsoAIO.Vars.Icons["gsoaio"] })
+    self.menu = MenuElement({name = "Gamsteron AIO", id = "gsoaiobeta", type = MENU, leftIcon = gsoAIO.Vars.Icons["gsoaio"] })
     Callback.Add('Load', function() self:_load() end)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
