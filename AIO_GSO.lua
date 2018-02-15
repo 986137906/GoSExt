@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.60"
+    self.version = "0.61"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -1517,6 +1517,8 @@ function __gsoOrb:__init()
     self.isWaiting = false
     
     --[[ server aa data ]]
+    self.serverEnd = 0
+    self.lastEnd = 0
     self.serverStart = 0
     self.serverWindup = 0
     self.serverAnim = 0
@@ -1524,6 +1526,16 @@ function __gsoOrb:__init()
     --[[ callbacks ]]
     Callback.Add('Tick', function() self:_tick() end)
     Callback.Add('Draw', function() self:_draw() end)
+    Callback.Add('WndMsg', function(msg, wParam) self:_onWndMsg(msg, wParam) end)
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoOrb:_onWndMsg(msg, wParam)
+    if wParam == HK_TCO then
+        self.lAttack = Game.Timer()
+    end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -1558,14 +1570,9 @@ function __gsoOrb:_orb(unit)
         self.animT = hasQBuff and animT or self.animT
     end
     
-    if self.isWaiting and Game.Timer() > self.lAttack + (gsoAIO.Utils.maxPing*2) + 0.3 then
-        print("response timeout")
-        self.isWaiting = false
-    end
-    
     local canOrb  = not self.isWaiting and self.dActionsC == 0
     self.canAA    = canOrb and gsoAIO.Vars._canAttack(unit) and not gsoAIO.TS.isBlinded
-    self.canAA    = self.canAA and (self.aaReset or Game.Timer() > self.serverStart - windUpAA + self.animT - gsoAIO.Utils.minPing - 0.077)
+    self.canAA    = self.canAA and (self.aaReset or Game.Timer() > self.serverStart - windUpAA + self.animT - gsoAIO.Utils.minPing - 0.05 )
     self.canMove  = canOrb and gsoAIO.Vars._canMove()
     self.canMove  = self.canMove and Game.Timer() > self.serverStart + extraWindUp - (gsoAIO.Utils.minPing*0.5)
 
@@ -1607,6 +1614,18 @@ function __gsoOrb:_tick()
     end
     self.dActionsC = cDActions
 
+--  GET SERVER AA DATA - ISSUE :
+    local aaData = myHero.attackData
+    if aaData.endTime > self.serverEnd then
+        self.serverEnd = aaData.endTime
+        self.lastEnd = Game.Timer()
+    end
+    local responseDelay = (gsoAIO.Utils.maxPing*1.25) + 0.2
+    if self.isWaiting and Game.Timer() > self.lastEnd + responseDelay and Game.Timer() > self.lAttack + responseDelay then
+        self.isWaiting = false
+        --print("response timeout")
+    end
+
 --  GET SERVER AA DATA :
     local aSpell = myHero.activeSpell
     local aSpellName = aSpell.name:lower()
@@ -1615,6 +1634,7 @@ function __gsoOrb:_tick()
         self.serverWindup = aSpell.windup
         self.serverAnim = aSpell.animation
         self.isWaiting = false
+        self.serverMinusAnim = self.serverStart - self.serverWindup - self.lAttack
     end
 
 --  EXECUTE MODES :
@@ -1699,7 +1719,6 @@ function __gsoOrb:_attack(unit)
         if not gsoAIO.Vars.dravenCanR then gsoAIO.Vars.dravenCanR = true end
     end
     if not gsoAIO.Vars.canBotrk then gsoAIO.Vars.canBotrk = true end
-    self.lAttack = Game.Timer()
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -3970,9 +3989,9 @@ function __gsoLoad:_load()
                 self.menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
     self.menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = gsoAIO.Vars.Icons["orb"] })
         self.menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
-            self.menu.orb.delays:MenuElement({name = "extra WindUp", id = "windup", value = 0, min = -50, max = 50, step = 1 })
-            self.menu.orb.delays:MenuElement({name = "lasthit delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 1 })
-            self.menu.orb.delays:MenuElement({name = "Humanizer", id = "humanizer", value = 200, min = 120, max = 300, step = 10 })
+            self.menu.orb.delays:MenuElement({name = "Extra Kite Delay", id = "windup", value = 0, min = -50, max = 50, step = 1 })
+            self.menu.orb.delays:MenuElement({name = "Extra LastHit Delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 1 })
+            self.menu.orb.delays:MenuElement({name = "Extra Move Delay", id = "humanizer", value = 200, min = 120, max = 300, step = 10 })
         self.menu.orb:MenuElement({name = "Keys", id = "keys", type = MENU})
             self.menu.orb.keys:MenuElement({name = "Combo Key", id = "combo", key = string.byte(" ")})
             self.menu.orb.keys:MenuElement({name = "Harass Key", id = "harass", key = string.byte("C")})
