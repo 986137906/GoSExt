@@ -1515,10 +1515,11 @@ function __gsoOrb:__init()
     
     --[[ waiting for response from server ]]
     self.isWaiting = false
+    self.isServerAA = false
+    self.timeoutCount = 0
     
     --[[ server aa data ]]
     self.serverEnd = 0
-    self.lastEnd = 0
     self.serverStart = 0
     self.serverWindup = 0
     self.serverAnim = 0
@@ -1618,12 +1619,17 @@ function __gsoOrb:_tick()
     local aaData = myHero.attackData
     if aaData.endTime > self.serverEnd then
         self.serverEnd = aaData.endTime
-        self.lastEnd = Game.Timer()
+        self.isServerAA = true
     end
-    local responseDelay = (gsoAIO.Utils.maxPing*1.25) + 0.2
-    if self.isWaiting and Game.Timer() > self.lastEnd + responseDelay and Game.Timer() > self.lAttack + responseDelay then
+    local responseDelay = (gsoAIO.Utils.maxPing * 2) + 0.15 + (gsoAIO.Load.menu.orb.response.timeout:Value()*0.001)
+    if self.isWaiting and not self.isServerAA and Game.Timer() > self.lAttack + responseDelay then
         self.isWaiting = false
-        --print("response timeout")
+        self.timeoutCount = self.timeoutCount + 1
+        if gsoAIO.Load.menu.orb.response.enable:Value() then print("response timeout : " .. self.timeoutCount) end
+    elseif self.isWaiting and Game.Timer() > self.lAttack + responseDelay + 0.25 then
+        self.isWaiting = false
+        self.timeoutCount = self.timeoutCount + 1
+        if gsoAIO.Load.menu.orb.response.enable:Value() then print("response timeout 2 : " .. self.timeoutCount) end
     end
 
 --  GET SERVER AA DATA :
@@ -1638,10 +1644,10 @@ function __gsoOrb:_tick()
     end
 
 --  EXECUTE MODES :
-    local ck      = gsoAIO.Load.menu.orb.keys.combo:Value()
-    local hk      = gsoAIO.Load.menu.orb.keys.harass:Value()
-    local lhk     = gsoAIO.Load.menu.orb.keys.lastHit:Value()
-    local lck     = gsoAIO.Load.menu.orb.keys.laneClear:Value()
+    local ck  = gsoAIO.Load.menu.orb.keys.combo:Value()
+    local hk  = gsoAIO.Load.menu.orb.keys.harass:Value()
+    local lhk = gsoAIO.Load.menu.orb.keys.lastHit:Value()
+    local lck = gsoAIO.Load.menu.orb.keys.laneClear:Value()
     if Game.IsChatOpen() == false and (ck or hk or lhk or lck) then
         local AAtarget = nil
         if ck then
@@ -1719,6 +1725,8 @@ function __gsoOrb:_attack(unit)
         if not gsoAIO.Vars.dravenCanR then gsoAIO.Vars.dravenCanR = true end
     end
     if not gsoAIO.Vars.canBotrk then gsoAIO.Vars.canBotrk = true end
+    self.lAttack = Game.Timer()
+    self.isServerAA = false
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -3988,6 +3996,9 @@ function __gsoLoad:_load()
                 self.menu.ts.selected.draw:MenuElement({name = "Width",  id = "width", value = 3, min = 1, max = 10})
                 self.menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
     self.menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = gsoAIO.Vars.Icons["orb"] })
+        self.menu.orb:MenuElement({name = "Server Response", id = "response", type = MENU})
+            self.menu.orb.response:MenuElement({ id = "enable", name = "Display Message", value = false })
+            self.menu.orb.response:MenuElement({name = "Extra Response Timout", id = "timeout", value = 0, min = -100, max = 100, step = 10 })
         self.menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
             self.menu.orb.delays:MenuElement({name = "Extra Kite Delay", id = "windup", value = 0, min = -50, max = 50, step = 1 })
             self.menu.orb.delays:MenuElement({name = "Extra LastHit Delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 1 })
