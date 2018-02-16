@@ -50,9 +50,9 @@
                         gsoSDK.Vars._afterSpell()
                     end
         V. CALLBACKS:
-            1. gsoSDK.Vars:_setOnTick(
-                    function()                                                                -> you can declare onTick via my orbwalker ( in this way you will have access to object lists [ look above at III. OBJECT LISTS ] )
-                        tick()
+            1. gsoSDK.Vars:_setOnKeyPress(
+                    function(target)                                                          -> on key press - return current orb target (minion, turret, hero) ( from this event you will have access to object lists [ look above at III. OBJECT LISTS ] )
+                        spells(target)
                     end)                                        
             2. gsoSDK.Vars:_setBonusDmg(                                                      -> return number ! - Declaration of myHero extra dmg [ important for laneclear, lasthit ]
                     function()
@@ -128,7 +128,7 @@ class "__gsoVars"
 --
 --
 function __gsoVars:__init()
-    self.version = "1.0"
+    self.version = "1.1"
     self.Icons = {
         ["gsoaio"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/gsoaio.png",
         ["orb"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/orb.png",
@@ -143,7 +143,7 @@ function __gsoVars:__init()
     self._onMove        = function(args) return 0 end
     self._beforeAttack  = function(unit) return 0 end
     self._afterAttack   = function(unit) return 0 end
-    self._onTick        = function() return 0 end
+    self._onKeyPress    = function() return 0 end
     self._manualSpell   = function(spell) self:_castManualSpell(spell) end
     self._lastSpell     = 0
 end
@@ -154,7 +154,7 @@ function __gsoVars:_setOnAttack(func) self._onAttack = func end
 function __gsoVars:_setOnMove(func) self._onMove = func end
 function __gsoVars:_setBeforeAttack(func) self._beforeAttack = func end
 function __gsoVars:_setAfterAttack(func) self._afterAttack = func end
-function __gsoVars:_setOnTick(func) self._onTick = func end
+function __gsoVars:_setOnKeyPress(func) self._onKeyPress = func end
 function __gsoVars:_castManualSpell(spell)
     local getTick = GetTickCount()
     if getTick - self._lastSpell > 1000 and Game.CanUseSpell(spell) == 0 then
@@ -1033,7 +1033,9 @@ function __gsoOrb:_orb(unit)
     self.canAA    = canOrb and not gsoSDK.TS.isBlinded and (self.aaReset or Game.Timer() > self.serverStart - windUpAA + self.animT - gsoSDK.Utils.minPing - 0.05 )
     self.canMove  = canOrb and Game.Timer() > self.serverStart + extraWindUp - (gsoSDK.Utils.minPing*0.5)
     
-    if not self.canAA and self.canMove then
+    gsoSDK.Vars._onKeyPress(unit)
+    
+    if not self.canAA and self.canMove and Game.Timer() > gsoSDK.Orb.lAttack + gsoSDK.Orb.windUpT + 0.1 + gsoSDK.Utils.maxPing then
         if Game.Timer() < self.lAttack + (self.animT*0.75) then
             gsoSDK.Vars._afterAttack(unit)
         elseif Game.Timer() < self.lAttack + (self.animT*0.9) then
@@ -1061,9 +1063,6 @@ function __gsoOrb:_tick()
 
 --  FARM TICK :
     gsoSDK.Farm:_tick()
-
---  CHAMPIONS TICK :
-    gsoSDK.Vars._onTick()
 
 --  HANDLE DELAYED ACTIONS :
     local dActions = self.dActions
