@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.631"
+    self.version = "0.632"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -716,9 +716,12 @@ function __gsoTS:_getTarget(_range, orb, changeRange)
         local unit = gsoAIO.OB.enemyHeroes[i]
         local unitID = unit.networkID
         local canTrist = gsoAIO.Vars.meTristana and gsoAIO.Load.menu.ts.tristE.enable:Value() and gsoAIO.Vars.tristanaETar and gsoAIO.Vars.tristanaETar.stacks >= gsoAIO.Load.menu.ts.tristE.stacks:Value() and unitID == gsoAIO.Vars.tristanaETar.id
-        local range = changeRange == true and _range + myHero.boundingRadius + unit.boundingRadius - 30 or _range
-        local distance = gsoAIO.Utils:_getDistance(myHero.pos, unit.pos)
-        if gsoAIO.Utils:_valid(unit, orb) and distance < range then
+        local range = changeRange == true and _range + myHero.boundingRadius + unit.boundingRadius or _range
+        local meExtended = myHero.pos:Extended(gsoAIO.Orb.lMovePath , (0.15+(gsoAIO.Utils.maxPing*1.5)) * myHero.ms) or nil
+        local dist1 = gsoAIO.Utils:_getDistance(myHero.pos, unit.pos)
+        local dist2 = gsoAIO.Utils:_getDistance(meExtended, unit.pos)
+        local dist3 = dist2 > dist1 and dist2 or dist1
+        if gsoAIO.Utils:_valid(unit, orb) and dist3 < range then
             if gsoAIO.Load.menu.ts.selected.enable:Value() and self.selectedTarget and unitID == self.selectedTarget.networkID then
                 return self.selectedTarget
             elseif canTrist then
@@ -831,7 +834,7 @@ function __gsoTS:_getTurret()
     local result = nil
     for i=1, #gsoAIO.OB.enemyTurrets do
         local turret = gsoAIO.OB.enemyTurrets[i]
-        local range = myHero.range + myHero.boundingRadius + turret.boundingRadius - 30
+        local range = myHero.range + myHero.boundingRadius + turret.boundingRadius
         if gsoAIO.Utils:_getDistance(myHero.pos, turret.pos) < range then
             result = turret
             break
@@ -1042,7 +1045,7 @@ function __gsoFarm:_setEnemyMinions()
         local eMinion = gsoAIO.OB.enemyMinions[i]
         local eMinion_handle	= eMinion.handle
         local distance = gsoAIO.Utils:_getDistance(myHero.pos, eMinion.pos)
-        if distance < myHero.range + myHero.boundingRadius + eMinion.boundingRadius - 30 then
+        if distance < myHero.range + myHero.boundingRadius + eMinion.boundingRadius then
             local eMinion_health	= eMinion.health
             local myHero_aaData		= myHero.attackData
             local myHero_pFlyTime	= myHero_aaData.windUpTime + (distance / myHero_aaData.projectileSpeed) + 0.125 + mLH
@@ -1502,6 +1505,7 @@ function __gsoOrb:__init()
     self.aaReset      = false
     self.lAttack      = 0
     self.lMove        = 0
+    self.lMovePath    = mousePos
     
     --[[ delayed actions ]]
     self.dActionsC    = 0
@@ -1544,14 +1548,6 @@ end
 --
 function __gsoOrb:_orb(unit)
     
-    local unitValid = unit and not unit.dead and unit.isTargetable and unit.visible and unit.valid
-    if unitValid and unit.type == Obj_AI_Hero then
-        unitValid = gsoAIO.Utils:_isImmortal(unit, true) == false
-    end
-    if not unitValid then
-        unit = nil
-    end
-    
     local aaSpeed = gsoAIO.Vars._aaSpeed() * self.baseAASpeed
     local numAS   = aaSpeed >= 2.5 and 2.5 or aaSpeed
     local animT   = 1 / numAS
@@ -1577,6 +1573,19 @@ function __gsoOrb:_orb(unit)
     if gsoAIO.Vars.meAshe then
         local hasQBuff = GetTickCount() - gsoAIO.Spells.lastQ < 1000 and gsoAIO.Utils:_hasBuff(myHero, "asheqattack")
         self.animT = hasQBuff and animT or self.animT
+    end
+    
+    local unitValid = unit and not unit.dead and unit.isTargetable and unit.visible and unit.valid
+    if unitValid and unit.type == Obj_AI_Hero then
+        unitValid = gsoAIO.Utils:_isImmortal(unit, true) == false
+    end
+    local meExtended = unitValid and myHero.pos:Extended(self.lMovePath, (0.15+(gsoAIO.Utils.maxPing*1.5)) * myHero.ms) or nil
+    local dist1 = unitValid and gsoAIO.Utils:_getDistance(myHero.pos, unit.pos) or 0
+    local dist2 = unitValid and gsoAIO.Utils:_getDistance(meExtended, unit.pos) or 0
+    local dist3 = dist2 > dist1 and dist2 or dist1
+    local inAARange = unitValid and dist3 < myHero.range + myHero.boundingRadius + unit.boundingRadius
+    if not unitValid or not inAARange then
+        unit = nil
     end
     
     local canOrb  = not self.isWaiting and self.dActionsC == 0
@@ -1629,9 +1638,10 @@ function __gsoOrb:_tick()
         self.serverEnd = aaData.endTime
         self.isServerAA = true
     end
-    local responseDelay = (gsoAIO.Utils.maxPing * 2) + 0.15 + (gsoAIO.Load.menu.orb.response.timeout:Value()*0.001)
+    local responseDelay = (gsoAIO.Utils.maxPing*1.5) + 0.15 + (gsoAIO.Load.menu.orb.response.timeout:Value()*0.001)
     if self.isWaiting and not self.isServerAA and Game.Timer() > self.lAttack + responseDelay then
         self.isWaiting = false
+        self.lMove = 0
         self.timeoutCount = self.timeoutCount + 1
         if gsoAIO.Load.menu.orb.response.enable:Value() then print("response timeout : " .. self.timeoutCount) end
     elseif self.isWaiting and Game.Timer() > self.lAttack + responseDelay + 0.25 then
@@ -1747,6 +1757,7 @@ function __gsoOrb:_move()
         if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
         local cPos = cursorPos
         Control.SetCursorPos(mPos)
+        self.lMovePath = mPos
         Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
         Control.mouse_event(MOUSEEVENTF_RIGHTUP)
         self.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
@@ -1755,6 +1766,7 @@ function __gsoOrb:_move()
     else
         if ExtLibEvade and ExtLibEvade.Evading then return end
         if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
+        self.lMovePath = mousePos
         Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
         Control.mouse_event(MOUSEEVENTF_RIGHTUP)
         --self.dActions[GetTickCount()] = { function() return 0 end, 50 }
@@ -3456,7 +3468,7 @@ function __gsoVayne:_canAttack(target)
                     end
                     local extPos = mePos + (mousePos-mePos):Normalized() * extRange
                     local distEnemyToExt = gsoAIO.Utils:_getDistance(extPos, heroPos)
-                    if gsoAIO.Utils:_valid(hero, true) and distEnemyToExt < meRange + hero.boundingRadius - 30 then
+                    if gsoAIO.Utils:_valid(hero, true) and distEnemyToExt < meRange + hero.boundingRadius then
                         canQtoPos = true
                         Control.KeyDown(HK_Q)
                         Control.KeyUp(HK_Q)
