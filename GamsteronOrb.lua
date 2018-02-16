@@ -103,6 +103,7 @@
                                                                                                  gos ext .isImmortal return true for enemies that have GA item
             6. gsoSDK.Orb.lMovePath                                                           -> return last move position
             7. gsoSDK.TS:_getTarget(range, orb, changeRange)                                  -> range = [number] spell range, orb = [boolean] true for attacks and ezreal q else false, changeRange = [boolean] true if attack range, false for spells range
+            8. gsoSDK.Vars._canMove()                                                         -> true/false
 ]]
 
 local GetTickCount = GetTickCount
@@ -133,7 +134,7 @@ class "__gsoVars"
 --
 --
 function __gsoVars:__init()
-    self.version = "1.2"
+    self.version = "1.3"
     self.Icons = {
         ["gsoaio"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/gsoaio.png",
         ["orb"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/orb.png",
@@ -151,6 +152,7 @@ function __gsoVars:__init()
     self._onTick        = function() return 0 end
     self._onKeyPress    = function() return 0 end
     self._manualSpell   = function(spell) self:_castManualSpell(spell) end
+    self._canMove       = function() return gsoSDK.Orb.canMove == true and Game.Timer() > gsoSDK.Orb.lAttack + gsoSDK.Orb.windUpT + 0.1 + gsoSDK.Utils.maxPing end
     self._lastSpell     = 0
 end
 function __gsoVars:_setAASpeed(func) self._aaSpeed = func end
