@@ -50,32 +50,36 @@
                         gsoSDK.Vars._afterSpell()
                     end
         V. CALLBACKS:
-            1. gsoSDK.Vars:_setOnKeyPress(
-                    function(target)                                                          -> on key press - return current orb target (minion, turret, hero) ( from this event you will have access to object lists [ look above at III. OBJECT LISTS ] )
+            1. gsoSDK.Vars:_setOnTick(                                                        -> you can declare onTick via my orbwalker ( in this way you will have access to object lists [ look above at III. OBJECT LISTS ] )
+                    function()
+                        handleTwitchEBuffs()
+                    end)  
+            2. gsoSDK.Vars:_setOnKeyPress(
+                    function(target)                                                          -> on key press - return current orb target (minion, turret, hero) -> can be nil
                         spells(target)
                     end)                                        
-            2. gsoSDK.Vars:_setBonusDmg(                                                      -> return number ! - Declaration of myHero extra dmg [ important for laneclear, lasthit ]
+            3. gsoSDK.Vars:_setBonusDmg(                                                      -> return number ! - Declaration of myHero extra dmg [ important for laneclear, lasthit ]
                     function()
                         return caitPassive()
                     end)
-            3. gsoSDK.Vars:_setBonusDmgUnit(                                                  -> return number ! - Declaration of myHero extra dmg [ important for laneclear, lasthit ]
+            4. gsoSDK.Vars:_setBonusDmgUnit(                                                  -> return number ! - Declaration of myHero extra dmg [ important for laneclear, lasthit ]
                     function(minion)
                         return ashePassive(minion)
                     end)
-            4. gsoSDK.Vars:_setOnAttack(                                                      -> you can disable current attack [ args.Process = false ], it's not recommended for spells like dravenQ -> use spells in beforeAttack event
+            5. gsoSDK.Vars:_setOnAttack(                                                      -> you can disable current attack [ args.Process = false ], it's not recommended for spells like dravenQ -> use spells in beforeAttack event
                     function(args)                                                               onAttack event is good for champions like jhin, graves etc. -> passive buff check
                         args.Process = true
                         args.Target = getTarget()
                     end)
-            5. gsoSDK.Vars:_setBeforeAttack(                                                  -> (anim*0.75)-(anim*0.9) before attack send (if anim = 1000 -> 150ms for spells)
+            6. gsoSDK.Vars:_setBeforeAttack(                                                  -> (anim*0.75)-(anim*0.9) before attack send (if anim = 1000 -> 150ms for spells)
                     function(unit)
                         castDravenQ()
                     end)
-            6. gsoSDK.Vars:_setAfterAttack(                                                   -> afterMove-(anim*0.75) after/before attack send (if anim = 1000 -> ~550ms for spells) - smooth spells usage between attacks 
+            7. gsoSDK.Vars:_setAfterAttack(                                                   -> afterMove-(anim*0.75) after/before attack send (if anim = 1000 -> ~550ms for spells) - smooth spells usage between attacks 
                     function(unit)
                         castVayneQ()
                     end)
-            7. gsoSDK.Vars:_setOnMove(                                                        -> you can disable current move [ args.Process = false ],
+            8. gsoSDK.Vars:_setOnMove(                                                        -> you can disable current move [ args.Process = false ],
                     function(args)                                                               args.MovePos = nil - will move to mousePos without changing cursorPos (don't setup mousePos via args.MovePos ! )
                         args.Process = true
                         if axe then
@@ -84,7 +88,7 @@
                             args.MovePos = nil
                         end
                     end)
-            8. gsoSDK.Vars:_setAASpeed(                                                       -> set custom attack speed -> gos ext .attackSpeed is delayed -> you can declare attack speed after ashe q buff ends for 1sec
+            9. gsoSDK.Vars:_setAASpeed(                                                       -> set custom attack speed -> gos ext .attackSpeed is delayed -> you can declare attack speed after ashe q buff ends for 1sec
                     function(unit)                                                               (else ashe can stand longer after q buff ends)
                         if Game.Timer() < AsheQBuffEndTime + 1000 then
                             return asBeforeQ
@@ -98,6 +102,7 @@
             5. gsoSDK.Utils:_isImmortal(unit, orb)                                            -> return true if enemy hero has kayle R, taric R etc. orb = true for attacks and ezreal q, else orb = false
                                                                                                  gos ext .isImmortal return true for enemies that have GA item
             6. gsoSDK.Orb.lMovePath                                                           -> return last move position
+            7. gsoSDK.TS:_getTarget(range, orb, changeRange)                                  -> range = [number] spell range, orb = [boolean] true for attacks and ezreal q else false, changeRange = [boolean] true if attack range, false for spells range
 ]]
 
 local GetTickCount = GetTickCount
@@ -128,7 +133,7 @@ class "__gsoVars"
 --
 --
 function __gsoVars:__init()
-    self.version = "1.1"
+    self.version = "1.2"
     self.Icons = {
         ["gsoaio"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/gsoaio.png",
         ["orb"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/orb.png",
@@ -143,6 +148,7 @@ function __gsoVars:__init()
     self._onMove        = function(args) return 0 end
     self._beforeAttack  = function(unit) return 0 end
     self._afterAttack   = function(unit) return 0 end
+    self._onTick        = function() return 0 end
     self._onKeyPress    = function() return 0 end
     self._manualSpell   = function(spell) self:_castManualSpell(spell) end
     self._lastSpell     = 0
@@ -154,6 +160,7 @@ function __gsoVars:_setOnAttack(func) self._onAttack = func end
 function __gsoVars:_setOnMove(func) self._onMove = func end
 function __gsoVars:_setBeforeAttack(func) self._beforeAttack = func end
 function __gsoVars:_setAfterAttack(func) self._afterAttack = func end
+function __gsoVars:_setOnTick(func) self._onTick = func end
 function __gsoVars:_setOnKeyPress(func) self._onKeyPress = func end
 function __gsoVars:_castManualSpell(spell)
     local getTick = GetTickCount()
@@ -1063,6 +1070,9 @@ function __gsoOrb:_tick()
 
 --  FARM TICK :
     gsoSDK.Farm:_tick()
+
+--  ADDON TICK :
+    gsoSDK.Vars._onTick()
 
 --  HANDLE DELAYED ACTIONS :
     local dActions = self.dActions
