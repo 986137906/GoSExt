@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.633"
+    self.version = "0.634"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -1517,11 +1517,6 @@ function __gsoOrb:__init()
     self.windUpT      = 0
     self.animT        = 0
     
-    --[[ waiting for response from server ]]
-    self.isWaiting = false
-    self.isServerAA = false
-    self.timeoutCount = 0
-    
     --[[ server aa data ]]
     self.serverEnd = 0
     self.serverStart = 0
@@ -1588,7 +1583,7 @@ function __gsoOrb:_orb(unit)
         unit = nil
     end
     
-    local canOrb  = not self.isWaiting and self.dActionsC == 0
+    local canOrb  = self.dActionsC == 0-- and not self.isWaiting
     self.canAA    = canOrb and gsoAIO.Vars._canAttack(unit) and not gsoAIO.TS.isBlinded
     self.canAA    = self.canAA and (self.aaReset or Game.Timer() > self.serverStart - windUpAA + self.animT - gsoAIO.Utils.minPing - 0.05 )
     self.canMove  = canOrb and gsoAIO.Vars._canMove()
@@ -1631,24 +1626,6 @@ function __gsoOrb:_tick()
         end
     end
     self.dActionsC = cDActions
-
---  GET SERVER AA DATA - ISSUE :
-    local aaData = myHero.attackData
-    if aaData.endTime > self.serverEnd then
-        self.serverEnd = aaData.endTime
-        self.isServerAA = true
-    end
-    local responseDelay = (gsoAIO.Utils.maxPing*1.5) + 0.15 + (gsoAIO.Load.menu.orb.response.timeout:Value()*0.001)
-    if self.isWaiting and not self.isServerAA and Game.Timer() > self.lAttack + responseDelay then
-        self.isWaiting = false
-        self.lMove = 0
-        self.timeoutCount = self.timeoutCount + 1
-        if gsoAIO.Load.menu.orb.response.enable:Value() then print("response timeout : " .. self.timeoutCount) end
-    elseif self.isWaiting and Game.Timer() > self.lAttack + responseDelay + 0.1 then
-        self.isWaiting = false
-        self.timeoutCount = self.timeoutCount + 1
-        if gsoAIO.Load.menu.orb.response.enable:Value() then print("response timeout 2 : " .. self.timeoutCount) end
-    end
 
 --  GET SERVER AA DATA :
     local aSpell = myHero.activeSpell
@@ -4018,9 +3995,6 @@ function __gsoLoad:_load()
                 self.menu.ts.selected.draw:MenuElement({name = "Width",  id = "width", value = 3, min = 1, max = 10})
                 self.menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
     self.menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = gsoAIO.Vars.Icons["orb"] })
-        self.menu.orb:MenuElement({name = "Server Response", id = "response", type = MENU})
-            self.menu.orb.response:MenuElement({ id = "enable", name = "Display Message", value = false })
-            self.menu.orb.response:MenuElement({name = "Extra Response Timeout", id = "timeout", value = 0, min = -100, max = 100, step = 10 })
         self.menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
             self.menu.orb.delays:MenuElement({name = "Extra Kite Delay", id = "windup", value = 0, min = -50, max = 50, step = 1 })
             self.menu.orb.delays:MenuElement({name = "Extra LastHit Delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 1 })
