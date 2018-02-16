@@ -134,7 +134,7 @@ class "__gsoVars"
 --
 --
 function __gsoVars:__init()
-    self.version = "1.3"
+    self.version = "1.0"
     self.Icons = {
         ["gsoaio"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/gsoaio.png",
         ["orb"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/orb.png",
