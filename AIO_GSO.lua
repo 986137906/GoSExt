@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.632"
+    self.version = "0.633"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -717,7 +717,7 @@ function __gsoTS:_getTarget(_range, orb, changeRange)
         local unitID = unit.networkID
         local canTrist = gsoAIO.Vars.meTristana and gsoAIO.Load.menu.ts.tristE.enable:Value() and gsoAIO.Vars.tristanaETar and gsoAIO.Vars.tristanaETar.stacks >= gsoAIO.Load.menu.ts.tristE.stacks:Value() and unitID == gsoAIO.Vars.tristanaETar.id
         local range = changeRange == true and _range + myHero.boundingRadius + unit.boundingRadius or _range
-        local meExtended = myHero.pos:Extended(gsoAIO.Orb.lMovePath , (0.15+(gsoAIO.Utils.maxPing*1.5)) * myHero.ms) or nil
+        local meExtended = myHero.pos:Extended(gsoAIO.Orb.lMovePath , (0.15+(gsoAIO.Utils.maxPing*1.5)) * myHero.ms)
         local dist1 = gsoAIO.Utils:_getDistance(myHero.pos, unit.pos)
         local dist2 = gsoAIO.Utils:_getDistance(meExtended, unit.pos)
         local dist3 = dist2 > dist1 and dist2 or dist1
@@ -1644,7 +1644,7 @@ function __gsoOrb:_tick()
         self.lMove = 0
         self.timeoutCount = self.timeoutCount + 1
         if gsoAIO.Load.menu.orb.response.enable:Value() then print("response timeout : " .. self.timeoutCount) end
-    elseif self.isWaiting and Game.Timer() > self.lAttack + responseDelay + 0.25 then
+    elseif self.isWaiting and Game.Timer() > self.lAttack + responseDelay + 0.1 then
         self.isWaiting = false
         self.timeoutCount = self.timeoutCount + 1
         if gsoAIO.Load.menu.orb.response.enable:Value() then print("response timeout 2 : " .. self.timeoutCount) end
