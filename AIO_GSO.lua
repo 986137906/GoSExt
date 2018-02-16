@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.63"
+    self.version = "0.631"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -2322,26 +2322,28 @@ function __gsoTwitch:_tick()
     local eMinuss = getTick - gsoAIO.Spells.lastE
     local canETime = wMinus > 350 and wMinuss > 350 and eMinus > 1000 and eMinuss > 1000
     local isEReady = canETime and gsoAIO.Utils:_isReady(_E)
-    for i = 1, #gsoAIO.OB.enemyHeroes do
-        local hero  = gsoAIO.OB.enemyHeroes[i]
-        local nID   = hero.networkID
-        if self.eBuffs[nID] and self.eBuffs[nID].count > 0 and gsoAIO.Utils:_valid(hero, false) and gsoAIO.Utils:_getDistance(myHero.pos, hero.pos) < 1200 then
-            local elvl = myHero:GetSpellData(_E).level
-            local basedmg = 5 + ( elvl * 15 )
-            local cstacks = self.eBuffs[nID].count
-            local perstack = ( 10 + (5*elvl) ) * cstacks
-            local bonusAD = myHero.bonusDamage * 0.25 * cstacks
-            local bonusAP = myHero.ap * 0.2 * cstacks
-            local edmg = basedmg + perstack + bonusAD + bonusAP
-            local tarm = hero.armor - myHero.armorPen
-                  tarm = tarm > 0 and myHero.armorPenPercent * tarm or tarm
-            local DmgDealt = tarm > 0 and edmg * ( 100 / ( 100 + tarm ) ) or edmg * ( 2 - ( 100 / ( 100 - tarm ) ) )
-            local HPRegen = hero.hpRegen * 1.5
-            if hero.health + hero.shieldAD + HPRegen < DmgDealt then
-                Control.KeyDown(HK_E)
-                Control.KeyUp(HK_E)
-                self.lastE = GetTickCount()
-                gsoAIO.Vars.twitchCanW = false
+    if isEReady then
+        for i = 1, #gsoAIO.OB.enemyHeroes do
+            local hero  = gsoAIO.OB.enemyHeroes[i]
+            local nID   = hero.networkID
+            if self.eBuffs[nID] and self.eBuffs[nID].count > 0 and gsoAIO.Utils:_valid(hero, false) and gsoAIO.Utils:_getDistance(myHero.pos, hero.pos) < 1200 then
+                local elvl = myHero:GetSpellData(_E).level
+                local basedmg = 5 + ( elvl * 15 )
+                local cstacks = self.eBuffs[nID].count
+                local perstack = ( 10 + (5*elvl) ) * cstacks
+                local bonusAD = myHero.bonusDamage * 0.25 * cstacks
+                local bonusAP = myHero.ap * 0.2 * cstacks
+                local edmg = basedmg + perstack + bonusAD + bonusAP
+                local tarm = hero.armor - myHero.armorPen
+                      tarm = tarm > 0 and myHero.armorPenPercent * tarm or tarm
+                local DmgDealt = tarm > 0 and edmg * ( 100 / ( 100 + tarm ) ) or edmg * ( 2 - ( 100 / ( 100 - tarm ) ) )
+                local HPRegen = hero.hpRegen * 1.5
+                if hero.health + hero.shieldAD + HPRegen < DmgDealt then
+                    Control.KeyDown(HK_E)
+                    Control.KeyUp(HK_E)
+                    self.lastE = GetTickCount()
+                    gsoAIO.Vars.twitchCanW = false
+                end
             end
         end
     end
