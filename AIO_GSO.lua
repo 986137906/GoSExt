@@ -66,7 +66,8 @@ function __gsoVars:__init()
         ["tristana"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/tristana.png",
         ["ts"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/ts.png",
         ["twitch"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/twitch.png",
-        ["vayne"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/vayne.png"
+        ["vayne"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/vayne.png",
+        ["jinx"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/jinx.png"
     }
     self._aaSpeed       = function() return myHero.attackSpeed end
     self._champMenu     = function() return 0 end
