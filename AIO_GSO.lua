@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.635"
+    self.version = "0.636"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -77,8 +77,6 @@ function __gsoVars:__init()
     self._mousePos      = function() return nil end
     self._canMove       = function() return true end
     self._canAttack     = function(target) return true end
--- BOTRK :
-    self.canBotrk = true
 -- TRISTANA :
     self.meTristana = self.hName == "Tristana"
     self.tristanaETar = nil
@@ -234,7 +232,7 @@ end
 --
 function __gsoItems:_botrk(unit)
     local hkKey = nil
-    if GetTickCount() < self.lastBotrk + 1000 or not gsoAIO.Vars.canBotrk then return false end
+    if GetTickCount() < self.lastBotrk + 1000 then return false end
     local itmSlot1 = self.itemList[3144].i
     local itmSlot2 = self.itemList[3153].i
     if itmSlot1 and myHero:GetSpellData(itmSlot1).currentCd == 0 then
@@ -244,7 +242,7 @@ function __gsoItems:_botrk(unit)
     end
     if hkKey and gsoAIO.Load.menu.orb.keys.combo:Value() and gsoAIO.Load.menu.gsoitem.botrk:Value() then
         local unitPos = unit.pos
-        if gsoAIO.Utils:_getDistance(myHero.pos, unitPos) < 550 then
+        if gsoAIO.Utils:_getDistance(myHero.pos, unitPos) < 520 then
             local cPos = cursorPos
             Control.SetCursorPos(unitPos)
             Control.KeyDown(hkKey)
@@ -252,7 +250,6 @@ function __gsoItems:_botrk(unit)
             gsoAIO.Items.lastBotrk = GetTickCount()
             gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
             gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
-            gsoAIO.Orb.lMove = 0
             return true
         end
     end
@@ -1607,14 +1604,19 @@ function __gsoOrb:_orb(unit)
     
     local canOrb  = self.dActionsC == 0
     self.canAA    = canOrb and gsoAIO.Vars._canAttack(unit) and not gsoAIO.TS.isBlinded
-    self.canAA    = self.canAA and (self.aaReset or Game.Timer() > self.serverStart - windUpAA + self.animT - gsoAIO.Utils.minPing - 0.05 )
+    self.canAA    = self.canAA and Game.Timer() > self.lAttack + self.windUpT and (self.aaReset or Game.Timer() > self.serverStart - windUpAA + self.animT - gsoAIO.Utils.minPing - 0.05 )
     self.canMove  = canOrb and gsoAIO.Vars._canMove()
-    self.canMove  = self.canMove and Game.Timer() > self.serverStart + extraWindUp - (gsoAIO.Utils.minPing*0.5)
+    self.canMove  = self.canMove and Game.Timer() > self.lAttack + self.windUpT and Game.Timer() > self.serverStart + extraWindUp - (gsoAIO.Utils.minPing*0.5)
     
     if unit ~= nil and self.canAA then
         self:_attack(unit)
-    elseif self.canMove and Game.Timer() > self.lMove + (gsoAIO.Load.menu.orb.delays.humanizer:Value()*0.001) then
-        self:_move()
+    elseif self.canMove then
+        if unitValid and Game.Timer() > self.lAttack + ( gsoAIO.Orb.animT * 0.5 ) and Game.Timer() < self.lAttack + ( gsoAIO.Orb.animT * 0.8 ) and gsoAIO.Items:_botrk(unit) then
+            return
+        end
+        if Game.Timer() > self.lMove + (gsoAIO.Load.menu.orb.delays.humanizer:Value()*0.001) and GetTickCount() > gsoAIO.Items.lastBotrk + 100 then
+            self:_move()
+        end
     end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -1738,7 +1740,6 @@ function __gsoOrb:_attack(unit)
         if not gsoAIO.Vars.dravenCanE then gsoAIO.Vars.dravenCanE = true end
         if not gsoAIO.Vars.dravenCanR then gsoAIO.Vars.dravenCanR = true end
     end
-    if not gsoAIO.Vars.canBotrk then gsoAIO.Vars.canBotrk = true end
     self.lAttack = Game.Timer()
     self.isServerAA = false
 end
@@ -1978,13 +1979,6 @@ function __gsoAshe:_canAttack(target)
                 Control.KeyDown(HK_Q)
                 Control.KeyUp(HK_Q)
                 gsoAIO.Vars.asheCanW = false
-                return false
-            end
-        end
-        if isTarget and afterAttack then
-            
-            -- USE BOTRK:
-            if gsoAIO.Items:_botrk(target) then
                 return false
             end
         end
@@ -2244,13 +2238,6 @@ function __gsoTwitch:_canAttack(target)
                     gsoAIO.Vars.twitchCanW = false
                     return false
                 end
-            end
-        end
-        if isTarget and afterAttack then
-            
-            -- USE BOTRK:
-            if gsoAIO.Items:_botrk(target) then
-                return false
             end
         end
     end
@@ -2608,13 +2595,6 @@ function __gsoKogMaw:_canAttack(target)
                 end
             end
         end
-        if isTarget and afterAttack then
-            
-            -- USE BOTRK:
-            if gsoAIO.Items:_botrk(target) then
-                return false
-            end
-        end
     end
     if qMinus > 450 and qMinuss > 450 and eMinus > 450 and eMinuss > 450 and rMinus > 450 and rMinuss > 450 then
         return true
@@ -2801,8 +2781,6 @@ function __gsoDraven:_canAttack(target)
                 gsoAIO.Vars.dravenCanE = false
                 gsoAIO.Vars.dravenCanR = false
                 return false
-            elseif afterAttack then
-                gsoAIO.Items:_botrk(target)
             end
         end
     end
@@ -3058,13 +3036,6 @@ function __gsoEzreal:_canAttack(target)
                         return false
                     end
                 end
-            end
-        end
-        if isTarget and afterAttack then
-            
-            -- USE BOTRK:
-            if gsoAIO.Items:_botrk(target) then
-                return false
             end
         end
     end
@@ -3436,14 +3407,8 @@ function __gsoVayne:_canAttack(target)
                     gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
                     gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
                     gsoAIO.Vars.vayneCanQ = false
-                    gsoAIO.Vars.canBotrk = false
                     return false
                 end
-            end
-            
-            -- USE BOTRK :
-            if gsoAIO.Items:_botrk(target) then
-                return false
             end
         end
         if not isTarget or afterAttack then
@@ -3476,7 +3441,6 @@ function __gsoVayne:_canAttack(target)
                         Control.KeyUp(HK_Q)
                         self.lastQ = GetTickCount()
                         gsoAIO.Vars.vayneCanE = false
-                        gsoAIO.Vars.canBotrk = false
                         return false
                     end
                 end
@@ -3605,13 +3569,6 @@ function __gsoTeemo:_canAttack(target)
                 end
             end
         end
-        if isTarget and afterAttack then
-            
-            -- USE BOTRK :
-            if gsoAIO.Items:_botrk(target) then
-                return false
-            end
-        end
     end
     if qMinus > 350 and qMinuss > 350 and rMinuss > 700 then
         return true
@@ -3708,12 +3665,6 @@ function __gsoSivir:_canAttack(target)
                 Control.KeyUp(HK_W)
                 self.lastW = GetTickCount()
                 gsoAIO.Vars.sivirCanQ = false
-                gsoAIO.Vars.canBotrk = false
-                return false
-            end
-            
-            -- USE BOTRK:
-            if gsoAIO.Items:_botrk(target) then
                 return false
             end
         end
@@ -3847,7 +3798,7 @@ function __gsoTristana:_canMove()
     local wMinuss = getTick - gsoAIO.Spells.lastW
     local eMinuss = getTick - gsoAIO.Spells.lastE
     local rMinuss = getTick - gsoAIO.Spells.lastR
-    if wMinuss > 950 and eMinus > 350 and eMinuss > 350 and rMinus > 350 and rMinuss > 350 then
+    if wMinuss > 500 then
         return true
     end
     return false
@@ -3872,7 +3823,7 @@ function __gsoTristana:_canAttack(target)
         local isHarass = gsoAIO.Load.menu.orb.keys.harass:Value()
         
         -- USE R :
-        local canRTime = wMinuss > 1050 and eMinus > 450 and eMinuss > 450 and rMinus > 1000 and rMinuss > 1000
+        local canRTime = wMinuss > 250 and eMinus > 450 and eMinuss > 450 and rMinus > 1000 and rMinuss > 1000
         local isRReady = (isCombo or isHarass) and canRTime and gsoAIO.Load.menu.gsotristana.rset.ks:Value() and gsoAIO.Utils:_isReady(_R)
         if isRReady then
             local mePos = myHero.pos
@@ -3895,6 +3846,7 @@ function __gsoTristana:_canAttack(target)
                         self.lastR = GetTickCount()
                         gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
                         gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
+                        gsoAIO.Orb.lMove = 0
                         return false
                     end
                 end
@@ -3902,7 +3854,7 @@ function __gsoTristana:_canAttack(target)
         end
         
         -- USE E :
-        local canETime = wMinuss > 1050 and eMinus > 1000 and eMinuss > 1000 and rMinus > 600 and rMinuss > 600
+        local canETime = wMinuss > 250 and eMinus > 1000 and eMinuss > 1000 and rMinus > 600 and rMinuss > 600
         local isComboE = isCombo and gsoAIO.Load.menu.gsotristana.eset.combo:Value()
         local isHarassE = isHarass and gsoAIO.Load.menu.gsotristana.eset.harass:Value()
         local isEReady = (isComboE or isHarassE) and canETime and gsoAIO.Utils:_isReady(_E) and Game.Timer() > gsoAIO.Orb.lAttack + (gsoAIO.Orb.animT * 0.5)
@@ -3918,13 +3870,9 @@ function __gsoTristana:_canAttack(target)
                 gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
                 gsoAIO.Orb.dActionsC = gsoAIO.Orb.dActionsC + 1
                 gsoAIO.Vars.tristanaETar = { id = targetID, stacks = 1, unit = target }
+                gsoAIO.Orb.lMove = 0
                 return false
             end
-        end
-        
-        -- USE BOTRK :
-        if Game.Timer() < gsoAIO.Orb.lAttack + ( gsoAIO.Orb.animT * 0.75 ) and gsoAIO.Items:_botrk(target) then
-            return false
         end
         
         -- USE Q :
@@ -3941,7 +3889,7 @@ function __gsoTristana:_canAttack(target)
     end
     
     -- CHECK IF CAN ATTACK :
-    if wMinuss > 1050 and eMinus > 250 and eMinuss > 250 and rMinus > 250 and rMinuss > 250 then
+    if wMinuss > 800 then
         return true
     end
     
@@ -4134,13 +4082,6 @@ function __gsoJinx:_canAttack(target)
                 end
             end
         end
-        if isTarget and afterAttack then
-            
-            -- USE BOTRK :
-            if gsoAIO.Items:_botrk(target) then
-                return false
-            end
-        end
     end
     if wMinus > 600 and wMinuss > 600 and rMinuss > 600 then
         return true
@@ -4184,7 +4125,7 @@ function __gsoLoad:_load()
                 self.menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
     self.menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = gsoAIO.Vars.Icons["orb"] })
         self.menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
-            self.menu.orb.delays:MenuElement({name = "Extra Kite Delay", id = "windup", value = 0, min = -50, max = 50, step = 1 })
+            self.menu.orb.delays:MenuElement({name = "Extra Kite Delay", id = "windup", value = 0, min = 0, max = 50, step = 1 })
             self.menu.orb.delays:MenuElement({name = "Extra LastHit Delay", id = "lhDelay", value = 0, min = 0, max = 50, step = 1 })
             self.menu.orb.delays:MenuElement({name = "Extra Move Delay", id = "humanizer", value = 200, min = 120, max = 300, step = 10 })
         self.menu.orb:MenuElement({name = "Keys", id = "keys", type = MENU})
@@ -4209,7 +4150,7 @@ function __gsoLoad:_load()
                 self.menu.orb.draw.cpos:MenuElement({name = "Radius",  id = "radius", value = 250, min = 1, max = 300})
     self.menu:MenuElement({name = "Items", id = "gsoitem", type = MENU, leftIcon = gsoAIO.Vars.Icons["item"] })
         self.menu.gsoitem:MenuElement({id = "botrk", name = "        botrk", value = true, leftIcon = gsoAIO.Vars.Icons["botrk"] })
-    
+    if self.menu.orb.delays.windup:Value() < 0 then self.menu.orb.delays.windup:Value(0) end
     gsoAIO.Dmg = __gsoDmg()
     gsoAIO.Items = __gsoItems()
     gsoAIO.Spells = __gsoSpells()
