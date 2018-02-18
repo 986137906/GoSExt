@@ -9,6 +9,7 @@ local Draw = Draw
 local gsoAIO = {
   Vars = nil,
   Dmg = nil,
+  Mana = nil,
   Items = nil,
   Spells = nil,
   Utils = nil,
@@ -31,7 +32,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.638"
+    self.version = "0.639"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -211,6 +212,86 @@ function __gsoDmg:__init()
             return 0
         end
 end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+class "__gsoMana"
+--
+--
+--
+function __gsoMana:__init()
+    self.spellData = {}
+    self.priority = {}
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoMana:_enoughMana(spell)
+    local costQ, cdq, costW, cdw, costE, cde, costR, cdr = 0, 0, 0, 0, 0, 0, 0 ,0
+    if self.spellData.q and myHero:GetSpellData(_Q).level > 0 then
+        costQ = self.spellData.qm and self.spellData.qm or self.spellData.qf()
+        cdq = myHero:GetSpellData(_Q).currentCd
+    end
+    if self.spellData.w and myHero:GetSpellData(_W).level > 0 then
+        costW = self.spellData.wm and self.spellData.wm or self.spellData.wf()
+        cdw = myHero:GetSpellData(_W).currentCd
+    end
+    if self.spellData.e and myHero:GetSpellData(_E).level > 0 then
+        costE = self.spellData.em and self.spellData.em or self.spellData.ef()
+        cde = myHero:GetSpellData(_E).currentCd
+    end
+    if self.spellData.r and myHero:GetSpellData(_R).level > 0 then
+        costR = self.spellData.rm and self.spellData.rm or self.spellData.rf()
+        cdr = myHero:GetSpellData(_R).currentCd
+    end
+    local priority = self.priority[spell]
+    local mana = myHero.mana
+    local cdMax = 0
+    for k,v in pairs(self.priority) do
+        if k == _Q then
+            if v < priority then
+                mana = mana - costQ
+                if cdq > cdMax then cdMax = cdq end
+            end
+        elseif k == _W then
+            if v < priority then
+                mana = mana - costW
+                if cdw > cdMax then cdMax = cdw end
+            end
+        elseif k == _E then
+            if v < priority then
+                mana = mana - costE
+                if cde > cdMax then cdMax = cde end
+            end
+        elseif k == _R then
+            if v < priority then
+                mana = mana - costR
+                if cdr > cdMax then cdMax = cdr end
+            end
+        end
+    end
+    local extraMana = cdMax > 0 and myHero.mpRegen * cdMax or 0
+    mana = mana + extraMana
+    local spellCost = 0
+    if spell == _Q then
+        spellCost = costQ
+    elseif spell == _W then
+        spellCost = costW
+    elseif spell == _E then
+        spellCost = costE
+    elseif spell == _R then
+        spellCost = costR
+    end
+    if mana < spellCost then
+        return false
+    end
+    return true
+end
+gsoAIO.Mana = __gsoMana()
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -608,7 +689,7 @@ end
 --
 --
 function __gsoUtils:_isReady(spell)
-    return gsoAIO.Orb.dActionsC == 0 and Game.CanUseSpell(spell) == 0
+    return gsoAIO.Orb.dActionsC == 0 and Game.CanUseSpell(spell) == 0 and gsoAIO.Mana:_enoughMana(spell)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -1832,6 +1913,8 @@ function __gsoAshe:__init()
     gsoAIO.Orb.baseAASpeed = 0.658
     gsoAIO.Orb.baseWindUp = 0.2192982
     gsoAIO.Vars.drawRanges = { w = true, wrange = 1200 }
+    gsoAIO.Mana.spellData = { q = true, qm = 50, w = true, wm = 50, r = true, rm = 100 }
+    gsoAIO.Mana.priority = { [_R] = 1, [_Q] = 2, [_W] = 3 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -2067,6 +2150,8 @@ function __gsoTwitch:__init()
     gsoAIO.Orb.baseAASpeed = 0.679
     gsoAIO.Orb.baseWindUp = 0.2019159
     gsoAIO.Vars.drawRanges = { w = true, wrange = 950, e = true, erange = 1200, r = true, rfunc = function() return myHero.range + 300 + (myHero.boundingRadius*1.75) end }
+    gsoAIO.Mana.spellData = { q = true, qm = 40, w = true, wm = 70, e = true, ef = function() return 40 + (10*myHero:GetSpellData(_E).level) end, r = true, rm = 100 }
+    gsoAIO.Mana.priority = { [_R] = 1, [_Q] = 2, [_E] = 3, [_W] = 4 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -2383,6 +2468,8 @@ function __gsoKogMaw:__init()
     gsoAIO.Orb.baseAASpeed = 0.665
     gsoAIO.Orb.baseWindUp = 0.1662234
     gsoAIO.Vars.drawRanges = { q = true, qrange = 1175, e = true, erange = 1280, r = true, rfunc = function() return self:_rRange() end }
+    gsoAIO.Mana.spellData = { q = true, qm = 40, w = true, wm = 40, e = true, ef = function() return 70 + (10*myHero:GetSpellData(_E).level) end, r = true, rf = function() return self:_rMana() end }
+    gsoAIO.Mana.priority = { [_W] = 1, [_Q] = 2, [_E] = 3, [_R] = 4 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
@@ -2411,6 +2498,15 @@ function __gsoKogMaw:_menu()
             gsoAIO.Load.menu.gsokog.rset:MenuElement({id = "combo", name = "Combo", value = true})
             gsoAIO.Load.menu.gsokog.rset:MenuElement({id = "harass", name = "Harass", value = false})
             gsoAIO.Load.menu.gsokog.rset:MenuElement({id = "stack", name = "Stop at x stacks", value = 3, min = 1, max = 9, step = 1 })
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoKogMaw:_rMana()
+    local count = gsoAIO.Utils:_buffCount(myHero, "kogmawlivingartillerycost")
+    if count >= gsoAIO.Load.menu.gsokog.rset.stack:Value() then return 0 end
+    return count * 40
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -2618,6 +2714,8 @@ function __gsoDraven:__init()
     gsoAIO.Orb.baseAASpeed = 0.679
     gsoAIO.Orb.baseWindUp = 0.1561439
     gsoAIO.Vars.drawRanges = { e = true, erange = 1050 }
+    gsoAIO.Mana.spellData = { q = true, qm = 45, w = true, wf = function() return 45 - (5*myHero:GetSpellData(_W).level) end, e = true, em = 70, r = true, rm = 100 }
+    gsoAIO.Mana.priority = { [_R] = 1, [_Q] = 2, [_E] = 3, [_W] = 4 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setMousePos(function() return self:_setMousePos() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -2882,6 +2980,8 @@ function __gsoEzreal:__init()
     gsoAIO.Orb.baseAASpeed = 0.625
     gsoAIO.Orb.baseWindUp = 0.18838652
     gsoAIO.Vars.drawRanges = { q = true, qrange = 1150, w = true, wrange = 1000, e = true, erange = 475 }
+    gsoAIO.Mana.spellData = { q = true, qf = function() return 25 + (3*myHero:GetSpellData(_Q).level) end, w = true, wf = function() return 40 + (10*myHero:GetSpellData(_W).level) end, e = true, em = 90, r = true, rm = 100 }
+    gsoAIO.Mana.priority = { [_E] = 1, [_Q] = 2, [_R] = 3, [_W] = 4 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
@@ -3314,6 +3414,8 @@ function __gsoVayne:__init()
     gsoAIO.Orb.baseAASpeed = 0.658
     gsoAIO.Orb.baseWindUp = 0.1754385
     gsoAIO.Vars.drawRanges = { q = true, qrange = 300, e = true, erange = 550 }
+    gsoAIO.Mana.spellData = { q = true, qm = 30, e = true, em = 90, r = true, rm = 80 }
+    gsoAIO.Mana.priority = { [_R] = 1, [_Q] = 2, [_E] = 3 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
@@ -3461,6 +3563,8 @@ function __gsoTeemo:__init()
     gsoAIO.Orb.baseAASpeed = 0.69
     gsoAIO.Orb.baseWindUp = 0.215743
     gsoAIO.Vars.drawRanges = { q = true, qrange = 680, r = true, rfunc = function() return self:_rRange() end }
+    gsoAIO.Mana.spellData = { q = true, qf = function() return 65 + (5*myHero:GetSpellData(_Q).level) end, w = true, wm = 40, r = true, rm = 75 }
+    gsoAIO.Mana.priority = { [_Q] = 1, [_W] = 2, [_R] = 3 }
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -3583,6 +3687,8 @@ function __gsoSivir:__init()
     gsoAIO.Orb.baseAASpeed = 0.625
     gsoAIO.Orb.baseWindUp = 0.1199999
     gsoAIO.Vars.drawRanges = { q = true, qrange = 1250, r = true, rrange = 1000 }
+    gsoAIO.Mana.spellData = { q = true, qf = function() return 60 + (10*myHero:GetSpellData(_Q).level) end, w = true, wm = 60, r = true, rm = 100 }
+    gsoAIO.Mana.priority = { [_R] = 1, [_W] = 2, [_Q] = 3 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -3746,6 +3852,8 @@ function __gsoTristana:__init()
     gsoAIO.Orb.baseAASpeed = 0.656
     gsoAIO.Orb.baseWindUp = 0.1480066
     gsoAIO.Vars.drawRanges = { w = true, wrange = 900 }
+    gsoAIO.Mana.spellData = { w = true, wm = 60, e = true, ef = function() return 65 + (5*myHero:GetSpellData(_E).level) end, r = true, rm = 100 }
+    gsoAIO.Mana.priority = { [_W] = 1, [_R] = 2, [_E] = 3 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -3949,6 +4057,8 @@ function __gsoJinx:__init()
     gsoAIO.Orb.baseAASpeed = 0.625
     gsoAIO.Orb.baseWindUp = 0.17708122
     gsoAIO.Vars.drawRanges = { q = true, qfunc = function() return self:_qRange() end, w = true, wrange = 1450, e = true, erange = 900 }
+    gsoAIO.Mana.spellData = { w = true, wf = function() return 40 + (10*myHero:GetSpellData(_W).level) end, e = true, em = 70, r = true, rm = 100 }
+    gsoAIO.Mana.priority = { [_E] = 1, [_R] = 2, [_W] = 3 }
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
