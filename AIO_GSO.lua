@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.636"
+    self.version = "0.637"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -245,6 +245,7 @@ function __gsoItems:_botrk(unit)
         if gsoAIO.Utils:_getDistance(myHero.pos, unitPos) < 520 then
             local cPos = cursorPos
             Control.SetCursorPos(unitPos)
+            gsoAIO.Orb.setCursor = unitPos
             Control.KeyDown(hkKey)
             Control.KeyUp(hkKey)
             gsoAIO.Items.lastBotrk = GetTickCount()
@@ -1523,6 +1524,7 @@ function __gsoOrb:__init()
     self.lAttack      = 0
     self.lMove        = 0
     self.lMovePath    = mousePos
+    self.setCursor    = nil
     
     --[[ delayed actions ]]
     self.dActionsC    = 0
@@ -1625,6 +1627,11 @@ end
 --
 function __gsoOrb:_tick()
 
+--  SET CURSOR POS :
+    if self.setCursor then
+        Control.SetCursorPos(self.setCursor)
+    end
+
 --  DISABLE IN EVADING TIME :
     if ExtLibEvade and ExtLibEvade.Evading then return end
 
@@ -1645,6 +1652,7 @@ function __gsoOrb:_tick()
         if not v[3] and GetTickCount() - k > v[2] then
             v[1]()
             v[3] = true
+            self.setCursor = nil
         elseif v[3] and GetTickCount() - k > v[2] + 25 then
             self.dActions[k] = nil
         end
@@ -1697,7 +1705,9 @@ function __gsoOrb:_attack(unit)
     self.aaReset = false
     self.lMove = 0
     local cPos = cursorPos
-    Control.SetCursorPos(unit.pos)
+    local unitPos = unit.pos
+    Control.SetCursorPos(unitPos)
+    self.setCursor = unitPos
     Control.KeyDown(HK_TCO)
     Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
     Control.mouse_event(MOUSEEVENTF_RIGHTUP)
@@ -1741,7 +1751,6 @@ function __gsoOrb:_attack(unit)
         if not gsoAIO.Vars.dravenCanR then gsoAIO.Vars.dravenCanR = true end
     end
     self.lAttack = Game.Timer()
-    self.isServerAA = false
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -1754,6 +1763,7 @@ function __gsoOrb:_move()
         if Control.IsKeyDown(2) then self.lastKey = GetTickCount() end
         local cPos = cursorPos
         Control.SetCursorPos(mPos)
+        self.setCursor = mPos
         self.lMovePath = mPos
         Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
         Control.mouse_event(MOUSEEVENTF_RIGHTUP)
@@ -1766,7 +1776,6 @@ function __gsoOrb:_move()
         self.lMovePath = mousePos
         Control.mouse_event(MOUSEEVENTF_RIGHTDOWN)
         Control.mouse_event(MOUSEEVENTF_RIGHTUP)
-        --self.dActions[GetTickCount()] = { function() return 0 end, 50 }
         self.lMove = Game.Timer()
     end
 end
@@ -1934,6 +1943,7 @@ function __gsoAshe:_canAttack(target)
                     local cPos = cursorPos
                     self.lastR = GetTickCount()
                     Control.SetCursorPos(rPos)
+                    gsoAIO.Orb.setCursor = rPos
                     Control.KeyDown(HK_R)
                     Control.KeyUp(HK_R)
                     gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
@@ -1957,6 +1967,7 @@ function __gsoAshe:_canAttack(target)
                     if HitChance > 0 and castpos:ToScreen().onScreen and gsoAIO.Utils:_getDistance(mePos, castpos) < sW.range and gsoAIO.Utils:_getDistance(wTarget.pos, castpos) < 500 then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_W)
                         Control.KeyUp(HK_W)
                         self.lastW = GetTickCount()
@@ -2202,6 +2213,7 @@ function __gsoTwitch:_canAttack(target)
                     if HitChance > 0 and castpos:ToScreen().onScreen and gsoAIO.Utils:_getDistance(mePos, castpos) < sW.range and gsoAIO.Utils:_getDistance(wTarget.pos, castpos) < 500 then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_W)
                         Control.KeyUp(HK_W)
                         self.lastW = GetTickCount()
@@ -2527,6 +2539,7 @@ function __gsoKogMaw:_canAttack(target)
                     if canQonTarget then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_Q)
                         Control.KeyUp(HK_Q)
                         self.lastQ = GetTickCount()
@@ -2554,6 +2567,7 @@ function __gsoKogMaw:_canAttack(target)
                     if HitChance > 0 and castpos:ToScreen().onScreen and gsoAIO.Utils:_getDistance(mePos, castpos) < sE.range and gsoAIO.Utils:_getDistance(eTarget.pos, castpos) < 500 then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_E)
                         Control.KeyUp(HK_E)
                         self.lastE = GetTickCount()
@@ -2583,6 +2597,7 @@ function __gsoKogMaw:_canAttack(target)
                     if HitChance > 0 and castpos:ToScreen().onScreen and gsoAIO.Utils:_getDistance(mePos, castpos) < sR.range and gsoAIO.Utils:_getDistance(rTarget.pos, castpos) < 500 then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_R)
                         Control.KeyUp(HK_R)
                         self.lastR = GetTickCount()
@@ -2755,6 +2770,7 @@ function __gsoDraven:_canAttack(target)
                     if HitChance > 0 and castpos:ToScreen().onScreen and distToPred < sE.range and distToPred > 125 and distToTarget > 125 and gsoAIO.Utils:_getDistance(targetPos, castpos) < 250 and isOnLine then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_E)
                         Control.KeyUp(HK_E)
                         self.lastE = GetTickCount()
@@ -3000,6 +3016,7 @@ function __gsoEzreal:_canAttack(target)
                     if HitChance > gsoAIO.Load.menu.gsoezreal.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 500 then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_Q)
                         Control.KeyUp(HK_Q)
                         self.lastQ = GetTickCount()
@@ -3027,6 +3044,7 @@ function __gsoEzreal:_canAttack(target)
                     if HitChance > gsoAIO.Load.menu.gsoezreal.wset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sW.range and distUnitToPredPos < 500 then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_W)
                         Control.KeyUp(HK_W)
                         self.lastW = GetTickCount()
@@ -3056,6 +3074,7 @@ function __gsoEzreal:_castQ(t, tPos, mePos)
     if HitChance > gsoAIO.Load.menu.gsoezreal.qset.hitchance:Value()-1 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 500 then
         local cPos = cursorPos
         Control.SetCursorPos(castpos)
+        gsoAIO.Orb.setCursor = castpos
         Control.KeyDown(HK_Q)
         Control.KeyUp(HK_Q)
         self.lastQ = GetTickCount()
@@ -3289,6 +3308,7 @@ function __gsoEzreal:_tick()
                     if HitChance > 0 and castpos:ToScreen().onScreen and distMeToPredPos < sQ.range and distUnitToPredPos < 200 then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_Q)
                         Control.KeyUp(HK_Q)
                         self.lastQ = GetTickCount()
@@ -3402,6 +3422,7 @@ function __gsoVayne:_canAttack(target)
                     Control.KeyUp(83)
                     local cPos = cursorPos
                     Control.SetCursorPos(targetPos)
+                    gsoAIO.Orb.setCursor = targetPos
                     Control.KeyDown(HK_E)
                     Control.KeyUp(HK_E)
                     gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
@@ -3543,6 +3564,7 @@ function __gsoTeemo:_canAttack(target)
                     local cPos = cursorPos
                     self.lastQ = GetTickCount()
                     Control.SetCursorPos(qTargetPos)
+                    gsoAIO.Orb.setCursor = qTargetPos
                     Control.KeyDown(HK_Q)
                     Control.KeyUp(HK_Q)
                     gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
@@ -3686,6 +3708,7 @@ function __gsoSivir:_canAttack(target)
                     if HitChance > 0 and castpos:ToScreen().onScreen and gsoAIO.Utils:_getDistance(mePos, castpos) < sQ.range and gsoAIO.Utils:_getDistance(qTargetPos, castpos) < 500 then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_Q)
                         Control.KeyUp(HK_Q)
                         self.lastQ = GetTickCount()
@@ -3841,6 +3864,7 @@ function __gsoTristana:_canAttack(target)
                     if unitKillable then
                         local cPos = cursorPos
                         Control.SetCursorPos(unitPos)
+                        gsoAIO.Orb.setCursor = unitPos
                         Control.KeyDown(HK_R)
                         Control.KeyUp(HK_R)
                         self.lastR = GetTickCount()
@@ -3865,6 +3889,7 @@ function __gsoTristana:_canAttack(target)
                 local cPos = cursorPos
                 self.lastE = GetTickCount()
                 Control.SetCursorPos(targetPos)
+                gsoAIO.Orb.setCursor = targetPos
                 Control.KeyDown(HK_E)
                 Control.KeyUp(HK_E)
                 gsoAIO.Orb.dActions[GetTickCount()] = { function() Control.SetCursorPos(cPos.x, cPos.y) end, 50 }
@@ -4021,6 +4046,7 @@ function __gsoJinx:_canAttack(target)
                 if unitPos and gsoAIO.Utils:_getDistance(mePos, unitPos) < 900 and gsoAIO.Utils:_isImmobile(unit) and unitPos:ToScreen().onScreen then
                     local cPos = cursorPos
                     Control.SetCursorPos(unitPos)
+                    gsoAIO.Orb.setCursor = unitPos
                     Control.KeyDown(HK_E)
                     Control.KeyUp(HK_E)
                     self.lastE = GetTickCount()
@@ -4072,6 +4098,7 @@ function __gsoJinx:_canAttack(target)
                     if canWonTarget then
                         local cPos = cursorPos
                         Control.SetCursorPos(castpos)
+                        gsoAIO.Orb.setCursor = castpos
                         Control.KeyDown(HK_W)
                         Control.KeyUp(HK_W)
                         self.lastW = GetTickCount()
