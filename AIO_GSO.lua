@@ -31,7 +31,7 @@ class "__gsoVars"
 --
 function __gsoVars:__init()
     self.loaded = true
-    self.version = "0.637"
+    self.version = "0.638"
     self.hName = myHero.charName
     self.supportedChampions = {
       ["Draven"] = true,
@@ -45,6 +45,7 @@ function __gsoVars:__init()
       ["Tristana"] = true,
       ["Jinx"] = true
     }
+    self.drawRanges = {}
     if not self.supportedChampions[self.hName] == true then
         self.loaded = false
         print("gamsteronAIO "..self.version.." | hero not supported !")
@@ -67,8 +68,10 @@ function __gsoVars:__init()
         ["ts"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/ts.png",
         ["twitch"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/twitch.png",
         ["vayne"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/vayne.png",
-        ["jinx"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/jinx.png"
+        ["jinx"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/jinx.png",
+        ["pencil"] = "https://raw.githubusercontent.com/gamsteron/GoSExt/master/Icons/pencil.png"
     }
+    self._draw          = {}
     self._aaSpeed       = function() return myHero.attackSpeed end
     self._champMenu     = function() return 0 end
     self._bonusDmg      = function() return 0 end
@@ -111,6 +114,7 @@ function __gsoVars:__init()
     self.dravenCanE = true
     self.dravenCanR = true
 end
+function __gsoVars:_setDraw(func) self._draw[#self._draw+1] = func end
 function __gsoVars:_setAASpeed(func) self._aaSpeed = func end
 function __gsoVars:_setChampMenu(func) self._champMenu = func end
 function __gsoVars:_setBonusDmg(func) self._bonusDmg = func end
@@ -714,7 +718,7 @@ function __gsoTS:__init()
         [3] = { tick = 0, id = 0 },
         [4] = { tick = 0, id = 0 }
     }
-    Callback.Add('Draw', function() self:_draw() end)
+    gsoAIO.Vars:_setDraw(function() self:_draw() end)
     Callback.Add('WndMsg', function(msg, wParam) self:_onWndMsg(msg, wParam) end)
     Callback.Add('Tick', function() self:_tick() end)
 end
@@ -898,8 +902,8 @@ end
 --
 --
 function __gsoTS:_draw()
-    if gsoAIO.Load.menu.ts.selected.draw.enable:Value() == true and gsoAIO.Utils:_valid(self.selectedTarget, true) then
-        Draw.Circle(self.selectedTarget.pos, gsoAIO.Load.menu.ts.selected.draw.radius:Value(), gsoAIO.Load.menu.ts.selected.draw.width:Value(), gsoAIO.Load.menu.ts.selected.draw.color:Value())
+    if gsoAIO.Load.menu.gsodraw.circle1.seltar:Value() and gsoAIO.Utils:_valid(self.selectedTarget, true) then
+        Draw.Circle(self.selectedTarget.pos, gsoAIO.Load.menu.gsodraw.circle1.seltarradius:Value(), gsoAIO.Load.menu.gsodraw.circle1.seltarwidth:Value(), gsoAIO.Load.menu.gsodraw.circle1.seltarcolor:Value())
     end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -1516,6 +1520,7 @@ function __gsoOrb:__init()
     
     --[[ move if stop holding orb key ]]
     self.lastKey      = 0
+    self.loaded       = false
     
     --[[ orbwalker ]]
     self.canMove      = true
@@ -1542,8 +1547,8 @@ function __gsoOrb:__init()
     self.serverAnim = 0
     
     --[[ callbacks ]]
+    gsoAIO.Vars:_setDraw(function() self:_draw() end)
     Callback.Add('Tick', function() self:_tick() end)
-    Callback.Add('Draw', function() self:_draw() end)
     Callback.Add('WndMsg', function(msg, wParam) self:_onWndMsg(msg, wParam) end)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -1626,6 +1631,13 @@ end
 --
 --
 function __gsoOrb:_tick()
+
+--  DISABLE IF LOAD :
+    if not self.loaded and GetTickCount() < gsoAIO.Load.loadTime + 1250 then
+        return
+    elseif not self.loaded then
+        self.loaded = true
+    end
 
 --  SET CURSOR POS :
     if self.setCursor then
@@ -1784,23 +1796,23 @@ end
 --
 --
 function __gsoOrb:_draw()
-    if not gsoAIO.Load.menu.orb.draw.enable:Value() then return end
     local mePos = myHero.pos
-    if gsoAIO.Load.menu.orb.draw.me.enable:Value() and not myHero.dead and mePos:ToScreen().onScreen then
-        Draw.Circle(mePos, myHero.range + myHero.boundingRadius + 35, gsoAIO.Load.menu.orb.draw.me.width:Value(), gsoAIO.Load.menu.orb.draw.me.color:Value())
+    local meBB = myHero.boundingRadius
+    if gsoAIO.Load.menu.gsodraw.circle1.merange:Value() and mePos:ToScreen().onScreen then
+        Draw.Circle(mePos, myHero.range + meBB + 75, gsoAIO.Load.menu.gsodraw.circle1.mewidth:Value(), gsoAIO.Load.menu.gsodraw.circle1.mecolor:Value())
     end
-    if gsoAIO.Load.menu.orb.draw.he.enable:Value() then
+    if gsoAIO.Load.menu.gsodraw.circle1.herange:Value() then
         local countEH = #gsoAIO.OB.enemyHeroes
         for i = 1, countEH do
             local hero = gsoAIO.OB.enemyHeroes[i]
             local heroPos = hero.pos
             if gsoAIO.Utils:_getDistance(mePos, heroPos) < 2000 and heroPos:ToScreen().onScreen then
-                Draw.Circle(heroPos, hero.range + hero.boundingRadius + 35, gsoAIO.Load.menu.orb.draw.he.width:Value(), gsoAIO.Load.menu.orb.draw.he.color:Value())
+                Draw.Circle(heroPos, hero.range + hero.boundingRadius + meBB, gsoAIO.Load.menu.gsodraw.circle1.hewidth:Value(), gsoAIO.Load.menu.gsodraw.circle1.hecolor:Value())
             end
         end
     end
-    if gsoAIO.Load.menu.orb.draw.cpos.enable:Value() then
-        Draw.Circle(mousePos, gsoAIO.Load.menu.orb.draw.cpos.radius:Value(), gsoAIO.Load.menu.orb.draw.cpos.width:Value(), gsoAIO.Load.menu.orb.draw.cpos.color:Value())
+    if gsoAIO.Load.menu.gsodraw.circle1.cpos:Value() then
+        Draw.Circle(mousePos, gsoAIO.Load.menu.gsodraw.circle1.cposradius:Value(), gsoAIO.Load.menu.gsodraw.circle1.cposwidth:Value(), gsoAIO.Load.menu.gsodraw.circle1.cposcolor:Value())
     end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -1819,6 +1831,7 @@ function __gsoAshe:__init()
     self.asNoQ = myHero.attackSpeed
     gsoAIO.Orb.baseAASpeed = 0.658
     gsoAIO.Orb.baseWindUp = 0.2192982
+    gsoAIO.Vars.drawRanges = { w = true, wrange = 1200 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -2053,13 +2066,14 @@ function __gsoTwitch:__init()
     self.QASTime = 0
     gsoAIO.Orb.baseAASpeed = 0.679
     gsoAIO.Orb.baseWindUp = 0.2019159
+    gsoAIO.Vars.drawRanges = { w = true, wrange = 950, e = true, erange = 1200, r = true, rfunc = function() return myHero.range + 300 + (myHero.boundingRadius*1.75) end }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
-    Callback.Add('Draw', function() self:_draw() end)
+    gsoAIO.Vars:_setDraw(function() self:_draw() end)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -2080,67 +2094,6 @@ function __gsoTwitch:_menu()
             gsoAIO.Load.menu.gsotwitch.eset:MenuElement({id = "harass", name = "Use E Harass", value = false})
             gsoAIO.Load.menu.gsotwitch.eset:MenuElement({id = "stacks", name = "X stacks", value = 6, min = 1, max = 6, step = 1 })
             gsoAIO.Load.menu.gsotwitch.eset:MenuElement({id = "enemies", name = "X enemies", value = 1, min = 1, max = 5, step = 1 })
-        gsoAIO.Load.menu.gsotwitch:MenuElement({name = "Drawings", id = "draws", type = MENU })
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "enable", name = "Enable", value = true})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "timer", name = "Q Timer", leftIcon = gsoAIO.Vars.Icons["timer"], icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
-                onclick = function()
-                    gsoAIO.Load.menu.gsotwitch.draws.enablet:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.colort:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.note1:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.note2:Hide()
-                end
-            })
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "note1", name = "", type = SPACE})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "enablet", name = "Enable", value = true})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "colort", name = "Color", color = Draw.Color(200, 65, 255, 100)})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "note2", name = "", type = SPACE})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "circles1", name = "Circles", leftIcon = gsoAIO.Vars.Icons["circles"], icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
-                onclick = function()
-                    gsoAIO.Load.menu.gsotwitch.draws.invenable:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.notenable:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.invcolor:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.notcolor:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.wenable:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.wcolor:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.eenable:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.ecolor:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.note3:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.note4:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.note5:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.note6:Hide()
-                    gsoAIO.Load.menu.gsotwitch.draws.note7:Hide()
-                end
-            })
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "note3", name = "", type = SPACE})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "invenable", name = "Q Invisible Enable", value = true})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "invcolor", name = "Q Invisible Color ", color = Draw.Color(200, 255, 0, 0)})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "note4", name = "", type = SPACE})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "notenable", name = "Q Notification Enable", value = true})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "notcolor", name = "Q Notification Color", color = Draw.Color(200, 188, 77, 26)})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "note5", name = "", type = SPACE})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "wenable", name = "W Enable", value = true})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "wcolor", name = "W Color", color = Draw.Color(255, 71, 70, 70)})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "note6", name = "", type = SPACE})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "eenable", name = "E Enable", value = true})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "ecolor", name = "E Color", color = Draw.Color(255, 66, 79, 122)})
-            gsoAIO.Load.menu.gsotwitch.draws:MenuElement({id = "note7", name = "", type = SPACE})
-gsoAIO.Load.menu.gsotwitch.draws.note1:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.note2:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.note3:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.note4:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.note5:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.note6:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.note7:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.enablet:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.colort:Hide(true) 
-gsoAIO.Load.menu.gsotwitch.draws.invenable:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.notenable:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.invcolor:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.notcolor:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.wenable:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.wcolor:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.eenable:Hide(true)
-gsoAIO.Load.menu.gsotwitch.draws.ecolor:Hide(true)
 gsoAIO.Load.menu.gsotwitch.qset.recallkey:Value(false)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -2362,36 +2315,17 @@ end
 --
 --
 function __gsoTwitch:_draw()
-    if not gsoAIO.Load.menu.gsotwitch.draws.enable:Value() then return end
     local mePos = myHero.pos
-    if gsoAIO.Load.menu.gsotwitch.draws.wenable:Value() then
-        Draw.Circle(mePos, 950, 1, gsoAIO.Load.menu.gsotwitch.draws.wcolor:Value())
-    end
-    if gsoAIO.Load.menu.gsotwitch.draws.eenable:Value() then
-        Draw.Circle(mePos, 1200, 1, gsoAIO.Load.menu.gsotwitch.draws.ecolor:Value())
-    end
-    if gsoAIO.Load.menu.gsotwitch.draws.enablet:Value() and GetTickCount() < gsoAIO.Spells.lastQ + 16000 then
+    if GetTickCount() < gsoAIO.Spells.lastQ + 16000 then
         local mePos2D = mePos:To2D()
         local posX = mePos2D.x - 50
         local posY = mePos2D.y
         local num1 = math.floor(1350+gsoAIO.Spells.qLatency-(GetTickCount()-gsoAIO.Spells.lastQ))
+        local timerEnabled = gsoAIO.Load.menu.gsodraw.texts1.enabletime:Value()
+        local timerColor = gsoAIO.Load.menu.gsodraw.texts1.colortime:Value()
         if num1 > 1 then
-            local str1 = tostring(num1)
-            local str2 = ""
-            for i = 1, #str1 do
-                if #str1 <=2 then
-                    str2 = 0
-                    break
-                end
-                local char1 = i <= #str1-2 and str1:sub(i,i) or "0"
-                str2 = str2..char1
-            end
-            Draw.Text(str2, 50, posX+50, posY-15, gsoAIO.Load.menu.gsotwitch.draws.colort:Value())
-        elseif self.hasQBuff then
-            local extraQTime = 1000*myHero:GetSpellData(_Q).level
-            local num2 = math.floor(self.qBuffTime-GetTickCount()+gsoAIO.Spells.qLatency)
-            if num2 > 1 then
-                local str1 = tostring(num2)
+            if timerEnabled then
+                local str1 = tostring(num1)
                 local str2 = ""
                 for i = 1, #str1 do
                     if #str1 <=2 then
@@ -2401,12 +2335,29 @@ function __gsoTwitch:_draw()
                     local char1 = i <= #str1-2 and str1:sub(i,i) or "0"
                     str2 = str2..char1
                 end
-                Draw.Text(str2, 50, posX+50, posY-15, gsoAIO.Load.menu.gsotwitch.draws.colort:Value())
-                if gsoAIO.Load.menu.gsotwitch.draws.invenable:Value() then
-                    Draw.Circle(mePos, 500, 1, gsoAIO.Load.menu.gsotwitch.draws.invcolor:Value())
+                Draw.Text(str2, 50, posX+50, posY-15, timerColor)
+            end
+        elseif self.hasQBuff then
+            local num2 = math.floor(self.qBuffTime-GetTickCount()+gsoAIO.Spells.qLatency)
+            if num2 > 1 then
+                if gsoAIO.Load.menu.gsodraw.circle1.invenable:Value() then
+                    Draw.Circle(mePos, 500, 1, gsoAIO.Load.menu.gsodraw.circle1.invcolor:Value())
                 end
-                if gsoAIO.Load.menu.gsotwitch.draws.notenable:Value() then
-                    Draw.Circle(mePos, 800, 1, gsoAIO.Load.menu.gsotwitch.draws.notcolor:Value())
+                if gsoAIO.Load.menu.gsodraw.circle1.notenable:Value() then
+                    Draw.Circle(mePos, 800, 1, gsoAIO.Load.menu.gsodraw.circle1.notcolor:Value())
+                end
+                if timerEnabled then
+                    local str1 = tostring(num2)
+                    local str2 = ""
+                    for i = 1, #str1 do
+                        if #str1 <=2 then
+                            str2 = 0
+                            break
+                        end
+                        local char1 = i <= #str1-2 and str1:sub(i,i) or "0"
+                        str2 = str2..char1
+                    end
+                    Draw.Text(str2, 50, posX+50, posY-15, timerColor)
                 end
             end
         end
@@ -2431,6 +2382,7 @@ function __gsoKogMaw:__init()
     self.hasWBuff = false
     gsoAIO.Orb.baseAASpeed = 0.665
     gsoAIO.Orb.baseWindUp = 0.1662234
+    gsoAIO.Vars.drawRanges = { q = true, qrange = 1175, e = true, erange = 1280, r = true, rfunc = function() return self:_rRange() end }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
@@ -2459,6 +2411,18 @@ function __gsoKogMaw:_menu()
             gsoAIO.Load.menu.gsokog.rset:MenuElement({id = "combo", name = "Combo", value = true})
             gsoAIO.Load.menu.gsokog.rset:MenuElement({id = "harass", name = "Harass", value = false})
             gsoAIO.Load.menu.gsokog.rset:MenuElement({id = "stack", name = "Stop at x stacks", value = 3, min = 1, max = 9, step = 1 })
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoKogMaw:_rRange()
+    local rlvl = myHero:GetSpellData(_R).level
+    if rlvl == 0 then
+        return 1200
+    else
+        return 900 + ( 300 * rlvl )
+    end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -2653,13 +2617,14 @@ function __gsoDraven:__init()
     self.lMove = 0
     gsoAIO.Orb.baseAASpeed = 0.679
     gsoAIO.Orb.baseWindUp = 0.1561439
+    gsoAIO.Vars.drawRanges = { e = true, erange = 1050 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setMousePos(function() return self:_setMousePos() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
-    Callback.Add('Draw', function() self:_draw() end)
+    gsoAIO.Vars:_setDraw(function() self:_draw() end)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -2676,16 +2641,6 @@ function __gsoDraven:_menu()
                 gsoAIO.Load.menu.gsodraven.aset.dist:MenuElement({id = "extradur", name = "extra axe duration time", value = 100, min = 0, max = 300, step = 10 })
                 gsoAIO.Load.menu.gsodraven.aset.dist:MenuElement({id = "stopmove", name = "axePos in distance < X | Hold radius", value = 75, min = 50, max = 125, step = 5 })
                 gsoAIO.Load.menu.gsodraven.aset.dist:MenuElement({id = "cdist", name = "max distance from axePos to cursorPos", value = 750, min = 500, max = 1500, step = 50 })
-            gsoAIO.Load.menu.gsodraven.aset:MenuElement({name = "Draw", id = "draw", type = MENU })
-                gsoAIO.Load.menu.gsodraven.aset.draw:MenuElement({name = "Enable",  id = "enable", value = true})
-                gsoAIO.Load.menu.gsodraven.aset.draw:MenuElement({name = "Good", id = "good", type = MENU })
-                    gsoAIO.Load.menu.gsodraven.aset.draw.good:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 49, 210, 0)})
-                    gsoAIO.Load.menu.gsodraven.aset.draw.good:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
-                    gsoAIO.Load.menu.gsodraven.aset.draw.good:MenuElement({name = "Radius",  id = "radius", value = 170, min = 50, max = 300, step = 10})
-                gsoAIO.Load.menu.gsodraven.aset.draw:MenuElement({name = "Bad", id = "bad", type = MENU })
-                    gsoAIO.Load.menu.gsodraven.aset.draw.bad:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 153, 0, 0)})
-                    gsoAIO.Load.menu.gsodraven.aset.draw.bad:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
-                    gsoAIO.Load.menu.gsodraven.aset.draw.bad:MenuElement({name = "Radius",  id = "radius", value = 170, min = 50, max = 300, step = 10})
         gsoAIO.Load.menu.gsodraven:MenuElement({name = "Q settings", id = "qset", type = MENU })
             gsoAIO.Load.menu.gsodraven.qset:MenuElement({id = "combo", name = "Combo", value = true})
             gsoAIO.Load.menu.gsodraven.qset:MenuElement({id = "harass", name = "Harass", value = false})
@@ -2886,13 +2841,23 @@ end
 --
 --
 function __gsoDraven:_draw()
-    if gsoAIO.Load.menu.gsodraven.aset.catch:Value() and gsoAIO.Load.menu.gsodraven.aset.draw.enable:Value() then
-        for k,v in pairs(self.qParticles) do
-            if not v.success then
-                if v.active then
-                    Draw.Circle(v.pos, gsoAIO.Load.menu.gsodraven.aset.draw.good.radius:Value(), gsoAIO.Load.menu.gsodraven.aset.draw.good.width:Value(), gsoAIO.Load.menu.gsodraven.aset.draw.good.color:Value())
-                else
-                    Draw.Circle(v.pos, gsoAIO.Load.menu.gsodraven.aset.draw.bad.radius:Value(), gsoAIO.Load.menu.gsodraven.aset.draw.bad.width:Value(), gsoAIO.Load.menu.gsodraven.aset.draw.bad.color:Value())
+    if gsoAIO.Load.menu.gsodraven.aset.catch:Value() then
+        local aenabled = gsoAIO.Load.menu.gsodraw.circle1.aaxeenable:Value()
+        local ienabled = gsoAIO.Load.menu.gsodraw.circle1.iaxeenable:Value()
+        if aenabled or ienabled then
+            for k,v in pairs(self.qParticles) do
+                if not v.success then
+                    if v.active and aenabled then
+                        local acol = gsoAIO.Load.menu.gsodraw.circle1.aaxecolor:Value()
+                        local arad = gsoAIO.Load.menu.gsodraw.circle1.aaxeradius:Value()
+                        local awid = gsoAIO.Load.menu.gsodraw.circle1.aaxewidth:Value()
+                        Draw.Circle(v.pos, arad, awid, acol)
+                    elseif ienabled then
+                        local icol = gsoAIO.Load.menu.gsodraw.circle1.iaxecolor:Value()
+                        local irad = gsoAIO.Load.menu.gsodraw.circle1.iaxeradius:Value()
+                        local iwid = gsoAIO.Load.menu.gsodraw.circle1.iaxewidth:Value()
+                        Draw.Circle(v.pos, irad, iwid, icol)
+                    end
                 end
             end
         end
@@ -2909,9 +2874,6 @@ class "__gsoEzreal"
 --
 --
 function __gsoEzreal:__init()
-    self.res          = Game.Resolution()
-    self.resX         = self.res.x
-    self.resY         = self.res.y
     self.lastQ        = 0
     self.lastW        = 0
     self.lastE        = 0
@@ -2919,12 +2881,13 @@ function __gsoEzreal:__init()
     self.shouldWait   = false
     gsoAIO.Orb.baseAASpeed = 0.625
     gsoAIO.Orb.baseWindUp = 0.18838652
+    gsoAIO.Vars.drawRanges = { q = true, qrange = 1150, w = true, wrange = 1000, e = true, erange = 475 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
-    Callback.Add('Draw', function() self:_draw() end)
+    gsoAIO.Vars:_setDraw(function() self:_draw() end)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -2935,12 +2898,6 @@ function __gsoEzreal:_menu()
         gsoAIO.Load.menu.gsoezreal:MenuElement({name = "Auto Q", id = "autoq", type = MENU })
             gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({id = "enable", name = "Enable", value = true, key = string.byte("T"), toggle = true})
             gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({id = "mana", name = "Q Auto min. mana percent", value = 50, min = 0, max = 100, step = 1 })
-            gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({id = "draw", name = "Draw Text", value = true})
-            gsoAIO.Load.menu.gsoezreal.autoq:MenuElement({name = "Text Settings", id = "textset", type = MENU })
-                gsoAIO.Load.menu.gsoezreal.autoq.textset:MenuElement({id = "size", name = "Text Size", value = 25, min = 1, max = 64, step = 1 })
-                gsoAIO.Load.menu.gsoezreal.autoq.textset:MenuElement({id = "custom", name = "Custom Position", value = false})
-                gsoAIO.Load.menu.gsoezreal.autoq.textset:MenuElement({id = "posX", name = "Text Position Width", value = self.resX * 0.5 - 150, min = 1, max = self.resX, step = 1 })
-                gsoAIO.Load.menu.gsoezreal.autoq.textset:MenuElement({id = "posY", name = "Text Position Height", value = self.resY * 0.5, min = 1, max = self.resY, step = 1 })
         gsoAIO.Load.menu.gsoezreal:MenuElement({name = "Q settings", id = "qset", type = MENU })
             gsoAIO.Load.menu.gsoezreal.qset:MenuElement({id = "hitchance", name = "Hitchance", value = 1, drop = { "normal", "high" } })
             gsoAIO.Load.menu.gsoezreal.qset:MenuElement({id = "combo", name = "Combo", value = true})
@@ -3327,15 +3284,15 @@ end
 --
 --
 function __gsoEzreal:_draw()
-    if gsoAIO.Load.menu.gsoezreal.autoq.draw:Value() then
+    if gsoAIO.Load.menu.gsodraw.texts1.enableautoq:Value() then
         local mePos = myHero.pos:To2D()
-        local isCustom = gsoAIO.Load.menu.gsoezreal.autoq.textset.custom:Value()
-        local posX = isCustom and gsoAIO.Load.menu.gsoezreal.autoq.textset.posX:Value() or mePos.x - 50
-        local posY = isCustom and gsoAIO.Load.menu.gsoezreal.autoq.textset.posY:Value() or mePos.y
+        local isCustom = gsoAIO.Load.menu.gsodraw.texts1.customautoq:Value()
+        local posX = isCustom and gsoAIO.Load.menu.gsodraw.texts1.xautoq:Value() or mePos.x - 50
+        local posY = isCustom and gsoAIO.Load.menu.gsodraw.texts1.yautoq:Value() or mePos.y
         if gsoAIO.Load.menu.gsoezreal.autoq.enable:Value() then
-            Draw.Text("Auto Q Enabled", gsoAIO.Load.menu.gsoezreal.autoq.textset.size:Value(), posX, posY, Draw.Color(255, 000, 255, 000)) 
+            Draw.Text("Auto Q Enabled", gsoAIO.Load.menu.gsodraw.texts1.sizeautoq:Value(), posX, posY, gsoAIO.Load.menu.gsodraw.texts1.colorautoqe:Value()) 
         else
-            Draw.Text("Auto Q Disabled", gsoAIO.Load.menu.gsoezreal.autoq.textset.size:Value(), posX, posY, Draw.Color(255, 255, 000, 000)) 
+            Draw.Text("Auto Q Disabled", gsoAIO.Load.menu.gsodraw.texts1.sizeautoq:Value(), posX, posY, gsoAIO.Load.menu.gsodraw.texts1.colorautoqd:Value()) 
         end
     end
 end
@@ -3356,6 +3313,7 @@ function __gsoVayne:__init()
     self.lastReset = 0
     gsoAIO.Orb.baseAASpeed = 0.658
     gsoAIO.Orb.baseWindUp = 0.1754385
+    gsoAIO.Vars.drawRanges = { q = true, qrange = 300, e = true, erange = 550 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
     gsoAIO.Vars:_setOnTick(function() self:_tick() end)
@@ -3502,10 +3460,20 @@ function __gsoTeemo:__init()
     self.lastW = 0
     gsoAIO.Orb.baseAASpeed = 0.69
     gsoAIO.Orb.baseWindUp = 0.215743
+    gsoAIO.Vars.drawRanges = { q = true, qrange = 680, r = true, rfunc = function() return self:_rRange() end }
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
     gsoAIO.Vars:_setCanAttack(function(target) return self:_canAttack(target) end)
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoTeemo:_rRange()
+    local rLvl = myHero:GetSpellData(_R).level
+    if rLvl == 0 then rLvl = 1 end
+    return 150 + ( 250 * rLvl )
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -3614,6 +3582,7 @@ function __gsoSivir:__init()
     self.asNoW = myHero.attackSpeed
     gsoAIO.Orb.baseAASpeed = 0.625
     gsoAIO.Orb.baseWindUp = 0.1199999
+    gsoAIO.Vars.drawRanges = { q = true, qrange = 1250, r = true, rrange = 1000 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -3776,6 +3745,7 @@ function __gsoTristana:__init()
         end
     gsoAIO.Orb.baseAASpeed = 0.656
     gsoAIO.Orb.baseWindUp = 0.1480066
+    gsoAIO.Vars.drawRanges = { w = true, wrange = 900 }
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setAASpeed(function() return self:_aaSpeed() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -3975,8 +3945,11 @@ function __gsoJinx:__init()
     self.lastQ = 0
     self.lastW = 0
     self.lastE = 0
+    self.hasQBuff = false
     gsoAIO.Orb.baseAASpeed = 0.625
     gsoAIO.Orb.baseWindUp = 0.17708122
+    gsoAIO.Vars.drawRanges = { q = true, qfunc = function() return self:_qRange() end, w = true, wrange = 1450, e = true, erange = 900 }
+    gsoAIO.Vars:_setOnTick(function() self:_tick() end)
     gsoAIO.Vars:_setBonusDmg(function() return 3 end)
     gsoAIO.Vars:_setChampMenu(function() return self:_menu() end)
     gsoAIO.Vars:_setCanMove(function() return self:_canMove() end)
@@ -3997,6 +3970,24 @@ function __gsoJinx:_menu()
         gsoAIO.Load.menu.gsojinx:MenuElement({name = "E settings", id = "eset", type = MENU })
             gsoAIO.Load.menu.gsojinx.eset:MenuElement({id = "combo", name = "Combo", value = true})
             gsoAIO.Load.menu.gsojinx.eset:MenuElement({id = "harass", name = "Harass", value = false})
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoJinx:_qRange()
+    if self.hasQBuff then
+        return 525 + myHero.boundingRadius + 75
+    else
+        return 575 + ( 25 * myHero:GetSpellData(_Q).level ) + myHero.boundingRadius + 75
+    end
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoJinx:_tick()
+    self.hasQBuff = gsoAIO.Utils:_hasBuff(myHero, "jinxq")
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
@@ -4064,8 +4055,8 @@ function __gsoJinx:_canAttack(target)
         local isQReady = (isComboQ or isHarassQ) and canQTime and gsoAIO.Utils:_isReady(_Q)
         if isQReady then
             local canCastQ = false
-            local hasQBuff = gsoAIO.Utils:_hasBuff(myHero, "jinxq")
-            local qRange = 575 + ( 25 * myHero:GetSpellData(_E).level )
+            local hasQBuff = self.hasQBuff
+            local qRange = 575 + ( 25 * myHero:GetSpellData(_Q).level )
             if not isTarget and not hasQBuff and gsoAIO.Utils:_countEnemyHeroesInRange(mePos, qRange + 300) > 0 then
                 canCastQ = true
             end
@@ -4126,14 +4117,19 @@ class "__gsoLoad"
 --
 --
 function __gsoLoad:__init()
+    self.res = Game.Resolution()
+    self.resX = self.res.x
+    self.resY = self.res.y
     self.menu = MenuElement({name = "Gamsteron AIO", id = "gamsteronaio", type = MENU, leftIcon = gsoAIO.Vars.Icons["gsoaio"] })
+    self.loadTime = GetTickCount()
     Callback.Add('Load', function() self:_load() end)
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
 --
 --
-function __gsoLoad:_load()
+function __gsoLoad:_menu()
+    
     self.menu:MenuElement({name = "Target Selector", id = "ts", type = MENU, leftIcon = gsoAIO.Vars.Icons["ts"] })
         self.menu.ts:MenuElement({ id = "Mode", name = "Mode", value = 1, drop = { "Auto", "Closest", "Least Health", "Least Priority" } })
         if gsoAIO.Vars.meTristana then
@@ -4145,11 +4141,7 @@ function __gsoLoad:_load()
         self.menu.ts:MenuElement({ id = "selected", name = "Selected Target", type = MENU })
             self.menu.ts.selected:MenuElement({ id = "enable", name = "Enable", value = true })
             self.menu.ts.selected:MenuElement({ id = "only", name = "Only Selected Target", value = false })
-            self.menu.ts.selected:MenuElement({name = "Draw",  id = "draw", type = MENU})
-                self.menu.ts.selected.draw:MenuElement({name = "Enable",  id = "enable", value = true})
-                self.menu.ts.selected.draw:MenuElement({name = "Color",  id = "color", color = Draw.Color(255, 204, 0, 0)})
-                self.menu.ts.selected.draw:MenuElement({name = "Width",  id = "width", value = 3, min = 1, max = 10})
-                self.menu.ts.selected.draw:MenuElement({name = "Radius",  id = "radius", value = 150, min = 1, max = 300})
+    
     self.menu:MenuElement({name = "Orbwalker", id = "orb", type = MENU, leftIcon = gsoAIO.Vars.Icons["orb"] })
         self.menu.orb:MenuElement({name = "Delays", id = "delays", type = MENU})
             self.menu.orb.delays:MenuElement({name = "Extra Kite Delay", id = "windup", value = 0, min = 0, max = 50, step = 1 })
@@ -4160,24 +4152,279 @@ function __gsoLoad:_load()
             self.menu.orb.keys:MenuElement({name = "Harass Key", id = "harass", key = string.byte("C")})
             self.menu.orb.keys:MenuElement({name = "LastHit Key", id = "lastHit", key = string.byte("X")})
             self.menu.orb.keys:MenuElement({name = "LaneClear Key", id = "laneClear", key = string.byte("V")})
-        self.menu.orb:MenuElement({name = "Drawings", id = "draw", type = MENU})
-            self.menu.orb.draw:MenuElement({name = "Enable", id = "enable", value = true})
-            self.menu.orb.draw:MenuElement({name = "MyHero attack range", id = "me", type = MENU})
-                self.menu.orb.draw.me:MenuElement({name = "Enable",  id = "enable", value = true})
-                self.menu.orb.draw.me:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 49, 210, 0)})
-                self.menu.orb.draw.me:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
-            self.menu.orb.draw:MenuElement({name = "Enemy attack range", id = "he", type = MENU})
-                self.menu.orb.draw.he:MenuElement({name = "Enable",  id = "enable", value = true})
-                self.menu.orb.draw.he:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 255, 0, 0)})
-                self.menu.orb.draw.he:MenuElement({name = "Width",  id = "width", value = 1, min = 1, max = 10})
-            self.menu.orb.draw:MenuElement({name = "Cursor Posistion",  id = "cpos", type = MENU})
-                self.menu.orb.draw.cpos:MenuElement({name = "Enable",  id = "enable", value = true})
-                self.menu.orb.draw.cpos:MenuElement({name = "Color",  id = "color", color = Draw.Color(150, 153, 0, 76)})
-                self.menu.orb.draw.cpos:MenuElement({name = "Width",  id = "width", value = 5, min = 1, max = 10})
-                self.menu.orb.draw.cpos:MenuElement({name = "Radius",  id = "radius", value = 250, min = 1, max = 300})
+    
     self.menu:MenuElement({name = "Items", id = "gsoitem", type = MENU, leftIcon = gsoAIO.Vars.Icons["item"] })
         self.menu.gsoitem:MenuElement({id = "botrk", name = "        botrk", value = true, leftIcon = gsoAIO.Vars.Icons["botrk"] })
+    
+    self.menu:MenuElement({name = "Drawings", id = "gsodraw", leftIcon = gsoAIO.Vars.Icons["circles"], type = MENU })
+        self.menu.gsodraw:MenuElement({name = "Enabled",  id = "enabled", value = true})
+    
     if self.menu.orb.delays.windup:Value() < 0 then self.menu.orb.delays.windup:Value(0) end
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoLoad:_menuDrawRanges()
+    self.menu.gsodraw:MenuElement({name = "Circles", id = "circle1", type = MENU,
+        onclick = function()
+            self.menu.gsodraw.circle1.merange:Hide(true)
+            self.menu.gsodraw.circle1.mecolor:Hide(true)
+            self.menu.gsodraw.circle1.mewidth:Hide(true)
+            self.menu.gsodraw.circle1.herange:Hide(true)
+            self.menu.gsodraw.circle1.hecolor:Hide(true)
+            self.menu.gsodraw.circle1.hewidth:Hide(true)
+            self.menu.gsodraw.circle1.cpos:Hide(true)
+            self.menu.gsodraw.circle1.cposcolor:Hide(true)
+            self.menu.gsodraw.circle1.cposwidth:Hide(true)
+            self.menu.gsodraw.circle1.cposradius:Hide(true)
+            self.menu.gsodraw.circle1.seltar:Hide(true)
+            self.menu.gsodraw.circle1.seltarcolor:Hide(true)
+            self.menu.gsodraw.circle1.seltarwidth:Hide(true)
+            self.menu.gsodraw.circle1.seltarradius:Hide(true)
+            if gsoAIO.Vars.meTwitch then
+                self.menu.gsodraw.circle1.invenable:Hide(true)
+                self.menu.gsodraw.circle1.invcolor:Hide(true)
+                self.menu.gsodraw.circle1.notenable:Hide(true)
+                self.menu.gsodraw.circle1.notcolor:Hide(true)
+            end
+            if gsoAIO.Vars.meDraven then
+                self.menu.gsodraw.circle1.aaxeenable:Hide(true)
+                self.menu.gsodraw.circle1.aaxecolor:Hide(true)
+                self.menu.gsodraw.circle1.aaxewidth:Hide(true)
+                self.menu.gsodraw.circle1.aaxeradius:Hide(true)
+                self.menu.gsodraw.circle1.iaxeenable:Hide(true)
+                self.menu.gsodraw.circle1.iaxecolor:Hide(true)
+                self.menu.gsodraw.circle1.iaxewidth:Hide(true)
+                self.menu.gsodraw.circle1.iaxeradius:Hide(true)
+            end
+            if gsoAIO.Vars.drawRanges.q then
+                self.menu.gsodraw.circle1.qrange:Hide(true)
+                self.menu.gsodraw.circle1.qrangecolor:Hide(true)
+                self.menu.gsodraw.circle1.qrangewidth:Hide(true)
+            end
+            if gsoAIO.Vars.drawRanges.w then
+                self.menu.gsodraw.circle1.wrange:Hide(true)
+                self.menu.gsodraw.circle1.wrangecolor:Hide(true)
+                self.menu.gsodraw.circle1.wrangewidth:Hide(true)
+            end
+            if gsoAIO.Vars.drawRanges.e then
+                self.menu.gsodraw.circle1.erange:Hide(true)
+                self.menu.gsodraw.circle1.erangecolor:Hide(true)
+                self.menu.gsodraw.circle1.erangewidth:Hide(true)
+            end
+            if gsoAIO.Vars.drawRanges.r then
+                self.menu.gsodraw.circle1.rrange:Hide(true)
+                self.menu.gsodraw.circle1.rrangecolor:Hide(true)
+                self.menu.gsodraw.circle1.rrangewidth:Hide(true)
+            end
+        end
+    })
+        self.menu.gsodraw.circle1:MenuElement({name = "MyHero attack range", id = "note1", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+            onclick = function()
+                self.menu.gsodraw.circle1.merange:Hide()
+                self.menu.gsodraw.circle1.mecolor:Hide()
+                self.menu.gsodraw.circle1.mewidth:Hide()
+            end
+        })
+            self.menu.gsodraw.circle1:MenuElement({name = "        Enabled",  id = "merange", value = true})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Color",  id = "mecolor", color = Draw.Color(150, 49, 210, 0)})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Width",  id = "mewidth", value = 1, min = 1, max = 10})
+
+        self.menu.gsodraw.circle1:MenuElement({name = "Enemy attack range", id = "note2", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+            onclick = function()
+                self.menu.gsodraw.circle1.herange:Hide()
+                self.menu.gsodraw.circle1.hecolor:Hide()
+                self.menu.gsodraw.circle1.hewidth:Hide()
+            end
+        })
+            self.menu.gsodraw.circle1:MenuElement({name = "        Enabled",  id = "herange", value = true})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Color",  id = "hecolor", color = Draw.Color(150, 255, 0, 0)})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Width",  id = "hewidth", value = 1, min = 1, max = 10})
+
+        self.menu.gsodraw.circle1:MenuElement({name = "Cursor Position", id = "note3", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+            onclick = function()
+                self.menu.gsodraw.circle1.cpos:Hide()
+                self.menu.gsodraw.circle1.cposcolor:Hide()
+                self.menu.gsodraw.circle1.cposwidth:Hide()
+                self.menu.gsodraw.circle1.cposradius:Hide()
+            end
+        })
+            self.menu.gsodraw.circle1:MenuElement({name = "        Enabled",  id = "cpos", value = true})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Color",  id = "cposcolor", color = Draw.Color(150, 153, 0, 76)})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Width",  id = "cposwidth", value = 5, min = 1, max = 10})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Radius",  id = "cposradius", value = 250, min = 1, max = 300})
+
+        self.menu.gsodraw.circle1:MenuElement({name = "Selected Target", id = "note4", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+            onclick = function()
+                self.menu.gsodraw.circle1.seltar:Hide()
+                self.menu.gsodraw.circle1.seltarcolor:Hide()
+                self.menu.gsodraw.circle1.seltarwidth:Hide()
+                self.menu.gsodraw.circle1.seltarradius:Hide()
+            end
+        })
+            self.menu.gsodraw.circle1:MenuElement({name = "        Enabled",  id = "seltar", value = true})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Color",  id = "seltarcolor", color = Draw.Color(255, 204, 0, 0)})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Width",  id = "seltarwidth", value = 3, min = 1, max = 10})
+            self.menu.gsodraw.circle1:MenuElement({name = "        Radius",  id = "seltarradius", value = 150, min = 1, max = 300})
+        
+        if gsoAIO.Vars.meTwitch then
+            self.menu.gsodraw.circle1:MenuElement({name = "Q Invisible Range", id = "note9", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                onclick = function()
+                    self.menu.gsodraw.circle1.invenable:Hide()
+                    self.menu.gsodraw.circle1.invcolor:Hide()
+                end
+            })
+                self.menu.gsodraw.circle1:MenuElement({id = "invenable", name = "        Enabled", value = true})
+                self.menu.gsodraw.circle1:MenuElement({id = "invcolor", name = "        Color ", color = Draw.Color(200, 255, 0, 0)})
+
+            self.menu.gsodraw.circle1:MenuElement({name = "Q Notification Range", id = "note10", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                onclick = function()
+                    self.menu.gsodraw.circle1.notenable:Hide()
+                    self.menu.gsodraw.circle1.notcolor:Hide()
+                end
+            })
+                self.menu.gsodraw.circle1:MenuElement({id = "notenable", name = "        Enabled", value = true})
+                self.menu.gsodraw.circle1:MenuElement({id = "notcolor", name = "        Color", color = Draw.Color(200, 188, 77, 26)})
+        end
+        
+        if gsoAIO.Vars.drawRanges.q then
+            self.menu.gsodraw.circle1:MenuElement({name = "Q Range", id = "note5", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                onclick = function()
+                    self.menu.gsodraw.circle1.qrange:Hide()
+                    self.menu.gsodraw.circle1.qrangecolor:Hide()
+                    self.menu.gsodraw.circle1.qrangewidth:Hide()
+                end
+            })
+                self.menu.gsodraw.circle1:MenuElement({id = "qrange", name = "        Enabled", value = true})
+                self.menu.gsodraw.circle1:MenuElement({id = "qrangecolor", name = "        Color", color = Draw.Color(255, 66, 134, 244)})
+                self.menu.gsodraw.circle1:MenuElement({id = "qrangewidth", name = "        Width", value = 1, min = 1, max = 10})
+        end
+        
+        if gsoAIO.Vars.drawRanges.w then
+            self.menu.gsodraw.circle1:MenuElement({name = "W Range", id = "note6", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                onclick = function()
+                    self.menu.gsodraw.circle1.wrange:Hide()
+                    self.menu.gsodraw.circle1.wrangecolor:Hide()
+                    self.menu.gsodraw.circle1.wrangewidth:Hide()
+                end
+            })
+                self.menu.gsodraw.circle1:MenuElement({id = "wrange", name = "        Enabled", value = true})
+                self.menu.gsodraw.circle1:MenuElement({id = "wrangecolor", name = "        Color", color = Draw.Color(255, 92, 66, 244)})
+                self.menu.gsodraw.circle1:MenuElement({id = "wrangewidth", name = "        Width", value = 1, min = 1, max = 10})
+        end
+        
+        if gsoAIO.Vars.drawRanges.e then
+            self.menu.gsodraw.circle1:MenuElement({name = "E Range", id = "note7", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                onclick = function()
+                    self.menu.gsodraw.circle1.erange:Hide()
+                    self.menu.gsodraw.circle1.erangecolor:Hide()
+                    self.menu.gsodraw.circle1.erangewidth:Hide()
+                end
+            })
+                self.menu.gsodraw.circle1:MenuElement({id = "erange", name = "        Enabled", value = true})
+                self.menu.gsodraw.circle1:MenuElement({id = "erangecolor", name = "        Color", color = Draw.Color(255, 66, 244, 149)})
+                self.menu.gsodraw.circle1:MenuElement({id = "erangewidth", name = "        Width", value = 1, min = 1, max = 10})
+        end
+        
+        if gsoAIO.Vars.drawRanges.r then
+            self.menu.gsodraw.circle1:MenuElement({name = "R Range", id = "note8", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                onclick = function()
+                    self.menu.gsodraw.circle1.rrange:Hide()
+                    self.menu.gsodraw.circle1.rrangecolor:Hide()
+                    self.menu.gsodraw.circle1.rrangewidth:Hide()
+                end
+            })
+                self.menu.gsodraw.circle1:MenuElement({id = "rrange", name = "        Enabled", value = true})
+                self.menu.gsodraw.circle1:MenuElement({id = "rrangecolor", name = "        Color", color = Draw.Color(255, 244, 182, 66)})
+                self.menu.gsodraw.circle1:MenuElement({id = "rrangewidth", name = "        Width", value = 1, min = 1, max = 10})
+        end
+        
+        if gsoAIO.Vars.meDraven then
+            self.menu.gsodraw.circle1:MenuElement({name = "Active Axe", id = "note9", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                onclick = function()
+                    self.menu.gsodraw.circle1.aaxeenable:Hide()
+                    self.menu.gsodraw.circle1.aaxecolor:Hide()
+                    self.menu.gsodraw.circle1.aaxewidth:Hide()
+                    self.menu.gsodraw.circle1.aaxeradius:Hide()
+                end
+            })
+                self.menu.gsodraw.circle1:MenuElement({name = "        Enabled",  id = "aaxeenable", value = true})
+                self.menu.gsodraw.circle1:MenuElement({name = "        Color",  id = "aaxecolor", color = Draw.Color(255, 49, 210, 0)})
+                self.menu.gsodraw.circle1:MenuElement({name = "        Width",  id = "aaxewidth", value = 1, min = 1, max = 10})
+                self.menu.gsodraw.circle1:MenuElement({name = "        Radius",  id = "aaxeradius", value = 170, min = 50, max = 300, step = 10})
+            
+            self.menu.gsodraw.circle1:MenuElement({name = "InActive Axes", id = "note10", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                onclick = function()
+                    self.menu.gsodraw.circle1.iaxeenable:Hide()
+                    self.menu.gsodraw.circle1.iaxecolor:Hide()
+                    self.menu.gsodraw.circle1.iaxewidth:Hide()
+                    self.menu.gsodraw.circle1.iaxeradius:Hide()
+                end
+            })
+                self.menu.gsodraw.circle1:MenuElement({name = "        Enabled",  id = "iaxeenable", value = true})
+                self.menu.gsodraw.circle1:MenuElement({name = "        Color",  id = "iaxecolor", color = Draw.Color(255, 153, 0, 0)})
+                self.menu.gsodraw.circle1:MenuElement({name = "        Width",  id = "iaxewidth", value = 1, min = 1, max = 10})
+                self.menu.gsodraw.circle1:MenuElement({name = "        Radius",  id = "iaxeradius", value = 170, min = 50, max = 300, step = 10})
+        end
+    if gsoAIO.Vars.meTwitch or gsoAIO.Vars.meEzreal then
+        self.menu.gsodraw:MenuElement({name = "Texts", id = "texts1", type = MENU,
+            onclick = function()
+                if gsoAIO.Vars.meTwitch then
+                    self.menu.gsodraw.texts1.enabletime:Hide(true)
+                    self.menu.gsodraw.texts1.colortime:Hide(true)
+                end
+                if gsoAIO.Vars.meEzreal then
+                    self.menu.gsodraw.texts1.enableautoq:Hide(true)
+                    self.menu.gsodraw.texts1.colorautoqe:Hide(true)
+                    self.menu.gsodraw.texts1.colorautoqd:Hide(true)
+                    self.menu.gsodraw.texts1.sizeautoq:Hide(true)
+                    self.menu.gsodraw.texts1.customautoq:Hide(true)
+                    self.menu.gsodraw.texts1.xautoq:Hide(true)
+                    self.menu.gsodraw.texts1.yautoq:Hide(true)
+                end
+            end
+        })
+            if gsoAIO.Vars.meTwitch then
+                self.menu.gsodraw.texts1:MenuElement({name = "Q Timer", id = "note11", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                    onclick = function()
+                        self.menu.gsodraw.texts1.enabletime:Hide()
+                        self.menu.gsodraw.texts1.colortime:Hide()
+                    end
+                })
+                    self.menu.gsodraw.texts1:MenuElement({id = "enabletime", name = "        Enabled", value = true})
+                    self.menu.gsodraw.texts1:MenuElement({id = "colortime", name = "        Color", color = Draw.Color(200, 65, 255, 100)})
+                    
+            end
+            if gsoAIO.Vars.meEzreal then
+                self.menu.gsodraw.texts1:MenuElement({name = "Auto Q", id = "note9", icon = gsoAIO.Vars.Icons["arrow"], type = SPACE,
+                    onclick = function()
+                        self.menu.gsodraw.texts1.enableautoq:Hide()
+                        self.menu.gsodraw.texts1.colorautoqe:Hide()
+                        self.menu.gsodraw.texts1.colorautoqd:Hide()
+                        self.menu.gsodraw.texts1.sizeautoq:Hide()
+                        self.menu.gsodraw.texts1.customautoq:Hide()
+                        self.menu.gsodraw.texts1.xautoq:Hide()
+                        self.menu.gsodraw.texts1.yautoq:Hide()
+                    end
+                })
+                    self.menu.gsodraw.texts1:MenuElement({id = "enableautoq", name = "        Enabled", value = true})
+                    self.menu.gsodraw.texts1:MenuElement({id = "colorautoqe", name = "        Color If Enabled", color = Draw.Color(255, 000, 255, 000)})
+                    self.menu.gsodraw.texts1:MenuElement({id = "colorautoqd", name = "        Color If Disabled", color = Draw.Color(255, 255, 000, 000)})
+                    self.menu.gsodraw.texts1:MenuElement({id = "sizeautoq", name = "        Text Size", value = 25, min = 1, max = 64, step = 1 })
+                    self.menu.gsodraw.texts1:MenuElement({id = "customautoq", name = "        Custom Text Position", value = false})
+                    self.menu.gsodraw.texts1:MenuElement({id = "xautoq", name = "        Custom Width", value = self.resX * 0.5 - 150, min = 1, max = self.resX, step = 1 })
+                    self.menu.gsodraw.texts1:MenuElement({id = "yautoq", name = "        Custom Height", value = self.resY * 0.5, min = 1, max = self.resY, step = 1 })
+            end
+                    
+    end
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoLoad:_load()
+    self:_menu()
     gsoAIO.Dmg = __gsoDmg()
     gsoAIO.Items = __gsoItems()
     gsoAIO.Spells = __gsoSpells()
@@ -4222,7 +4469,38 @@ function __gsoLoad:_load()
         __gsoJinx()
     end
     gsoAIO.Vars._champMenu()
+    Callback.Add('Draw', function() self:_draw() end)
+    self:_menuDrawRanges()
     print("gamsteronAIO "..gsoAIO.Vars.version.." | loaded!")
+end
+--   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+--
+--
+--
+function __gsoLoad:_draw()
+    if not self.menu.gsodraw.enabled:Value() or GetTickCount() < self.loadTime + 500 then
+        return
+    end
+    for i = 1, #gsoAIO.Vars._draw do
+        gsoAIO.Vars._draw[i]()
+    end
+    local mePos = myHero.pos
+    if gsoAIO.Vars.drawRanges.q and self.menu.gsodraw.circle1.qrange:Value() then
+        local qrange = gsoAIO.Vars.drawRanges.qrange and gsoAIO.Vars.drawRanges.qrange or gsoAIO.Vars.drawRanges.qfunc()
+        Draw.Circle(mePos, qrange, self.menu.gsodraw.circle1.qrangewidth:Value(), self.menu.gsodraw.circle1.qrangecolor:Value())
+    end
+    if gsoAIO.Vars.drawRanges.w and self.menu.gsodraw.circle1.wrange:Value() then
+        local wrange = gsoAIO.Vars.drawRanges.wrange and gsoAIO.Vars.drawRanges.wrange or gsoAIO.Vars.drawRanges.wfunc()
+        Draw.Circle(mePos, wrange, self.menu.gsodraw.circle1.wrangewidth:Value(), self.menu.gsodraw.circle1.wrangecolor:Value())
+    end
+    if gsoAIO.Vars.drawRanges.e and self.menu.gsodraw.circle1.erange:Value() then
+        local erange = gsoAIO.Vars.drawRanges.erange and gsoAIO.Vars.drawRanges.erange or gsoAIO.Vars.drawRanges.efunc()
+        Draw.Circle(mePos, erange, self.menu.gsodraw.circle1.erangewidth:Value(), self.menu.gsodraw.circle1.erangecolor:Value())
+    end
+    if gsoAIO.Vars.drawRanges.r and self.menu.gsodraw.circle1.rrange:Value() then
+        local rrange = gsoAIO.Vars.drawRanges.rrange and gsoAIO.Vars.drawRanges.rrange or gsoAIO.Vars.drawRanges.rfunc()
+        Draw.Circle(mePos, rrange, self.menu.gsodraw.circle1.rrangewidth:Value(), self.menu.gsodraw.circle1.rrangecolor:Value())
+    end
 end
 --   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 --
